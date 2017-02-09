@@ -11,10 +11,10 @@ const {
 const TYPE = '_t'
 const baseModels = require('@tradle/models')
 const validateModels = require('@tradle/validate').models
-const requireModelsPlugin = require('@tradle/bot-plugin-require-models')
+const requireModelsPlugin = require('@tradle/bot-require-models')
 const STRINGS = require('./strings')
 
-module.exports = function productsStrategy (bot, opts={}) {
+module.exports = function createProductsStrategy (opts={}) {
   const {
     // defaults
     namespace,
@@ -35,16 +35,33 @@ module.exports = function productsStrategy (bot, opts={}) {
   }
 
   const customModels = models.concat(appModels.additional)
-  const allModels = baseModels
-    .concat(customModels)
-
+  const allModels = baseModels.concat(customModels)
   validateModels(allModels)
-  bot.use(requireModelsPlugin(customModels))
 
   const modelById = {}
   allModels.forEach(model => {
     modelById[model.id] = model
   })
+
+  return function install (bot) {
+    const uninstall1 = bot.use(requireModelsPlugin(customModels))
+    const uninstall2 = bot.use(productsStrategy, {
+      modelById,
+      appModels
+    })
+
+    return function () {
+      uninstall1()
+      uninstall2()
+    }
+  }
+}
+
+function productsStrategy (bot, opts) {
+  const {
+    modelById,
+    appModels
+  } = opts
 
   const productChooser = createItemRequest({
     item: appModels.application.id
@@ -111,13 +128,14 @@ module.exports = function productsStrategy (bot, opts={}) {
 
       ;['forms', 'applications', 'products', 'importedVerifications', 'history'].forEach(prop => {
         const val = user[prop]
-        if (Array.isArray(val)) val.length = 0
-        else user[prop] = {}
+        if (Array.isArray(val)) {
+          val.length = 0
+        } else {
+          user[prop] = {}
+        }
       })
 
       save(user)
-      // give them time to read the previous message
-      yield wait(2000)
       yield send(user, { [TYPE]: 'tradle.ForgotYou' })
       break
     default:
