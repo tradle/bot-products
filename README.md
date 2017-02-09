@@ -14,8 +14,10 @@ To get this bot to sell your products, just ask nicely:
 const createProductsStrategy = require('@tradle/bot-products')
 // ./test/fixtures/agemodels.js
 const ageModels = require('./test/fixtures/agemodels')
-module.exports = createProductsStrategy({
+const ageVerificationStrategy = createProductsStrategy({
   namespace: 'only.people.old',
   models: ageModels
 })
+
+module.exports = ageVerificationStrategy
 ```
