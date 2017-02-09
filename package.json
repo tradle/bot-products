@@ -1,0 +1,26 @@
+{
+  "name": "@tradle/bot-products",
+  "version": "1.0.0",
+  "description": "form-driven product applications",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tradle/bot-products"
+  },
+  "license": "MIT",
+  "author": "mvayngrib",
+  "dependencies": {
+    "@tradle/bot-require-models": "tradle/bot-require-models",
+    "@tradle/models": "http://github.com/tradle/models",
+    "@tradle/validate": "https://github.com/tradle/validate",
+    "bluebird": "^3.4.7",
+    "uuid": "^3.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.15.0",
+    "tape": "^4.6.3"
+  },
+  "scripts": {
+    "lint": "eslint --quiet ."
+  }
+}
