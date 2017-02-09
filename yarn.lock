@@ -19,7 +19,7 @@
 
 "@tradle/validate@https://github.com/tradle/validate":
   version "1.0.0"
-  resolved "https://github.com/tradle/validate#290245c19f5526bb34fc5d17296df9696269c478"
+  resolved "https://github.com/tradle/validate#16fb7434e0991ec3e4dbb54e478ddda2913c79f8"
   dependencies:
     object.pick "^1.2.0"
     typeforce "^1.10.6"
