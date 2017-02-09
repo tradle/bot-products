@@ -7,21 +7,15 @@ This is a strategy creator, meaning you can give you a set of models and it will
 
 ## Usage 
 
-To get this bot to sell your products, 
+To get this bot to sell your products, just ask nicely:
 
 ```js
 // example.js
-const sellProducts = require('./')
+const createProductsStrategy = require('@tradle/bot-products')
 // ./test/fixtures/agemodels.js
-// has several custom product and form models
 const ageModels = require('./test/fixtures/agemodels')
-module.exports = function ageVerification (bot) {
-  const config = {
-    // a unique namespace for your models
-    namespace: 'age.police',
-    models: ageModels
-  }
-
-  return sellProducts(bot, config)
-}
+module.exports = createProductsStrategy({
+  namespace: 'only.people.old',
+  models: ageModels
+})
 ```
