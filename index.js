@@ -4,14 +4,13 @@ const {
   co,
   genApplicationModels,
   format,
-  wait
   // parseId
 } = require('./utils')
 
 const TYPE = '_t'
 const baseModels = require('@tradle/models')
 const validateModels = require('@tradle/validate').models
-const requireModelsPlugin = require('@tradle/bot-require-models')
+const keepModelsFresh = require('@tradle/bot-require-models')
 const STRINGS = require('./strings')
 
 module.exports = function createProductsStrategy (opts={}) {
@@ -44,7 +43,7 @@ module.exports = function createProductsStrategy (opts={}) {
   })
 
   return function install (bot) {
-    const uninstall1 = bot.use(requireModelsPlugin(customModels))
+    const uninstall1 = bot.use(keepModelsFresh(customModels))
     const uninstall2 = bot.use(productsStrategy, {
       modelById,
       appModels

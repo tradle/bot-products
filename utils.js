@@ -52,12 +52,13 @@ function genProductApplicationModel ({ productListEnum, id, title }) {
     type: 'tradle.Model',
     id,
     notShareable: true,
-    title: title || STRINGS.LIST_OF_PRODUCTS,
+    title: title || STRINGS.AGE_VERIFICATION,
     interfaces: ['tradle.Message'],
     subClassOf: 'tradle.Form',
     properties: {
       product: {
         type: 'object',
+        displayName: true,
         ref: productListEnum.id
       }
     },

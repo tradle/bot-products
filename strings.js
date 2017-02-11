@@ -10,6 +10,8 @@ module.exports = {
   NICE_TO_MEET_YOU: 'Nice to meet you!',
   IM_HERE_IF_YOU_NEED: 'I\'m here if you need me',
   ANOTHER: 'Another {0}? Whooah!!',
-  PRODUCT_LIST_MESSAGE: 'I can tell you mean business.',
-  LIST_OF_PRODUCTS: 'See a list of products'
+  PRODUCT_LIST_MESSAGE: 'I can tell you need an',
+  LIST_OF_PRODUCTS: 'See a list of products',
+  PRODUCT_APPLICATION: 'Product Application',
+  AGE_VERIFICATION: 'Age Verification',
 }
