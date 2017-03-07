@@ -1,6 +1,6 @@
 
-module.exports = [
-  {
+module.exports = {
+  'age.police.Over18': {
     type: 'tradle.Model',
     title: 'Over 18',
     id: 'age.police.Over18',
@@ -17,7 +17,7 @@ module.exports = [
       }
     }
   },
-  {
+  'age.police.Under120': {
     type: 'tradle.Model',
     title: 'Under 120',
     id: 'age.police.Under120',
@@ -32,7 +32,7 @@ module.exports = [
       }
     }
   },
-  {
+  'age.police.ParentContactInfo': {
     type: 'tradle.Model',
     title: 'Parent Contact Info',
     id: 'age.police.ParentContactInfo',
@@ -48,4 +48,4 @@ module.exports = [
       }
     }
   }
-]
+}

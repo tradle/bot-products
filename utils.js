@@ -13,41 +13,40 @@ module.exports = {
   wait
 }
 
-function genApplicationModels ({ namespace, models }) {
-  const productModels = models.filter(model => model.subClassOf === 'tradle.FinancialProduct')
-  const productListEnum = genEnumModel({
+function genApplicationModels ({ namespace, models, products }) {
+  const productModels = products.map(id => models[id])
+  const productList = genEnumModel({
     models: productModels,
     id: `${namespace}.Product`
   })
 
-  const certificates = productModels.map(productModel => {
-    return genProductCertificateModel({ productModel })
+  const certificates = {}
+  const additional = {}
+  productModels.forEach(productModel => {
+    const id = productModel.id
+    certificates[id] = genProductCertificateModel({ productModel })
+    additional[id] = productModel
   })
 
-  const certificateForProduct = {}
-  productModels.forEach((model, i) => {
-    certificateForProduct[model.id] = certificates[i]
+  const application = genProductApplicationModel({
+    productList,
+    id: `${namespace}.ProductApplication`
   })
 
   const applicationModels = {
     products: productModels,
-    productList: productListEnum,
-    application: genProductApplicationModel({
-      productListEnum,
-      id: `${namespace}.ProductApplication`
-    }),
+    productList,
+    application,
     certificates,
-    certificateForProduct
+    additional
   }
 
-  applicationModels.additional = applicationModels.certificates
-    .concat(applicationModels.application)
-    .concat(applicationModels.productList)
-
+  additional[application.id] = application
+  additional[productList.id] = productList
   return applicationModels
 }
 
-function genProductApplicationModel ({ productListEnum, id, title }) {
+function genProductApplicationModel ({ productList, id, title }) {
   return normalize({
     type: 'tradle.Model',
     id,
@@ -59,7 +58,7 @@ function genProductApplicationModel ({ productListEnum, id, title }) {
       product: {
         type: 'object',
         displayName: true,
-        ref: productListEnum.id
+        ref: productList.id
       }
     },
     required: ['product'],
@@ -93,11 +92,9 @@ function genProductCertificateModel ({ productModel, id, title }) {
 }
 
 function genEnumModel ({ models, id, title }) {
-  const values = models.map(model => {
-    return {
-      id: model.id,
-      title: model.title
-    }
+  const values = Object.keys(models).map(id => {
+    const { title } = models[id]
+    return { id, title }
   })
 
   return normalize({

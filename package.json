@@ -10,17 +10,16 @@
   "license": "MIT",
   "author": "mvayngrib",
   "dependencies": {
-    "@tradle/bot-require-models": "tradle/bot-require-models",
-    "@tradle/validate": "https://github.com/tradle/validate",
+    "@tradle/bot-require-models": "^1.1.1",
+    "@tradle/models": "https://github.com/tradle/models",
+    "@tradle/validate-model": "^1.0.0",
     "bluebird": "^3.4.7",
-    "uuid": "^3.0.1"
+    "uuid": "^3.0.1",
+    "xtend": "^4.0.1"
   },
-  "peerDependencies": {
-    "@tradle/models": "https://github.com/tradle/models"
-  },
+  "peerDependencies": {},
   "devDependencies": {
     "@tradle/bots": "tradle/bots",
-    "@tradle/models": "https://github.com/tradle/models",
     "eslint": "^3.15.0",
     "tape": "^4.6.3"
   },
