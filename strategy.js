@@ -1,13 +1,13 @@
 const debug = require('debug')('tradle:bot:products')
-const uuid = require('uuid/v4')
-const baseModels = require('@tradle/models/models')
-const buildResource = require('@tradle/build-resource')
 const {
   co,
   format,
+  shallowExtend
   // parseId
 } = require('./utils')
 
+const { addVerification } = require('./state')
+const createAPI = require('./api')
 const STRINGS = require('./strings')
 const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
@@ -19,8 +19,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     appModels
   } = opts
 
-  const models = Object.keys(modelById).map(id => modelById[id])
-  const productChooser = createItemRequest({
+  const api = createAPI({ bot, modelById, appModels })
+  const productChooser = api.createItemRequest({
     item: appModels.application.id
   })
 
@@ -33,8 +33,30 @@ module.exports = function productsStrategyImpl (bot, opts) {
   }
 
   const oncreate = co(function* (user) {
-    user.forms = {}
-    user.applications = {}
+    // objects by permalink
+    user.objects = {
+      // structure:
+      //
+      // [permalink]: { type, link, object }
+    }
+
+    user.forms = {
+      // structure:
+      //
+      // 'tradle.AboutYou': {
+      //   [form.permalink]: [link1, link2, ...]
+      // }
+      // 'tradle.PhotoID': {
+      //   [form.permalink]: [link1, link2, ...]
+      // }
+    }
+
+    user.applications = {
+      // structure:
+      //
+      // 'tradle.CurrentAccount': [{ link, permalink }]
+    }
+
     user.products = {}
     user.importedVerifications = {}
     user.issuedVerifications = {}
@@ -46,8 +68,13 @@ module.exports = function productsStrategyImpl (bot, opts) {
   })
 
   const onmessage = co(function* (data) {
-    const { user, object } = data
-    const type = object[TYPE]
+    const { user, object, type, link, permalink } = data
+    if (!user.objects[permalink]) {
+      user.objects[permalink] = []
+    }
+
+    user.objects[permalink].push({ type, object, link })
+
     const model = modelById[type]
 
     switch (type) {
@@ -112,13 +139,13 @@ module.exports = function productsStrategyImpl (bot, opts) {
   const removeReceiveHandler = bot.addReceiveHandler(onmessage)
   bot.users.on('create', oncreate)
 
-  const handleSimpleMessage = co(function* handleSimpleMessage (data) {
+  const handleSimpleMessage = co(function* (data) {
     const { user, object } = data
     send(user, format(STRINGS.TELL_ME_MORE, object.message))
   })
 
-  const handleProductApplication = co(function* handleProductApplication (data) {
-    const { user, object } = data
+  const handleProductApplication = co(function* (data) {
+    const { user, object, permalink, link } = data
     const product = getProductFromEnumValue(object.product.id)
     if (user.products[product]) {
       const productModel = modelById[product]
@@ -127,48 +154,34 @@ module.exports = function productsStrategyImpl (bot, opts) {
     }
 
     if (!user.applications[product]) {
-      user.applications[product] = object
+      user.applications[product] = []
     }
 
-    user.currentApplication = product
-    return requestNextRequiredItem(data)
+    user.currentApplication = { product, permalink, link }
+    user.applications[product].push({ permalink, link })
+    return continueApplication(data)
   })
 
   const handleForm = co(function* handleForm (data) {
-    const { user, object } = data
-    user.forms[object[TYPE]] = object
-    return requestNextRequiredItem(data)
-  })
-
-  const requestNextRequiredItem = co(function* requestNextRequiredItem ({ user }) {
-    const product = user.currentApplication
-    const productModel = modelById[product]
-    const next = productModel.forms.find(form => !user.forms[form])
-    if (!next) {
-      // we're done!
-      if (user.products[product]) {
-        user.products[product]++
-      } else {
-        user.products[product] = 1
-      }
-
-      const certificateModel = appModels.certificateForProduct[product]
-      const certificate = {
-        [TYPE]: certificateModel.id,
-        myProductId: uuid()
-      }
-
-      return send(user, certificate)
-      // return send(user, format(STRINGS.GOT_PRODUCT, productModel.title))
+    const { user, object, type, link, permalink } = data
+    if (!user.forms[type]) {
+      user.forms[type] = {}
     }
 
-    debug(`requesting next form for ${product}: ${next}`)
-    const reqNextForm = createItemRequest({
-      product,
-      item: next
-    })
+    const forms = user.forms[type]
+    if (!forms[permalink]) {
+      forms[permalink] = []
+    }
 
-    return send(user, reqNextForm)
+    forms[permalink].push(link)
+    return continueApplication(data)
+  })
+
+  const continueApplication = co(function* (data) {
+    const { user } = data
+    data = shallowExtend({ application: user.currentApplication }, data)
+    const requested = yield api.requestNextForm(data)
+    if (!requested) return api.issueProductCertificate(data)
   })
 
   const handleVerification = co(function* ({ user, object }) {
@@ -179,34 +192,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
     })
   })
 
-  /**
-   * Request the next required item from productModel.forms
-   * @param  {product} options.product [description]
-   * @param  {[type]} options.item    [description]
-   * @return {[type]}                 [description]
-   */
-  function createItemRequest ({ product, item }) {
-    const model = modelById[item]
-    let message
-    if (model.id === appModels.application.id) {
-      message = STRINGS.PRODUCT_LIST_MESSAGE
-    } else if (model.subClassOf === 'tradle.Form') {
-      message = STRINGS.PLEASE_FILL_FIRM
-    } else {
-      message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
-    }
-
-    const req = {
-      [TYPE]: 'tradle.FormRequest',
-      form: item,
-      message
-    }
-
-    if (product) req.product = product
-
-    return req
-  }
-
   function getProductFromEnumValue (value) {
     if (value.indexOf(appModels.productList.id) === 0) {
       return value.slice(appModels.productList.id.length + 1)
@@ -215,54 +200,12 @@ module.exports = function productsStrategyImpl (bot, opts) {
     return value
   }
 
-  const verify = co(function* ({ user, object, permalink, link, verification={} }) {
-    if (typeof user === 'string') {
-      user = yield bot.users.get(user)
-    }
-
-    const builder = buildResource({
-        models,
-        model: baseModels[VERIFICATION],
-        resource: verification
-      })
-      .document(object)
-
-    if (!verification.dateVerified) builder.dateVerified(Date.now())
-    if (!verification.sources) {
-      const sources = user.importedVerifications[permalink]
-      if (sources) {
-        builder.sources(sources.map(source => source.verification))
-      }
-    }
-
-    const result = builder.toJSON()
-
-    yield send(user, result)
-    addVerification({
-      state: user.issuedVerifications,
-      verification: result,
-      verifiedItem: { object, link, permalink }
-    })
-  })
-
-  return function disable () {
+  function uninstall () {
     removeReceiveHandler()
     bot.users.removeListener('create', oncreate)
   }
-}
 
-function addVerification ({ state, verification, verifiedItem }) {
-  if (verifiedItem.id) {
-    verifiedItem = verifiedItem.id
-  }
-
-  if (typeof verifiedItem === 'string') {
-    verifiedItem = parseId(verifiedItem)
-  }
-
-  const { link, permalink, object } = verifiedItem
-  const type = verifiedItem.type || object[TYPE]
-  if (!state[permalink]) state[permalink] = []
-
-  state.push({ type, link, permalink, verification })
+  return shallowExtend({
+    uninstall,
+  }, api)
 }

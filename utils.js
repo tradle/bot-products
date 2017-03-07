@@ -1,5 +1,6 @@
 const Promise = require('bluebird')
 const co = Promise.coroutine
+const botUtils = require('@tradle/bots').utils
 const STRINGS = require('./strings')
 
 module.exports = {
@@ -10,7 +11,9 @@ module.exports = {
   genApplicationModels,
   format,
   parseId,
-  wait
+  wait,
+  shallowExtend: botUtils.shallowExtend,
+  shallowClone: botUtils.shallowClone
 }
 
 function genApplicationModels ({ namespace, models, products }) {
