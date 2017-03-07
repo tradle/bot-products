@@ -1,3 +1,4 @@
+const debug = require('debug')('tradle:bot:products')
 const uuid = require('uuid/v4')
 const {
   co,
@@ -7,6 +8,7 @@ const {
 
 const STRINGS = require('./strings')
 const TYPE = '_t'
+const TESTING = process.env.NODE_ENV === 'test'
 
 module.exports = function productsStrategyImpl (bot, opts) {
   const {
@@ -22,20 +24,21 @@ module.exports = function productsStrategyImpl (bot, opts) {
     return bot.send({ userId: user.id, object })
   }
 
-  function save (...args) {
-    return bot.users.save(...args)
+  function save (user) {
+    return bot.users.save(user)
   }
 
-  function oncreate (user) {
+  const oncreate = co(function* (user) {
     user.forms = {}
     user.applications = {}
     user.products = {}
     user.importedVerifications = []
 
-    save(user)
-
-    send(user, STRINGS.NICE_TO_MEET_YOU)
-  }
+    yield save(user)
+    if (!TESTING) {
+      yield send(user, STRINGS.NICE_TO_MEET_YOU)
+    }
+  })
 
   const onmessage = co(function* (data) {
     const { user, object } = data
@@ -50,7 +53,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
       let name = object.profile.firstName
       let oldName = user.profile && user.profile.firstName
       user.profile = object.profile
-      save(user)
+      yield save(user)
       if (name !== oldName) {
         yield send(user, format(STRINGS.HOT_NAME, name))
       }
@@ -86,7 +89,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
         }
       })
 
-      save(user)
+      yield save(user)
       yield send(user, { [TYPE]: 'tradle.ForgotYou' })
       break
     default:
@@ -154,6 +157,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
       // return send(user, format(STRINGS.GOT_PRODUCT, productModel.title))
     }
 
+    debug(`requesting next form for ${product}: ${next}`)
     const reqNextForm = createItemRequest({
       product,
       item: next
@@ -195,7 +199,11 @@ module.exports = function productsStrategyImpl (bot, opts) {
   }
 
   function getProductFromEnumValue (value) {
-    return value.slice(appModels.productList.id.length + 1)
+    if (value.indexOf(appModels.productList.id) === 0) {
+      return value.slice(appModels.productList.id.length + 1)
+    }
+
+    return value
   }
 
   return function disable () {

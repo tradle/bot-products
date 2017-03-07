@@ -25,6 +25,9 @@
   },
   "scripts": {
     "lint": "eslint --quiet .",
-    "start": "bots --conf ./conf.json"
+    "start": "bots --conf ./conf.json",
+    "test": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node test",
+    "test:debug": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node --debug --inspect test",
+    "test:debug-brk": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node --debug-brk --inspect test"
   }
 }

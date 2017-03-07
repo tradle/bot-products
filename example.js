@@ -7,9 +7,9 @@ const ageVerificationStrategy = createProductsStrategy({
   products: getProductModelIds(ageModels)
 })
 
-module.exports = ageVerificationStrategy
-
 function getProductModelIds (models) {
   return Object.keys(models)
     .filter(id => models[id].subClassOf === 'tradle.FinancialProduct')
 }
+
+module.exports = ageVerificationStrategy

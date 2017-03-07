@@ -8,7 +8,7 @@ const {
   genApplicationModels
 } = require('./utils')
 
-module.exports = function createProductsStrategy (opts={}) {
+module.exports = function creator (opts={}) {
   const {
     // defaults
     namespace,
@@ -24,7 +24,12 @@ module.exports = function createProductsStrategy (opts={}) {
     throw new Error('namespace "io.tradle" is reserved. Your models will be ignored by the application')
   }
 
-  const appModels = genApplicationModels({ models, products, namespace })
+  const appModels = genApplicationModels({
+    models: shallowClone(baseModels, models),
+    products,
+    namespace
+  })
+
   if (!Object.keys(appModels.products).length) {
     throw new Error('no product models found')
   }
@@ -33,16 +38,26 @@ module.exports = function createProductsStrategy (opts={}) {
   const modelById = shallowClone(baseModels, customModels)
   validateModels(values(modelById))
 
-  return function install (bot) {
-    const uninstall1 = bot.use(keepModelsFresh(customModels))
-    const uninstall2 = bot.use(productsStrategy, {
+  return {
+    install,
+    models: appModels
+  }
+
+  function install (bot) {
+    let uninstallKeepFresh
+    if (customModels.length) {
+      uninstallKeepFresh = bot.use(keepModelsFresh(customModels))
+    }
+
+    const uninstallProductsStrategy = bot.use(productsStrategy, {
       modelById,
       appModels
     })
 
     return function () {
-      uninstall1()
-      uninstall2()
+      if (uninstallKeepFresh) uninstallKeepFresh()
+
+      uninstallProductsStrategy()
     }
   }
 }

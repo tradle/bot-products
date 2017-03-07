@@ -21,10 +21,13 @@ function genApplicationModels ({ namespace, models, products }) {
   })
 
   const certificates = {}
+  const certificateForProduct = {}
   const additional = {}
   productModels.forEach(productModel => {
-    const id = productModel.id
-    certificates[id] = genProductCertificateModel({ productModel })
+    const { id } = productModel
+    const cert = genProductCertificateModel({ productModel })
+    certificates[cert.id] = cert
+    certificateForProduct[id] = cert
     additional[id] = productModel
   })
 
@@ -38,6 +41,7 @@ function genApplicationModels ({ namespace, models, products }) {
     productList,
     application,
     certificates,
+    certificateForProduct,
     additional
   }
 
@@ -56,6 +60,7 @@ function genProductApplicationModel ({ productList, id, title }) {
     subClassOf: 'tradle.Form',
     properties: {
       product: {
+        inlined: true,
         type: 'object',
         displayName: true,
         ref: productList.id
@@ -70,7 +75,7 @@ function genProductApplicationModel ({ productList, id, title }) {
 function genProductCertificateModel ({ productModel, id, title }) {
   // com.example.Furniture => com.example.MyFurniture
   if (!id) {
-    id = productModel.id.replace(/\.([^.]+)$/, '.My$1')
+    id = getCertificateModelId(productModel.id)
   }
 
   return normalize({
@@ -151,4 +156,8 @@ function parseId (id) {
 
 function wait (millis) {
   return new Promise(resolve => setTimeout(resolve, millis))
+}
+
+function getCertificateModelId (productModelId) {
+  return productModelId.replace(/\.([^.]+)$/, '.My$1')
 }
