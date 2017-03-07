@@ -1,5 +1,7 @@
 const debug = require('debug')('tradle:bot:products')
 const uuid = require('uuid/v4')
+const baseModels = require('@tradle/models/models')
+const buildResource = require('@tradle/build-resource')
 const {
   co,
   format,
@@ -8,6 +10,7 @@ const {
 
 const STRINGS = require('./strings')
 const TYPE = '_t'
+const VERIFICATION = 'tradle.Verification'
 const TESTING = process.env.NODE_ENV === 'test'
 
 module.exports = function productsStrategyImpl (bot, opts) {
@@ -16,6 +19,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
     appModels
   } = opts
 
+  const models = Object.keys(modelById).map(id => modelById[id])
   const productChooser = createItemRequest({
     item: appModels.application.id
   })
@@ -32,7 +36,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     user.forms = {}
     user.applications = {}
     user.products = {}
-    user.importedVerifications = []
+    user.importedVerifications = {}
+    user.issuedVerifications = {}
 
     yield save(user)
     if (!TESTING) {
@@ -71,7 +76,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
       // }
 
       break
-    case 'tradle.Verification':
+    case VERIFICATION:
       yield handleVerification(data)
       break
     case appModels.application.id:
@@ -167,7 +172,11 @@ module.exports = function productsStrategyImpl (bot, opts) {
   })
 
   const handleVerification = co(function* ({ user, object }) {
-    user.importedVerifications.push(object)
+    addVerification({
+      state: user.importedVerifications,
+      verification: object,
+      verifiedItem: object.document
+    })
   })
 
   /**
@@ -206,8 +215,54 @@ module.exports = function productsStrategyImpl (bot, opts) {
     return value
   }
 
+  const verify = co(function* ({ user, object, permalink, link, verification={} }) {
+    if (typeof user === 'string') {
+      user = yield bot.users.get(user)
+    }
+
+    const builder = buildResource({
+        models,
+        model: baseModels[VERIFICATION],
+        resource: verification
+      })
+      .document(object)
+
+    if (!verification.dateVerified) builder.dateVerified(Date.now())
+    if (!verification.sources) {
+      const sources = user.importedVerifications[permalink]
+      if (sources) {
+        builder.sources(sources.map(source => source.verification))
+      }
+    }
+
+    const result = builder.toJSON()
+
+    yield send(user, result)
+    addVerification({
+      state: user.issuedVerifications,
+      verification: result,
+      verifiedItem: { object, link, permalink }
+    })
+  })
+
   return function disable () {
     removeReceiveHandler()
     bot.users.removeListener('create', oncreate)
   }
+}
+
+function addVerification ({ state, verification, verifiedItem }) {
+  if (verifiedItem.id) {
+    verifiedItem = verifiedItem.id
+  }
+
+  if (typeof verifiedItem === 'string') {
+    verifiedItem = parseId(verifiedItem)
+  }
+
+  const { link, permalink, object } = verifiedItem
+  const type = verifiedItem.type || object[TYPE]
+  if (!state[permalink]) state[permalink] = []
+
+  state.push({ type, link, permalink, verification })
 }
