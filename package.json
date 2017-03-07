@@ -19,11 +19,13 @@
     "@tradle/models": "https://github.com/tradle/models"
   },
   "devDependencies": {
+    "@tradle/bots": "tradle/bots",
     "@tradle/models": "https://github.com/tradle/models",
     "eslint": "^3.15.0",
     "tape": "^4.6.3"
   },
   "scripts": {
-    "lint": "eslint --quiet ."
+    "lint": "eslint --quiet .",
+    "start": "bots --conf ./conf.json"
   }
 }
