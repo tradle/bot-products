@@ -31,7 +31,7 @@ function genApplicationModels ({ namespace, models, products }) {
     const cert = genProductCertificateModel({ productModel })
     certificates[cert.id] = cert
     certificateForProduct[id] = cert
-    additional[id] = productModel
+    additional[cert.id] = cert
   })
 
   const application = genProductApplicationModel({
