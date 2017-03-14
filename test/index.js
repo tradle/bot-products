@@ -34,6 +34,7 @@ test('basic form loop', co(function* (t) {
     send: co(function* send ({ userId, object }) { })
   })
 
+  const appLink = 'some app'
   const productModels = [
     // built-in
     baseModels[CURRENT_ACCOUNT],
@@ -67,7 +68,7 @@ test('basic form loop', co(function* (t) {
       product: {
         id: productModel.id
       }
-    })
+    }, appLink, appLink, appLink)
 
     const formsTogo = productModel.forms.slice()
     while (formsTogo.length) {
@@ -97,11 +98,16 @@ test('basic form loop', co(function* (t) {
 
   t.end()
 
-  function receive (object) {
+  let linkCounter = 0
+  function receive (object, context=appLink, link, permalink) {
+    if (!link) {
+      link = permalink = 'link' + (linkCounter++)
+    }
+
     bot.receive({
       author: 'ted',
-      object: { object },
-      objectinfo: { link: 'something' }
+      object: { object, context },
+      objectinfo: { link, permalink }
     })
 
     return new Promise(resolve => {

@@ -40,9 +40,9 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
       app.permalink !== application.permalink
     })
 
-    if (user.currentApplication.link === application.link) {
-      delete user.currentApplication
-    }
+    // if (user.currentApplication.link === application.link) {
+    //   delete user.currentApplication
+    // }
 
     const certificateModel = appModels.certificateForProduct[product]
     const certificate = {
@@ -137,6 +137,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     verify,
     issueProductCertificate,
     requestNextForm: requestNextRequiredItem,
-    createItemRequest
+    createItemRequest,
+    // continueApplication
   }
 }
