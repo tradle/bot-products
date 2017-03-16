@@ -16,6 +16,7 @@ const TESTING = process.env.NODE_ENV === 'test'
 const resolved = Promise.resolve()
 const promiseNoop = () => resolved
 const STATE_PROPS = ['forms', 'applications', 'products', 'importedVerifications', 'issuedVerifications', 'imported']
+const REMEDIATION = 'tradle.Remediation'
 
 module.exports = function productsStrategyImpl (bot, opts) {
   const {
@@ -111,6 +112,14 @@ module.exports = function productsStrategyImpl (bot, opts) {
     case VERIFICATION:
       yield handleVerification(data)
       break
+    // case 'tradle.ProductApplication':
+    //   if (object.product === REMEDIATION) {
+    //     yield handleRemediation(data)
+    //   } else {
+    //     debug(`ignoring application for "${object.product}", don't know how to handle`)
+    //   }
+
+    //   break
     case appModels.application.id:
       yield handleProductApplication(data)
       break
@@ -218,7 +227,9 @@ module.exports = function productsStrategyImpl (bot, opts) {
   })
 
   const handleForm = co(function* handleForm (data) {
-    const { user, object, type, link, permalink } = data
+    const { user, object, type, link, permalink, currentApplication } = data
+    if (currentApplication && currentApplication.type === REMEDIATION) return
+
     if (!user.forms[type]) {
       user.forms[type] = {}
     }

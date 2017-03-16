@@ -25,13 +25,15 @@ function genApplicationModels ({ namespace, models, products }) {
 
   const certificates = {}
   const certificateForProduct = {}
+  const productForCertificate = {}
   const additional = {}
   productModels.forEach(productModel => {
     const { id } = productModel
     const cert = genProductCertificateModel({ productModel })
     certificates[cert.id] = cert
-    certificateForProduct[id] = cert
+    productForCertificate[cert.id] = productModel
     additional[cert.id] = cert
+    certificateForProduct[id] = cert
   })
 
   const application = genProductApplicationModel({
@@ -45,6 +47,7 @@ function genApplicationModels ({ namespace, models, products }) {
     application,
     certificates,
     certificateForProduct,
+    productForCertificate,
     additional
   }
 
