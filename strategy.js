@@ -26,9 +26,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
   } = opts
 
   const api = createAPI({ bot, modelById, appModels })
-  const productChooser = api.createItemRequest({
-    item: appModels.application.id
-  })
 
   function send (user, object) {
     return bot.send({ userId: user.id, object })
@@ -91,18 +88,13 @@ module.exports = function productsStrategyImpl (bot, opts) {
         yield send(user, format(STRINGS.HOT_NAME, name))
       }
 
-      yield send(user, productChooser)
+      yield api.sendProductList(data)
       break
     case 'tradle.SimpleMessage':
       yield onSimpleMessage(data)
       break
     case 'tradle.CustomerWaiting':
-      // if (user.history.length) {
-      //   yield send(user, STRINGS.IM_HERE_IF_YOU_NEED)
-      // } else {
-      yield send(user, productChooser)
-      // }
-
+      yield onCustomerWaiting(data)
       break
     case VERIFICATION:
       yield handleVerification(data)
@@ -286,7 +278,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     onVerification=continueApplication,
     onApplication=continueApplication,
     onFormsCollected=approveProduct,
-    onSimpleMessage=banter
+    onSimpleMessage=banter,
+    onCustomerWaiting=api.sendProductList
   } = handlers
 
   return shallowExtend({

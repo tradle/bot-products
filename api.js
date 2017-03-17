@@ -14,6 +14,9 @@ const VERIFICATION = 'tradle.Verification'
 
 module.exports = function createAPI ({ bot, modelById, appModels }) {
   const models = Object.keys(modelById).map(id => modelById[id])
+  const productChooser = createItemRequest({
+    item: appModels.application.id
+  })
 
   function send (user, object, other) {
     return bot.send({ userId: user.id, object, other })
@@ -128,11 +131,16 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     return req
   }
 
+  function sendProductList ({ user }) {
+    return send(user, productChooser)
+  }
+
   return {
     verify,
     issueProductCertificate,
     requestNextForm: requestNextRequiredItem,
     createItemRequest,
+    sendProductList
     // continueApplication
   }
 }
