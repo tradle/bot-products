@@ -157,8 +157,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     const { user, context, type } = data
     if (type === appModels.application.id) return
 
+    const { applications, products } = user
     if (context) {
-      const { applications, products } = user
       data.currentApplication = getApplicationByPermalink(applications, context)
       data.currentProduct = getApplicationByPermalink(products, context)
       if (!(data.currentApplication || data.currentProduct)) {
@@ -166,10 +166,20 @@ module.exports = function productsStrategyImpl (bot, opts) {
       }
 
       return
+    } else {
+      data.currentApplication = guessApplicationFromIncomingType(applications, type)
+      data.currentProduct = guessApplicationFromIncomingType(products, type)
     }
 
     // data.currentApplication = getApplicationByType(applications)
     // data.currentProduct = getApplicationByType(products)
+  }
+
+  function guessApplicationFromIncomingType (applications, type) {
+    return findApplication(applications, app => {
+      const productModel = modelById[app.product]
+      return productModel.forms.indexOf(type) !== -1
+    })
   }
 
   function findApplication (applications, test) {
