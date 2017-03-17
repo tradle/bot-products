@@ -53,16 +53,18 @@ module.exports = function creator (opts={}) {
       uninstallKeepFresh = bot.use(keepModelsFresh(customModelsArr))
     }
 
-    const uninstallProductsStrategy = bot.use(productsStrategy, {
+    const api = bot.use(productsStrategy, {
       modelById,
       appModels,
       handlers
     })
 
-    return function () {
+    return shallowClone(api, { uninstall })
+
+    function uninstall () {
       if (uninstallKeepFresh) uninstallKeepFresh()
 
-      uninstallProductsStrategy()
+      api.uninstall()
     }
   }
 }
