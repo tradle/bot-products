@@ -22,7 +22,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
   const {
     modelById,
     appModels,
-    config={}
+    handlers
   } = opts
 
   const api = createAPI({ bot, modelById, appModels })
@@ -32,10 +32,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
 
   function send (user, object) {
     return bot.send({ userId: user.id, object })
-  }
-
-  function save (user) {
-    return bot.users.save(user)
   }
 
   function ensureStateStructure (user) {
@@ -91,7 +87,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
       let name = object.profile.firstName
       let oldName = user.profile && user.profile.firstName
       user.profile = object.profile
-      yield save(user)
       if (name !== oldName) {
         yield send(user, format(STRINGS.HOT_NAME, name))
       }
@@ -131,7 +126,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
       })
 
       ensureStateStructure(user)
-      yield save(user)
       yield send(user, { [TYPE]: 'tradle.ForgotYou' })
       break
     default:
@@ -166,8 +160,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     if (context) {
       const { applications, products } = user
       data.currentApplication = getApplicationByPermalink(applications, context)
-      data.currentProduct = getApplicationByPermalink(applications, context)
-      if ( !(data.currentApplication || data.currentProduct)) {
+      data.currentProduct = getApplicationByPermalink(products, context)
+      if (!(data.currentApplication || data.currentProduct)) {
         throw new Error(`application ${context} not found`)
       }
 
@@ -244,14 +238,11 @@ module.exports = function productsStrategyImpl (bot, opts) {
   })
 
   const continueApplication = co(function* (data) {
-    // if (!autoprompt) {
-    //   debug('autoprompt is off, exiting handler')
-    //   return
-    // }
+    if (!data.currentApplication) return
 
     data = shallowExtend({ application: data.currentApplication }, data)
     const requested = yield api.requestNextForm(data)
-    if (!requested) yield api.issueProductCertificate(data)
+    if (!requested) yield onFormsCollected(data)
   })
 
   const handleVerification = co(function* (data) {
@@ -278,10 +269,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
     bot.users.removeListener('create', oncreate)
   }
 
-  const approveProduct = co(function* (data) {
-    const application = data.currentApplication
-    yield api.issueProductCertificate({ user, application })
-  })
+  const approveProduct = api.issueProductCertificate
 
   const {
     onForm=continueApplication,
@@ -289,7 +277,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
     onApplication=continueApplication,
     onFormsCollected=approveProduct,
     onSimpleMessage=banter
-  } = config
+  } = handlers
 
   return shallowExtend({
     uninstall,

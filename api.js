@@ -15,12 +15,8 @@ const VERIFICATION = 'tradle.Verification'
 module.exports = function createAPI ({ bot, modelById, appModels }) {
   const models = Object.keys(modelById).map(id => modelById[id])
 
-  function send (user, object) {
-    return bot.send({ userId: user.id, object })
-  }
-
-  function save (user) {
-    return bot.users.save(user)
+  function send (user, object, other) {
+    return bot.send({ userId: user.id, object, other })
   }
 
   const issueProductCertificate = co(function* ({ user, application }) {
@@ -35,20 +31,20 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
       user.products[product] = []
     }
 
-    user.products[product].push(application)
-    user.applications[product] = user.applications[product].filter(app => {
-      app.permalink !== application.permalink
-    })
-
     // if (user.currentApplication.link === application.link) {
     //   delete user.currentApplication
     // }
 
     const certificateModel = appModels.certificateForProduct[product]
-    const certificate = {
+    const certificate = application.certificate = {
       [TYPE]: certificateModel.id,
       myProductId: uuid()
     }
+
+    user.products[product].push(application)
+    user.applications[product] = user.applications[product].filter(app => {
+      app.permalink !== application.permalink
+    })
 
     return send(user, certificate)
   })
@@ -82,12 +78,11 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
       verification: result,
       verifiedItem: { object, link, permalink }
     })
-
-    yield save(user)
   })
 
   const requestNextRequiredItem = co(function* ({ user, application }) {
     const { product } = application
+    const context = application.permalink
     const productModel = modelById[product]
     const next = productModel.forms.find(form => !user.forms[form])
     if (!next) {
@@ -101,7 +96,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
       item: next
     })
 
-    yield send(user, reqNextForm)
+    yield send(user, reqNextForm, { context })
     return true
   })
 

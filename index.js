@@ -8,12 +8,15 @@ const {
   genApplicationModels
 } = require('./utils')
 
+const TESTING = process.env.NODE_ENV === 'test'
+
 module.exports = function creator (opts={}) {
   const {
     // defaults
     namespace,
     models,
-    products
+    products,
+    handlers={}
   } = opts
 
   if (!namespace) {
@@ -45,13 +48,15 @@ module.exports = function creator (opts={}) {
 
   function install (bot) {
     let uninstallKeepFresh
-    if (customModels.length) {
-      uninstallKeepFresh = bot.use(keepModelsFresh(customModels))
+    const customModelsArr = values(customModels)
+    if (!TESTING && customModelsArr.length) {
+      uninstallKeepFresh = bot.use(keepModelsFresh(customModelsArr))
     }
 
     const uninstallProductsStrategy = bot.use(productsStrategy, {
       modelById,
-      appModels
+      appModels,
+      handlers
     })
 
     return function () {

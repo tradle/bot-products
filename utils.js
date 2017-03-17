@@ -103,8 +103,8 @@ function genProductCertificateModel ({ productModel, id, title }) {
 }
 
 function genEnumModel ({ models, id, title }) {
-  const values = Object.keys(models).map(id => {
-    const { title } = models[id]
+  const values = models.map(model => {
+    const { id, title } = model
     return { id, title }
   })
 
