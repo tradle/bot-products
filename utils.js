@@ -26,7 +26,10 @@ function genApplicationModels ({ namespace, models, products }) {
   const certificates = {}
   const certificateForProduct = {}
   const productForCertificate = {}
-  const additional = {}
+  const additional = {
+    [productList.id]: productList
+  }
+
   productModels.forEach(productModel => {
     const { id } = productModel
     const cert = genProductCertificateModel({ productModel })
@@ -41,6 +44,7 @@ function genApplicationModels ({ namespace, models, products }) {
     id: `${namespace}.ProductApplication`
   })
 
+  const all = {}
   const applicationModels = {
     products: productModels,
     productList,
@@ -48,11 +52,18 @@ function genApplicationModels ({ namespace, models, products }) {
     certificates,
     certificateForProduct,
     productForCertificate,
-    additional
+    additional,
+    all
   }
 
   additional[application.id] = application
   additional[productList.id] = productList
+
+  getValues(models)
+    .concat(productModels)
+    .concat(getValues(additional))
+    .forEach(model => all[model.id] = model)
+
   return applicationModels
 }
 
@@ -166,4 +177,8 @@ function wait (millis) {
 
 function getCertificateModelId (productModelId) {
   return productModelId.replace(/\.([^.]+)$/, '.My$1')
+}
+
+function getValues (obj) {
+  return Object.keys(obj).map(id => obj[id])
 }

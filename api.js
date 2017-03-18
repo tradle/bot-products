@@ -140,7 +140,8 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     issueProductCertificate,
     requestNextForm: requestNextRequiredItem,
     createItemRequest,
-    sendProductList
+    sendProductList,
+    models
     // continueApplication
   }
 }
