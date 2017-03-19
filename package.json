@@ -11,15 +11,16 @@
   "author": "mvayngrib",
   "dependencies": {
     "@tradle/bot-require-models": "^1.1.1",
+    "@tradle/bots": "tradle/bots#dev",
+    "@tradle/build-resource": "tradle/build-resource",
     "@tradle/models": "https://github.com/tradle/models",
-    "@tradle/validate-model": "^1.0.0",
+    "@tradle/validate-model": "tradle/validate-model",
     "bluebird": "^3.4.7",
     "uuid": "^3.0.1",
     "xtend": "^4.0.1"
   },
   "peerDependencies": {},
   "devDependencies": {
-    "@tradle/bots": "tradle/bots",
     "eslint": "^3.15.0",
     "tape": "^4.6.3"
   },

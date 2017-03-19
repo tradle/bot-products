@@ -1,4 +1,8 @@
 
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test'
+}
+
 const test = require('tape')
 const Promise = require('bluebird')
 const co = Promise.coroutine

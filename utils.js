@@ -1,6 +1,7 @@
 const Promise = require('bluebird')
 const co = Promise.coroutine
-const botUtils = require('@tradle/bots').utils
+const shallowExtend = require('xtend/mutable')
+const shallowClone = require('xtend')
 const STRINGS = require('./strings')
 
 module.exports = {
@@ -12,8 +13,8 @@ module.exports = {
   format,
   parseId,
   wait,
-  shallowExtend: botUtils.shallowExtend,
-  shallowClone: botUtils.shallowClone
+  shallowExtend,
+  shallowClone
 }
 
 function genApplicationModels ({ namespace, models, products }) {
