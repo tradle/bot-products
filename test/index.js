@@ -98,6 +98,17 @@ test('basic form loop', co(function* (t) {
         resolve()
       })
     })
+
+    receive({
+      [TYPE]: 'tradle.ForgetMe'
+    })
+
+    yield new Promise(resolve => {
+      bot.once('sent', function ({ user, object }) {
+        t.equal(object[TYPE], 'tradle.ForgotYou')
+        resolve()
+      })
+    })
   }))
 
   t.end()

@@ -10,6 +10,7 @@
   "license": "MIT",
   "author": "mvayngrib",
   "dependencies": {
+    "@tradle/bot-forget-user": "tradle/bot-forget-user",
     "@tradle/bot-require-models": "^1.1.1",
     "@tradle/bots": "tradle/bots#dev",
     "@tradle/build-resource": "tradle/build-resource",

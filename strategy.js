@@ -7,6 +7,7 @@ const {
   // parseId
 } = require('./utils')
 
+const forgetter = require('@tradle/bot-forget-user')
 const { addVerification } = require('./state')
 const createAPI = require('./api')
 const STRINGS = require('./strings')
@@ -111,14 +112,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
       yield handleProductApplication(data)
       break
     case 'tradle.ForgetMe':
-      yield send(user, STRINGS.SORRY_TO_FORGET_YOU)
-
-      STATE_PROPS.forEach(prop => {
-        delete user[prop]
-      })
-
-      ensureStateStructure(user)
-      yield send(user, { [TYPE]: 'tradle.ForgotYou' })
       break
     default:
       if (model && model.subClassOf === 'tradle.Form') {
@@ -126,8 +119,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
         break
       }
 
-      let title = model ? model.title : type
-      yield send(user, format(STRINGS.NO_COMPRENDO, title))
+      yield onUnknownMessage(data)
       break
     }
   })
@@ -135,13 +127,9 @@ module.exports = function productsStrategyImpl (bot, opts) {
   const removeReceiveHandler = bot.addReceiveHandler(onmessage)
   bot.users.on('create', oncreate)
 
-  const handleSimpleMessage = co(function* (data) {
-    yield onSimpleMessage(data)
-  })
-
   const banter = co(function* (data) {
     const { user, object } = data
-    send(user, format(STRINGS.TELL_ME_MORE, object.message))
+    yield send(user, format(STRINGS.TELL_ME_MORE, object.message))
   })
 
 
@@ -187,6 +175,12 @@ module.exports = function productsStrategyImpl (bot, opts) {
 
   function getApplicationByType (applications, type) {
     return (applications[type] || [])[0]
+  }
+
+  function noComprendo ({ user, type }) {
+    const model = modelById[type]
+    const title = model ? model.title : type
+    return send(user, format(STRINGS.NO_COMPRENDO, title))
   }
 
   const handleProductApplication = co(function* (data) {
@@ -266,12 +260,16 @@ module.exports = function productsStrategyImpl (bot, opts) {
     return value
   }
 
-  function uninstall () {
-    removeReceiveHandler()
-    bot.users.removeListener('create', oncreate)
-  }
-
   const approveProduct = api.issueProductCertificate
+  const forgetUser = co(function* ({ user }) {
+    // yield send(user, STRINGS.SORRY_TO_FORGET_YOU)
+
+    STATE_PROPS.forEach(prop => {
+      delete user[prop]
+    })
+
+    ensureStateStructure(user)
+  })
 
   const {
     onForm=continueApplication,
@@ -279,8 +277,20 @@ module.exports = function productsStrategyImpl (bot, opts) {
     onApplication=continueApplication,
     onFormsCollected=approveProduct,
     onSimpleMessage=banter,
-    onCustomerWaiting=api.sendProductList
+    onCustomerWaiting=api.sendProductList,
+    onForgetMe=forgetUser,
+    onUnknownMessage=noComprendo
   } = handlers
+
+  const uninstallForgetter = bot.use(forgetter, {
+    preforget: onForgetMe
+  })
+
+  function uninstall () {
+    removeReceiveHandler()
+    uninstallForgetter()
+    bot.users.removeListener('create', oncreate)
+  }
 
   return shallowExtend({
     uninstall,
