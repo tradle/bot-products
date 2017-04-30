@@ -3,3 +3,5 @@ users.json
 *.log
 storage/
 .env
+.npmrc
+repo-key

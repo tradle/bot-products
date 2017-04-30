@@ -162,17 +162,9 @@
     typeforce "^1.6.2"
     xtend "^4.0.1"
 
-"@tradle/validate-model@github:tradle/validate#a25543d":
+"@tradle/validate-model@github:tradle/validate#a25543d", "@tradle/validate-model@tradle/validate-model":
   version "1.0.0"
   resolved "https://codeload.github.com/tradle/validate/tar.gz/a25543d"
-  dependencies:
-    object.omit "^2.0.1"
-    object.pick "^1.2.0"
-    typeforce "^1.10.6"
-
-"@tradle/validate-model@tradle/validate-model":
-  version "1.0.0"
-  resolved "https://codeload.github.com/tradle/validate-model/tar.gz/a25543d578b3d40d3d573a04a23ceacf4522c9de"
   dependencies:
     object.omit "^2.0.1"
     object.pick "^1.2.0"
@@ -478,9 +470,9 @@ chalk@^1.0.0, chalk@^1.1.0, chalk@^1.1.1, chalk@^1.1.3:
     strip-ansi "^3.0.0"
     supports-color "^2.0.0"
 
-"changes-feed@git+https://github.com/mvayngrib/changes-feed":
+changes-feed@mvayngrib/changes-feed:
   version "1.1.0"
-  resolved "git+https://github.com/mvayngrib/changes-feed#bd106bd1a8b03660e7c6820e279a34bcaac0fd5e"
+  resolved "https://codeload.github.com/mvayngrib/changes-feed/tar.gz/bd106bd1a8b03660e7c6820e279a34bcaac0fd5e"
   dependencies:
     from2 "^1.3.0"
     lexicographic-integer "^1.1.0"
@@ -612,6 +604,13 @@ create-hmac@^1.1.3, create-hmac@^1.1.4:
 cross-env@^3.1.4:
   version "3.2.4"
   resolved "https://registry.yarnpkg.com/cross-env/-/cross-env-3.2.4.tgz#9e0585f277864ed421ce756f81a980ff0d698aba"
+  dependencies:
+    cross-spawn "^5.1.0"
+    is-windows "^1.0.0"
+
+cross-env@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/cross-env/-/cross-env-4.0.0.tgz#16083862d08275a4628b0b243b121bedaa55dd80"
   dependencies:
     cross-spawn "^5.1.0"
     is-windows "^1.0.0"
@@ -1513,9 +1512,9 @@ jsonpointer@^4.0.0:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/jsonpointer/-/jsonpointer-4.0.1.tgz#4fd92cb34e0e9db3c89c8622ecf51f9b978c6cb9"
 
-"level-change-processor@git+https://github.com/mvayngrib/level-change-processor#7100404":
+level-change-processor@mvayngrib/level-change-processor#7100404:
   version "1.0.0"
-  resolved "git+https://github.com/mvayngrib/level-change-processor#7100404"
+  resolved "https://codeload.github.com/mvayngrib/level-change-processor/tar.gz/7100404"
   dependencies:
     inherits "^2.0.1"
     readable-stream "^1.0.33"
@@ -1725,9 +1724,9 @@ merkle-proofs@1.0.3, merkle-proofs@^1.0.3:
     merkle-tree-stream mvayngrib/merkle-tree-stream#finalize
     readable-stream "^2.1.0"
 
-"merkle-tree-stream@git+https://github.com/mvayngrib/merkle-tree-stream#finalize":
+merkle-tree-stream@mvayngrib/merkle-tree-stream#finalize:
   version "3.0.3"
-  resolved "git+https://github.com/mvayngrib/merkle-tree-stream#ef1abd6b566a410f8cdc7190f0966b97f403e290"
+  resolved "https://codeload.github.com/mvayngrib/merkle-tree-stream/tar.gz/ef1abd6b566a410f8cdc7190f0966b97f403e290"
   dependencies:
     flat-tree "^1.3.0"
     readable-stream "^2.0.5"
@@ -2109,18 +2108,9 @@ re-emitter@^1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/re-emitter/-/re-emitter-1.1.3.tgz#fa9e319ffdeeeb35b27296ef0f3d374dac2f52a7"
 
-"readable-stream@>=1.0.33-1 <1.1.0-0", readable-stream@~1.0.17, readable-stream@~1.0.26, readable-stream@~1.0.27-1:
+"readable-stream@>=1.0.33-1 <1.1.0-0", readable-stream@^1.0.33, readable-stream@^1.0.34, readable-stream@~1.0.17, readable-stream@~1.0.26, readable-stream@~1.0.27-1:
   version "1.0.34"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-1.0.34.tgz#125820e34bc842d2f2aaafafe4c2916ee32c157c"
-  dependencies:
-    core-util-is "~1.0.0"
-    inherits "~2.0.1"
-    isarray "0.0.1"
-    string_decoder "~0.10.x"
-
-readable-stream@^1.0.33, readable-stream@^1.0.34, readable-stream@~1.1.10, readable-stream@~1.1.9:
-  version "1.1.14"
-  resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-1.1.14.tgz#7cf4c54ef648e3813084c636dd2079e166c081d9"
   dependencies:
     core-util-is "~1.0.0"
     inherits "~2.0.1"
@@ -2142,6 +2132,15 @@ readable-stream@^2.0.0, "readable-stream@^2.0.0 || ^1.1.13", readable-stream@^2.
 readable-stream@~0.0.2:
   version "0.0.4"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-0.0.4.tgz#f32d76e3fb863344a548d79923007173665b3b8d"
+
+readable-stream@~1.1.10, readable-stream@~1.1.9:
+  version "1.1.14"
+  resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-1.1.14.tgz#7cf4c54ef648e3813084c636dd2079e166c081d9"
+  dependencies:
+    core-util-is "~1.0.0"
+    inherits "~2.0.1"
+    isarray "0.0.1"
+    string_decoder "~0.10.x"
 
 readline2@^1.0.1:
   version "1.0.1"

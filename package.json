@@ -17,6 +17,7 @@
     "@tradle/models": "https://github.com/tradle/models",
     "@tradle/validate-model": "tradle/validate-model",
     "bluebird": "^3.4.7",
+    "cross-env": "^4.0.0",
     "uuid": "^3.0.1",
     "xtend": "^4.0.1"
   },
@@ -27,9 +28,11 @@
   },
   "scripts": {
     "lint": "eslint --quiet .",
-    "start": "bots --conf ./conf.json",
-    "test": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node test",
-    "test:debug": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node --debug --inspect test",
+    "start": "cross-env DEBUG=tradle:bots* bots --conf ./conf.json",
+    "debug": "cross-env DEBUG=tradle:bots* node --debug --inspect $(which bots) --conf ./conf.json",
+    "debug-brk": "cross-env DEBUG=tradle:bots* node --debug-brk --inspect $(which bots) --conf ./conf.json",
+    "test": "cross-env NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node test",
+    "test:debug": "cross-env NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node --debug --inspect test",
     "test:debug-brk": "NODE_ENV=test DEBUG=tradle:bot* BLUEBIRD_DEBUG=1 node --debug-brk --inspect test"
   }
 }

@@ -69,7 +69,13 @@ module.exports = function productsStrategyImpl (bot, opts) {
 
   const onmessage = co(function* (data) {
     // make a defensive copy
-    data = shallowClone(data)
+    const { wrapper } = data
+    data = shallowClone(data, {
+      object: wrapper.message.object,
+      link: wrapper.metadata.payload.link,
+      permalink: wrapper.metadata.payload.permalink
+    })
+
     const { user, object, type, link, permalink } = data
 
     ensureStateStructure(user)
@@ -124,7 +130,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
     }
   })
 
-  const removeReceiveHandler = bot.addReceiveHandler(onmessage)
+  const removeReceiveHandler = bot.hook.receive(onmessage)
   bot.users.on('create', oncreate)
 
   const banter = co(function* (data) {

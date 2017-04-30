@@ -17,6 +17,7 @@ const {
   // getApplicationModels
 } = require('../utils')
 
+const { fakeWrapper } = require('@tradle/bots/test/utils')
 const TYPE = '_t'
 const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
@@ -35,9 +36,13 @@ const series = co(function* (arr, fn) {
 
 test('basic form loop', co(function* (t) {
   const bot = createBot({
-    send: co(function* send ({ userId, object }) { })
+    send: co(function* send ({ userId, object }) {
+      return fakeWrapper({ from, to, object })
+    })
   })
 
+  const from = 'bill'
+  const to = 'ted'
   const appLink = 'some app'
   const productModels = [
     // built-in
@@ -64,8 +69,6 @@ test('basic form loop', co(function* (t) {
   })
 
   bot.use(productsStrategy)
-  bot.start()
-
   series(productModels, co(function* (productModel) {
     receive({
       [TYPE]: productsStrategy.models.application.id,
@@ -78,8 +81,9 @@ test('basic form loop', co(function* (t) {
     while (formsTogo.length) {
       let nextForm = formsTogo.shift()
       yield new Promise(resolve => {
-        bot.once('sent', function ({ user, object }) {
-          t.equal(object[TYPE], FORM_REQ)
+        bot.once('sent', function ({ user, type, wrapper }) {
+          const { object } = wrapper.message
+          t.equal(type, FORM_REQ)
           t.equal(object.form, nextForm)
           resolve()
         })
@@ -92,9 +96,9 @@ test('basic form loop', co(function* (t) {
 
     // get product cert
     yield new Promise(resolve => {
-      bot.once('sent', function ({ user, object }) {
+      bot.once('sent', function ({ user, type }) {
         const certModel = productsStrategy.models.certificateForProduct[productModel.id]
-        t.equal(object[TYPE], certModel.id)
+        t.equal(type, certModel.id)
         resolve()
       })
     })
@@ -104,8 +108,8 @@ test('basic form loop', co(function* (t) {
     })
 
     yield new Promise(resolve => {
-      bot.once('sent', function ({ user, object }) {
-        t.equal(object[TYPE], 'tradle.ForgotYou')
+      bot.once('sent', function ({ user, type }) {
+        t.equal(type, 'tradle.ForgotYou')
         resolve()
       })
     })
@@ -119,11 +123,15 @@ test('basic form loop', co(function* (t) {
       link = permalink = 'link' + (linkCounter++)
     }
 
-    bot.receive({
-      author: 'ted',
-      object: { object, context },
-      objectinfo: { link, permalink }
+    const wrapper = fakeWrapper({
+      from: to,
+      to: from,
+      object
     })
+
+    wrapper.message.context = context
+
+    bot.receive(wrapper)
 
     return new Promise(resolve => {
       bot.once('message', resolve)
