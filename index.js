@@ -1,8 +1,8 @@
 
 const shallowClone = require('xtend')
-const baseModels = toModelsMap(require('@tradle/models/models'))
 const validateModels = require('@tradle/validate-model')
 const keepModelsFresh = require('@tradle/bot-require-models')
+const baseModels = require('./base-models')
 const productsStrategy = require('./strategy')
 const {
   genApplicationModels
@@ -23,7 +23,7 @@ module.exports = function creator (opts={}) {
     throw new Error('expected unique string "namespace"')
   }
 
-  if (namespace === 'tradle') {
+  if (namespace === 'io.tradle') {
     throw new Error('namespace "io.tradle" is reserved. Your models will be ignored by the application')
   }
 
@@ -53,11 +53,11 @@ module.exports = function creator (opts={}) {
       uninstallKeepFresh = bot.use(keepModelsFresh(customModelsArr))
     }
 
-    const api = bot.use(productsStrategy, {
+    const api = bot.use(productsStrategy({
       modelById,
       appModels,
       handlers
-    })
+    }))
 
     return shallowClone(api, { uninstall })
 
@@ -71,12 +71,4 @@ module.exports = function creator (opts={}) {
 
 function values (obj) {
   return Object.keys(obj).map(key => obj[key])
-}
-
-function toModelsMap (arr) {
-  if (!Array.isArray(arr)) return arr
-
-  const obj = {}
-  arr.forEach(item => obj[item.id] = item)
-  return obj
 }

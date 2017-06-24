@@ -1,3 +1,5 @@
+const { TYPE } = require('@tradle/engine').constants
+
 exports.addVerification = addVerification
 
 function addVerification ({ state, verification, verifiedItem }) {
@@ -13,5 +15,5 @@ function addVerification ({ state, verification, verifiedItem }) {
   const type = verifiedItem.type || object[TYPE]
   if (!state[permalink]) state[permalink] = []
 
-  state.push({ type, link, permalink, verification })
+  state[permalink].push({ type, link, permalink, verification })
 }

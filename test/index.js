@@ -3,30 +3,25 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test'
 }
 
+const crypto = require('crypto')
+const { EventEmitter } = require('events')
 const test = require('tape')
-const Promise = require('bluebird')
-const co = Promise.coroutine
-const rawCreateBot = require('@tradle/bots').bot
-const buildResource = require('@tradle/build-resource')
-const baseModels = require('@tradle/models/models')
+const co = require('co').wrap
+const shallowExtend = require('xtend/mutable')
+const fakeResource = require('@tradle/build-resource/fake')
+const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
-const models = require('./fixtures/agemodels')
+const ageModels = require('./fixtures/agemodels')
 const {
   genEnumModel,
   // genMyProductModel,
   // getApplicationModels
 } = require('../utils')
 
-const { fakeWrapper } = require('@tradle/bots/test/utils')
 const TYPE = '_t'
 const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const FORM_REQ = 'tradle.FormRequest'
-
-function createBot (opts) {
-  opts.inMemory = true
-  return rawCreateBot(opts)
-}
 
 const series = co(function* (arr, fn) {
   for (let i = 0; i < arr.length; i++) {
@@ -34,10 +29,17 @@ const series = co(function* (arr, fn) {
   }
 })
 
-test('basic form loop', co(function* (t) {
-  const bot = createBot({
-    send: co(function* send ({ userId, object }) {
-      return fakeWrapper({ from, to, object })
+test('basic form loop', loudCo(function* (t) {
+  let opts
+  const handlers = []
+  const bot = shallowExtend(new EventEmitter(), {
+    use: (strategy, opts) => strategy(bot, opts),
+    onmessage: handler => handlers.push(handler),
+    onusercreate: () => {},
+    send: co(function* ({ to, object }) {
+      const ret = fakeWrapper({ from, to, object })
+      process.nextTick(() => bot.emit('sent', ret))
+      return ret
     })
   })
 
@@ -45,7 +47,6 @@ test('basic form loop', co(function* (t) {
   const to = 'ted'
   const appLink = 'some app'
   const productModels = [
-    // built-in
     baseModels[CURRENT_ACCOUNT],
     // custom
     {
@@ -68,57 +69,15 @@ test('basic form loop', co(function* (t) {
     products: productModels.map(model => model.id)
   })
 
-  bot.use(productsStrategy)
-  series(productModels, co(function* (productModel) {
-    receive({
-      [TYPE]: productsStrategy.models.application.id,
-      product: {
-        id: productModel.id
-      }
-    }, appLink, appLink, appLink)
-
-    const formsTogo = productModel.forms.slice()
-    while (formsTogo.length) {
-      let nextForm = formsTogo.shift()
-      yield new Promise(resolve => {
-        bot.once('sent', function ({ user, type, wrapper }) {
-          const { object } = wrapper.message
-          t.equal(type, FORM_REQ)
-          t.equal(object.form, nextForm)
-          resolve()
-        })
-      })
-
-      receive({
-        [TYPE]: nextForm
-      })
-    }
-
-    // get product cert
-    yield new Promise(resolve => {
-      bot.once('sent', function ({ user, type }) {
-        const certModel = productsStrategy.models.certificateForProduct[productModel.id]
-        t.equal(type, certModel.id)
-        resolve()
-      })
-    })
-
-    receive({
-      [TYPE]: 'tradle.ForgetMe'
-    })
-
-    yield new Promise(resolve => {
-      bot.once('sent', function ({ user, type }) {
-        t.equal(type, 'tradle.ForgotYou')
-        resolve()
-      })
-    })
-  }))
-
-  t.end()
+  const productsAPI = productsStrategy.install(bot)
+  const { models } = productsAPI
 
   let linkCounter = 0
-  function receive (object, context=appLink, link, permalink) {
+  const user = {
+    id: 'bob'
+  }
+
+  const receive = co(function* (object, context=appLink, link, permalink) {
     if (!link) {
       link = permalink = 'link' + (linkCounter++)
     }
@@ -131,12 +90,87 @@ test('basic form loop', co(function* (t) {
 
     wrapper.message.context = context
 
-    bot.receive(wrapper)
+    yield series(handlers, fn => fn({ user, wrapper }))
+    return wrapper
+  })
 
-    return new Promise(resolve => {
-      bot.once('message', resolve)
+  for (let productModel of productModels) {
+    // don't wait for this to complete
+    let promiseReceive = receive({
+      [TYPE]: productsStrategy.models.application.id,
+      product: {
+        id: productModel.id
+      }
+    }, appLink, appLink, appLink)
+
+    const forms = productModel.forms.slice()
+    for (let i = 0; i < forms.length; i++) {
+      let nextForm = forms[i]
+      yield new Promise(resolve => {
+        bot.once('sent', function ({ message, payload }) {
+          const { object, type } = payload
+          t.equal(type, FORM_REQ)
+          t.equal(object.form, nextForm)
+          if (i) {
+            t.ok(forms[i - 1] in user.forms)
+          }
+
+          t.ok(productModel.id in user.applications)
+          resolve()
+        })
+      })
+
+      let sent = yield promiseReceive
+      if (i) {
+        // get verification
+        productsAPI.verify({
+          user,
+          item: sent.payload
+        })
+        .catch(console.error)
+
+        yield new Promise(resolve => {
+          bot.once('sent', function ({ message, payload }) {
+            t.equal(payload.type, 'tradle.Verification')
+            resolve()
+          })
+        })
+      }
+
+      promiseReceive = receive(fakeResource({
+        models,
+        model: models[nextForm]
+      }))
+    }
+
+    // get product cert
+    yield new Promise(resolve => {
+      bot.once('sent', function ({ payload }) {
+        const { type } = payload
+        const certModel = productsStrategy.models.certificateForProduct[productModel.id]
+        t.equal(type, certModel.id)
+        t.ok(productModel.id in user.products)
+        t.same(user.applications[productModel.id], [])
+        resolve()
+      })
     })
+
+    yield receive(fakeResource({
+      models,
+      model: models['tradle.ForgetMe']
+    }))
+
+    productModel.forms.forEach(form => t.notOk(form in user.forms))
+
+    // yield new Promise(resolve => {
+    //   bot.once('sent', function ({ payload }) {
+    //     t.equal(payload.type, 'tradle.ForgotYou')
+    //     resolve()
+    //   })
+    // })
   }
+
+  t.end()
 }))
 
 function toObject (models) {
@@ -150,3 +184,61 @@ function toObject (models) {
 //   // console.log(JSON.stringify(enumModel, null, 2))
 //   t.end()
 // })
+
+function fakeWrapper ({ from, to, object }) {
+  object = shallowExtend({
+    _s: object._s || newSig()
+  }, object)
+
+  const msgLink = newLink()
+  const objLink = newLink()
+  return {
+    message: {
+      author: from,
+      recipient: to,
+      link: msgLink,
+      permalink: msgLink,
+      object: {
+        _t: 'tradle.Message',
+        _s: newSig(),
+        object
+      }
+    },
+    payload: {
+      author: from,
+      link: objLink,
+      permalink: objLink,
+      object,
+      type: object[TYPE]
+    }
+  }
+}
+
+function newLink () {
+  return hex32()
+}
+
+function newSig () {
+  return hex32()
+}
+
+function hex32 () {
+  return randomHex(32)
+}
+
+function randomHex (n) {
+  return crypto.randomBytes(n).toString('hex')
+}
+
+function loudCo (gen) {
+  return co(function* (...args) {
+    try {
+      return yield co(gen).apply(this, args)
+    } catch (err) {
+      console.error(err)
+      throw err
+    }
+  })
+}
+
+// process.on('uncaughtException', console.error)

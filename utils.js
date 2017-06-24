@@ -1,5 +1,4 @@
-const Promise = require('bluebird')
-const co = Promise.coroutine
+const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
 const STRINGS = require('./strings')

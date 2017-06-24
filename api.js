@@ -1,7 +1,7 @@
 const debug = require('debug')('tradle:bot:products:api')
 const uuid = require('uuid/v4')
 const buildResource = require('@tradle/build-resource')
-const baseModels = require('@tradle/models/models')
+const baseModels = require('./base-models')
 const {
   co,
   // parseId
@@ -13,7 +13,6 @@ const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 
 module.exports = function createAPI ({ bot, modelById, appModels }) {
-  const models = Object.keys(modelById).map(id => modelById[id])
   const productChooser = createItemRequest({
     item: appModels.application.id
   })
@@ -52,14 +51,14 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     return send(user, certificate)
   })
 
-  const verify = co(function* ({ user, wrapper, verification={} }) {
-    const { object, permalink, link } = wrapper
+  const verify = co(function* ({ user, item, verification={} }) {
+    const { object, permalink, link } = item
     if (typeof user === 'string') {
       user = yield bot.users.get(user)
     }
 
     const builder = buildResource({
-        models,
+        models: modelById,
         model: baseModels[VERIFICATION],
         resource: verification
       })
@@ -141,7 +140,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     requestNextForm: requestNextRequiredItem,
     createItemRequest,
     sendProductList,
-    models
+    models: modelById
     // continueApplication
   }
 }

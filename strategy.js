@@ -7,7 +7,6 @@ const {
   // parseId
 } = require('./utils')
 
-const forgetter = require('@tradle/bot-forget-user')
 const { addVerification } = require('./state')
 const createAPI = require('./api')
 const STRINGS = require('./strings')
@@ -19,7 +18,11 @@ const promiseNoop = () => resolved
 const STATE_PROPS = ['forms', 'applications', 'products', 'importedVerifications', 'issuedVerifications', 'imported']
 const REMEDIATION = 'tradle.Remediation'
 
-module.exports = function productsStrategyImpl (bot, opts) {
+module.exports = function productsStrategyImpl (opts) {
+  return bot => install(bot, opts)
+}
+
+function install (bot, opts) {
   const {
     modelById,
     appModels,
@@ -29,7 +32,14 @@ module.exports = function productsStrategyImpl (bot, opts) {
   const api = createAPI({ bot, modelById, appModels })
 
   function send (user, object) {
-    return bot.send({ userId: user.id, object })
+    if (typeof object === 'string') {
+      object = {
+        [TYPE]: 'tradle.SimpleMessage',
+        message: object
+      }
+    }
+
+    return bot.send({ to: user.id, object })
   }
 
   function ensureStateStructure (user) {
@@ -70,11 +80,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
   const onmessage = co(function* (data) {
     // make a defensive copy
     const { wrapper } = data
-    data = shallowClone(data, {
-      object: wrapper.message.object,
-      link: wrapper.metadata.payload.link,
-      permalink: wrapper.metadata.payload.permalink
-    })
+    data = shallowClone(data, wrapper.payload)
 
     const { user, object, type, link, permalink } = data
 
@@ -118,6 +124,7 @@ module.exports = function productsStrategyImpl (bot, opts) {
       yield handleProductApplication(data)
       break
     case 'tradle.ForgetMe':
+      yield onForgetMe(data)
       break
     default:
       if (model && model.subClassOf === 'tradle.Form') {
@@ -130,8 +137,8 @@ module.exports = function productsStrategyImpl (bot, opts) {
     }
   })
 
-  const removeReceiveHandler = bot.hook.receive(onmessage)
-  bot.users.on('create', oncreate)
+  const removeReceiveHandler = bot.onmessage(onmessage)
+  const removeCreateHandler = bot.onusercreate(oncreate)
 
   const banter = co(function* (data) {
     const { user, object } = data
@@ -268,8 +275,6 @@ module.exports = function productsStrategyImpl (bot, opts) {
 
   const approveProduct = api.issueProductCertificate
   const forgetUser = co(function* ({ user }) {
-    // yield send(user, STRINGS.SORRY_TO_FORGET_YOU)
-
     STATE_PROPS.forEach(prop => {
       delete user[prop]
     })
@@ -288,14 +293,9 @@ module.exports = function productsStrategyImpl (bot, opts) {
     onUnknownMessage=noComprendo
   } = handlers
 
-  const uninstallForgetter = bot.use(forgetter, {
-    preforget: onForgetMe
-  })
-
   function uninstall () {
     removeReceiveHandler()
-    uninstallForgetter()
-    bot.users.removeListener('create', oncreate)
+    removeCreateHandler()
   }
 
   return shallowExtend({
