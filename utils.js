@@ -8,7 +8,9 @@ module.exports = {
   Promise,
   co,
   genEnumModel,
+  genProductListModel,
   genProductCertificateModel,
+  genProductApplicationModel,
   genApplicationModels,
   format,
   parseId,
@@ -17,13 +19,16 @@ module.exports = {
   shallowClone
 }
 
-function genApplicationModels ({ namespace, models, products }) {
-  const productModels = products.map(id => models[id])
-  const productList = genEnumModel({
+function genProductListModel ({ namespace, productModels }) {
+  return genEnumModel({
     models: productModels,
     id: `${namespace}.Product`
   })
+}
 
+function genApplicationModels ({ namespace, models, products }) {
+  const productModels = products.map(id => models[id])
+  const productList = genProductListModel({ namespace, productModels })
   const certificates = {}
   const certificateForProduct = {}
   const productForCertificate = {}
