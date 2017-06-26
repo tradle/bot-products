@@ -63,7 +63,7 @@ module.exports = function remediationHandler ({ bot, api, appModels, db }) {
       }
 
       yield bot.send({
-        userId: user.id,
+        to: user.id,
         object: req
       })
 

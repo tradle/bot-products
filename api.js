@@ -18,7 +18,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
   })
 
   function send (user, object, other) {
-    return bot.send({ userId: user.id, object, other })
+    return bot.send({ to: user.id, object, other })
   }
 
   const issueProductCertificate = co(function* ({ user, application }) {
