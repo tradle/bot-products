@@ -25,7 +25,7 @@
 
 "@tradle/bot-require-models@tradle/bot-require-models#cloud":
   version "2.0.0"
-  resolved "https://codeload.github.com/tradle/bot-require-models/tar.gz/34bd1ca198b562d0e8804ad55cdb7ea1ecfec94c"
+  resolved "https://codeload.github.com/tradle/bot-require-models/tar.gz/47a13d617bb45021f52377dd41c111566bd1afcc"
   dependencies:
     "@tradle/bot-keep-fresh" tradle/bot-keep-fresh#cloud
 
