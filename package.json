@@ -18,6 +18,8 @@
     "@tradle/validate-resource": "tradle/validate-resource",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",
+    "object.omit": "^2.0.1",
+    "object.pick": "^1.2.0",
     "uuid": "^3.0.1",
     "xtend": "^4.0.1"
   },

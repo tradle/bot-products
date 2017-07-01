@@ -1,4 +1,5 @@
 const { TYPE } = require('@tradle/engine').constants
+const { parseId } = require('./utils')
 
 exports.addVerification = addVerification
 

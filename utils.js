@@ -1,6 +1,7 @@
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
+const pick = require('object.pick')
 const STRINGS = require('./strings')
 
 module.exports = {
@@ -119,11 +120,7 @@ function genProductCertificateModel ({ productModel, id, title }) {
 }
 
 function genEnumModel ({ models, id, title }) {
-  const values = models.map(model => {
-    const { id, title } = model
-    return { id, title }
-  })
-
+  const values = models.map(model => pick(model, ['id', 'title']))
   return normalize({
     type: 'tradle.Model',
     id,

@@ -1,5 +1,6 @@
 const debug = require('debug')('tradle:bot:products:api')
 const uuid = require('uuid/v4')
+const omit = require('object.omit')
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
 const {
@@ -134,9 +135,26 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     return send(user, productChooser)
   }
 
+  const requestEdit = co(function* ({ user, object, message, errors=[] }) {
+    if (!message && errors.length) {
+      message = errors[0].error
+    }
+
+    yield bot.send({
+      to: user.id,
+      object: {
+        _t: 'tradle.FormError',
+        prefill: omit(object, '_s'),
+        message,
+        errors
+      }
+    })
+  })
+
   return {
     verify,
     issueProductCertificate,
+    requestEdit,
     requestNextForm: requestNextRequiredItem,
     createItemRequest,
     sendProductList,

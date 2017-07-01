@@ -4,7 +4,6 @@ const {
   format,
   shallowExtend,
   shallowClone
-  // parseId
 } = require('./utils')
 
 const { addVerification } = require('./state')
@@ -13,8 +12,6 @@ const STRINGS = require('./strings')
 const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 const TESTING = process.env.NODE_ENV === 'test'
-const resolved = Promise.resolve()
-const promiseNoop = () => resolved
 const STATE_PROPS = ['forms', 'applications', 'products', 'importedVerifications', 'issuedVerifications', 'imported']
 const REMEDIATION = 'tradle.Remediation'
 
@@ -82,7 +79,7 @@ function install (bot, opts) {
     const { wrapper } = data
     data = shallowClone(data, wrapper.payload)
 
-    const { user, object, type, link, permalink } = data
+    const { user, object, type } = data
 
     ensureStateStructure(user)
     deduceCurrentApplication(data)
@@ -94,8 +91,8 @@ function install (bot, opts) {
     case 'tradle.IdentityPublishRequest':
       if (!object.profile) break
 
-      let name = object.profile.firstName
-      let oldName = user.profile && user.profile.firstName
+      const name = object.profile.firstName
+      const oldName = user.profile && user.profile.firstName
       user.profile = object.profile
       if (name !== oldName) {
         yield send(user, format(STRINGS.HOT_NAME, name))
@@ -159,10 +156,10 @@ function install (bot, opts) {
       }
 
       return
-    } else {
-      data.currentApplication = guessApplicationFromIncomingType(applications, type)
-      data.currentProduct = guessApplicationFromIncomingType(products, type)
     }
+
+    data.currentApplication = guessApplicationFromIncomingType(applications, type)
+    data.currentProduct = guessApplicationFromIncomingType(products, type)
 
     // data.currentApplication = getApplicationByType(applications)
     // data.currentProduct = getApplicationByType(products)
