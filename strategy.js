@@ -226,20 +226,22 @@ function install (bot, opts) {
     yield onApplication(data)
   })
 
-  const handleForm = co(function* handleForm (data) {
+  const handleForm = co(function* (data) {
     const { user, object, type, link, permalink, currentApplication } = data
     if (currentApplication && currentApplication.type === REMEDIATION) return
 
     if (!user.forms[type]) {
-      user.forms[type] = {}
+      user.forms[type] = []
     }
 
     const forms = user.forms[type]
-    if (!forms[permalink]) {
-      forms[permalink] = []
+    let known = forms.find(form => form.permalink === permalink)
+    if (!known) {
+      known = { permalink, versions: [] }
+      forms.push(known)
     }
 
-    forms[permalink].push(link)
+    known.versions.push({ link })
     yield onForm(data)
   })
 
