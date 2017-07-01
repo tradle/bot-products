@@ -78,7 +78,7 @@ function genProductApplicationModel ({ productList, id, title }) {
     type: 'tradle.Model',
     id,
     notShareable: true,
-    title: title || STRINGS.AGE_VERIFICATION,
+    title: title || idToTitle(id),
     interfaces: ['tradle.Message'],
     subClassOf: 'tradle.Form',
     properties: {
@@ -183,4 +183,9 @@ function getCertificateModelId (productModelId) {
 
 function getValues (obj) {
   return Object.keys(obj).map(id => obj[id])
+}
+
+function idToTitle (id) {
+  const camel = id.split('.').pop()
+  return splitCamelCase(camel).join(' ')
 }
