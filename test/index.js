@@ -77,7 +77,13 @@ test('basic form loop', loudCo(function* (t) {
     id: 'bob'
   }
 
-  const receive = co(function* (object, context=appLink, link, permalink) {
+  const receiveFromUser = co(function* ({
+    object,
+    context,
+    link,
+    permalink,
+    awaitResponse=true
+  }) {
     if (!link) {
       link = permalink = 'link' + (linkCounter++)
     }
@@ -90,84 +96,95 @@ test('basic form loop', loudCo(function* (t) {
 
     wrapper.message.context = context
 
+    const wait = awaitResponse ? awaitMessageFromProvider() : Promise.resolve()
     yield series(handlers, fn => fn({ user, wrapper }))
-    return wrapper
+    return {
+      request: wrapper,
+      response: yield wait
+    }
   })
 
-  for (let productModel of productModels) {
-    // don't wait for this to complete
-    let promiseReceive = receive({
-      [TYPE]: productsStrategy.models.application.id,
-      product: {
-        id: productModel.id
-      }
-    }, appLink, appLink, appLink)
+  const applyForProduct = ({ productModel }) => {
+    return receiveFromUser({
+      object: {
+        [TYPE]: productsStrategy.models.application.id,
+        product: {
+          id: productModel.id
+        }
+      },
+      context: appLink,
+      link: appLink,
+      permalink: appLink
+    })
+  }
 
+  const awaitMessageFromProvider = type => {
+    return new Promise(resolve => {
+      bot.on('sent', checkType)
+
+      function checkType (...args) {
+        const { payload } = args[0]
+        if (!type || payload.type === type) {
+          bot.removeListener('sent', checkType)
+          resolve(...args)
+        }
+      }
+    })
+  }
+
+  const awaitFormRequest = co(function* (formType) {
+    const { payload } = yield awaitMessageFromProvider(FORM_REQ)
+    const { object } = payload
+    t.equal(object.form, formType)
+  })
+
+  const testProduct = co(function* ({ productModel }) {
+    let { response } = yield applyForProduct({ productModel })
     const forms = productModel.forms.slice()
+    // const bad = {
+    //   [forms[0]]: true
+    // }
+
     for (let i = 0; i < forms.length; i++) {
       let nextForm = forms[i]
-      yield new Promise(resolve => {
-        bot.once('sent', function ({ message, payload }) {
-          const { object, type } = payload
-          t.equal(type, FORM_REQ)
-          t.equal(object.form, nextForm)
-          if (i) {
-            t.ok(forms[i - 1] in user.forms)
-          }
-
-          t.ok(productModel.id in user.applications)
-          resolve()
-        })
+      t.equal(response.payload.object.form, nextForm)
+      let result = yield receiveFromUser({
+        object: fakeResource({
+          models,
+          model: models[nextForm]
+        }),
+        context: appLink
       })
 
-      let sent = yield promiseReceive
-      if (i) {
-        // get verification
-        productsAPI.verify({
-          user,
-          item: sent.payload
-        })
-        .catch(console.error)
+      response = result.response
+      yield productsAPI.verify({
+        user,
+        item: result.request.payload
+      })
 
-        yield new Promise(resolve => {
-          bot.once('sent', function ({ message, payload }) {
-            t.equal(payload.type, 'tradle.Verification')
-            resolve()
-          })
-        })
-      }
-
-      promiseReceive = receive(fakeResource({
-        models,
-        model: models[nextForm]
-      }))
+      yield awaitMessageFromProvider('tradle.Verification')
+      t.ok(nextForm in user.forms)
+      t.ok(productModel.id in user.applications)
     }
 
     // get product cert
-    yield new Promise(resolve => {
-      bot.once('sent', function ({ payload }) {
-        const { type } = payload
-        const certModel = productsStrategy.models.certificateForProduct[productModel.id]
-        t.equal(type, certModel.id)
-        t.ok(productModel.id in user.products)
-        t.same(user.applications[productModel.id], [])
-        resolve()
-      })
+    t.equal(response.payload.type, productsStrategy.models.certificateForProduct[productModel.id].id)
+    t.ok(productModel.id in user.products)
+    t.same(user.applications[productModel.id], [])
+
+    yield receiveFromUser({
+      object: fakeResource({
+        models,
+        model: models['tradle.ForgetMe']
+      }),
+      awaitResponse: false
     })
 
-    yield receive(fakeResource({
-      models,
-      model: models['tradle.ForgetMe']
-    }))
-
     productModel.forms.forEach(form => t.notOk(form in user.forms))
+  })
 
-    // yield new Promise(resolve => {
-    //   bot.once('sent', function ({ payload }) {
-    //     t.equal(payload.type, 'tradle.ForgotYou')
-    //     resolve()
-    //   })
-    // })
+  for (let productModel of productModels) {
+    yield testProduct({ productModel })
   }
 
   t.end()
