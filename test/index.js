@@ -141,9 +141,9 @@ test('basic form loop', loudCo(function* (t) {
   const testProduct = co(function* ({ productModel }) {
     let { response } = yield applyForProduct({ productModel })
     const forms = productModel.forms.slice()
-    // const bad = {
-    //   [forms[0]]: true
-    // }
+    const bad = {
+      [forms[0]]: true
+    }
 
     for (let i = 0; i < forms.length; i++) {
       let nextForm = forms[i]
@@ -155,6 +155,26 @@ test('basic form loop', loudCo(function* (t) {
         }),
         context: appLink
       })
+
+      if (bad[nextForm]) {
+        // user corrects form
+        productsAPI.requestEdit({
+          user,
+          object: result.request.payload.object,
+          message: 'dude, seriously',
+          errors: []
+        })
+
+        yield awaitMessageFromProvider('tradle.FormError')
+        bad[nextForm] = false
+        result = yield receiveFromUser({
+          object: fakeResource({
+            models,
+            model: models[nextForm]
+          }),
+          context: appLink
+        })
+      }
 
       response = result.response
       yield productsAPI.verify({

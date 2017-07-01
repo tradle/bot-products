@@ -140,6 +140,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
       message = errors[0].error
     }
 
+    debug(`requesting edit for form ${object[TYPE]}`)
     yield bot.send({
       to: user.id,
       object: {
