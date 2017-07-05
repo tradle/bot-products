@@ -23,8 +23,8 @@ module.exports = function creator (opts={}) {
     throw new Error('expected unique string "namespace"')
   }
 
-  if (namespace === 'io.tradle') {
-    throw new Error('namespace "io.tradle" is reserved. Your models will be ignored by the application')
+  if (namespace === 'tradle') {
+    throw new Error('namespace "tradle" is reserved. Your models will be ignored by the application')
   }
 
   const appModels = genApplicationModels({
