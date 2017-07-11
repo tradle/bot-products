@@ -83,16 +83,17 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     })
   })
 
+  function getNextRequiredItem ({ user, application }) {
+    const productModel = modelById[application.product]
+    return productModel.forms.find(form => !user.forms[form])
+  }
+
   const requestNextRequiredItem = co(function* ({ user, application }) {
+    const next = getNextRequiredItem({ user, application })
+    if (!next) return false
+
     const { product } = application
     const context = application.permalink
-    const productModel = modelById[product]
-    const next = productModel.forms.find(form => !user.forms[form])
-    if (!next) {
-      return false
-      // return issueProductCertificate({ user, application })
-    }
-
     debug(`requesting next form for ${product}: ${next}`)
     const reqNextForm = createItemRequest({
       product,
@@ -156,6 +157,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     verify,
     issueProductCertificate,
     requestEdit,
+    getNextRequiredItem,
     requestNextForm: requestNextRequiredItem,
     createItemRequest,
     sendProductList,

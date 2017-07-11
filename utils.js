@@ -4,50 +4,82 @@ const shallowClone = require('xtend')
 const pick = require('object.pick')
 const STRINGS = require('./strings')
 
-module.exports = {
-  Promise,
-  co,
-  genEnumModel,
-  genProductListModel,
-  genProductCertificateModel,
-  genProductApplicationModel,
-  genApplicationModels,
-  format,
-  parseId,
-  wait,
-  shallowExtend,
-  shallowClone
+// function getNamespaceIds (namespace) {
+//   return {
+//     productList: getProductListModelId(namespace),
+//     productApplication: getProductApplicationModelId(namespace)
+//   }
+// }
+
+const GenId = {
+  productList: ({ namespace }) => `${namespace}.Product`,
+  productApplication: ({ namespace }) => `${namespace}.ProductApplication`,
+  productCertificate: getProductCertificateModelId
 }
 
-function genProductListModel ({ namespace, productModels }) {
+const GenModel = {
+  productList: genProductListModel,
+  productApplication: genProductApplicationModel,
+  productCertificate: genProductCertificateModel
+}
+
+// function getProductListModelId (namespace) {
+//   return `${namespace}.Product`
+// }
+
+// function getProductApplicationModelId (namespace) {
+//   return `${namespace}.ProductApplication`
+// }
+
+function getProductCertificateModelId ({ productModel }) {
+  const id = productModel.id || productModel
+  const lastIdx = id.lastIndexOf('.')
+  return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
+}
+
+function genProductListModel ({ id, productModels }) {
   return genEnumModel({
     models: productModels,
-    id: `${namespace}.Product`
+    id
   })
 }
 
 function genApplicationModels ({ namespace, models, products }) {
+  const additional = {}
+  // const ids = getNamespaceIds(namespace)
+
   const productModels = products.map(id => models[id])
-  const productList = genProductListModel({ namespace, productModels })
+  const productListId = GenId.productList({ namespace })
+
+  let productList
+  if (!(productListId in models)) {
+    productList = GenModel.productList({
+      id: productListId,
+      productModels
+    })
+
+    additional[productListId] = productList
+  }
+
   const certificates = {}
   const certificateForProduct = {}
   const productForCertificate = {}
-  const additional = {
-    [productList.id]: productList
-  }
 
   productModels.forEach(productModel => {
     const { id } = productModel
-    const cert = genProductCertificateModel({ productModel })
-    certificates[cert.id] = cert
-    productForCertificate[cert.id] = productModel
-    additional[cert.id] = cert
+    const certId = GenId.productCertificate({ productModel })
+    const cert = models[certId] || GenModel.productCertificate({ productModel })
+    certificates[certId] = cert
+    productForCertificate[certId] = productModel
     certificateForProduct[id] = cert
+    if (!(certId in models)) {
+      additional[certId] = cert
+    }
   })
 
-  const application = genProductApplicationModel({
+  const application = GenModel.productApplication({
     productList,
-    id: `${namespace}.ProductApplication`
+    id: GenId.productApplication(namespace)
   })
 
   const all = {}
@@ -98,7 +130,7 @@ function genProductApplicationModel ({ productList, id, title }) {
 function genProductCertificateModel ({ productModel, id, title }) {
   // com.example.Furniture => com.example.MyFurniture
   if (!id) {
-    id = getCertificateModelId(productModel.id)
+    id = GenId.productCertificate({ productModel })
   }
 
   return normalize({
@@ -177,10 +209,6 @@ function wait (millis) {
   return new Promise(resolve => setTimeout(resolve, millis))
 }
 
-function getCertificateModelId (productModelId) {
-  return productModelId.replace(/\.([^.]+)$/, '.My$1')
-}
-
 function getValues (obj) {
   return Object.keys(obj).map(id => obj[id])
 }
@@ -188,4 +216,23 @@ function getValues (obj) {
 function idToTitle (id) {
   const camel = id.split('.').pop()
   return splitCamelCase(camel).join(' ')
+}
+
+module.exports = {
+  gen: {
+    id: GenId,
+    model: GenModel,
+    applicationModels: genApplicationModels
+  },
+  co,
+  // genEnumModel,
+  // genProductListModel,
+  // genProductCertificateModel,
+  // genProductApplicationModel,
+  // genApplicationModels,
+  format,
+  parseId,
+  wait,
+  shallowExtend,
+  shallowClone
 }
