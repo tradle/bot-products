@@ -70,6 +70,12 @@ test('basic form loop', loudCo(function* (t) {
   })
 
   const productsAPI = productsStrategy.install(bot)
+  // productsAPI.use({
+  //   onForm: function () {
+  //     console.log('onForm', ...arguments)
+  //   }
+  // })
+
   const { models } = productsAPI
 
   let linkCounter = 0

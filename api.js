@@ -83,24 +83,29 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     })
   })
 
+  function getRequiredItems ({ user, application }) {
+    return modelById[application.product].forms.slice()
+  }
+
   function getNextRequiredItem ({ user, application }) {
-    const productModel = modelById[application.product]
-    return productModel.forms.find(form => !user.forms[form])
+    return getRequiredItems({ user, application })
+      .find(form => !user.forms[form])
   }
 
   const requestNextRequiredItem = co(function* ({ user, application }) {
     const next = getNextRequiredItem({ user, application })
     if (!next) return false
 
+    yield requestItem({ user, application, item: next })
+    return true
+  })
+
+  const requestItem = co(function* ({ user, application, item }) {
     const { product } = application
     const context = application.permalink
-    debug(`requesting next form for ${product}: ${next}`)
-    const reqNextForm = createItemRequest({
-      product,
-      item: next
-    })
-
-    yield send(user, reqNextForm, { context })
+    debug(`requesting next form for ${product}: ${item}`)
+    const reqItem = createItemRequest({ product, item })
+    yield send(user, reqItem, { context })
     return true
   })
 
@@ -159,6 +164,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     requestEdit,
     getNextRequiredItem,
     requestNextForm: requestNextRequiredItem,
+    getRequiredItems,
     createItemRequest,
     sendProductList,
     models: modelById

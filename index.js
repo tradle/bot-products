@@ -4,7 +4,7 @@ const validateModels = require('@tradle/validate-model')
 const keepModelsFresh = require('@tradle/bot-require-models')
 const baseModels = require('./base-models')
 const productsStrategy = require('./strategy')
-const { gen } = require('./utils')
+const Gen = require('./gen')
 
 const TESTING = process.env.NODE_ENV === 'test'
 
@@ -13,8 +13,7 @@ module.exports = function creator (opts={}) {
     // defaults
     namespace,
     models,
-    products,
-    handlers={}
+    products
   } = opts
 
   if (!namespace) {
@@ -25,7 +24,7 @@ module.exports = function creator (opts={}) {
     throw new Error('namespace "tradle" is reserved. Your models will be ignored by the application')
   }
 
-  const appModels = gen.applicationModels({
+  const appModels = Gen.applicationModels({
     models: shallowClone(baseModels, models),
     products,
     namespace
@@ -53,8 +52,7 @@ module.exports = function creator (opts={}) {
 
     const api = bot.use(productsStrategy({
       modelById,
-      appModels,
-      handlers
+      appModels
     }))
 
     return shallowClone(api, { uninstall })

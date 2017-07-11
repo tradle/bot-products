@@ -1,6 +1,7 @@
 const debug = require('debug')('tradle:bot:products')
 const {
   co,
+  isPromise,
   format,
   shallowExtend,
   shallowClone
@@ -8,6 +9,7 @@ const {
 
 const { addVerification } = require('./state')
 const createAPI = require('./api')
+const createPlugins = require('./plugins')
 const STRINGS = require('./strings')
 const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
@@ -22,20 +24,13 @@ module.exports = function productsStrategyImpl (opts) {
 function install (bot, opts) {
   const {
     modelById,
-    appModels,
-    handlers
+    appModels
   } = opts
 
   const api = createAPI({ bot, modelById, appModels })
+  const plugins = createPlugins()
 
   function send (user, object) {
-    if (typeof object === 'string') {
-      object = {
-        [TYPE]: 'tradle.SimpleMessage',
-        message: object
-      }
-    }
-
     return bot.send({ to: user.id, object })
   }
 
@@ -88,26 +83,19 @@ function install (bot, opts) {
 
     switch (type) {
     case 'tradle.SelfIntroduction':
+      yield plugins.exec('onSelfIntroduction', data)
+      break
     case 'tradle.IdentityPublishRequest':
-      if (!object.profile) break
-
-      const name = object.profile.firstName
-      const oldName = user.profile && user.profile.firstName
-      user.profile = object.profile
-      if (name !== oldName) {
-        yield send(user, format(STRINGS.HOT_NAME, name))
-      }
-
-      yield api.sendProductList(data)
+      yield plugins.exec('onIdentityPublishRequest', data)
       break
     case 'tradle.SimpleMessage':
-      yield onSimpleMessage(data)
+      yield plugins.exec('onSimpleMessage', data)
       break
     case 'tradle.CustomerWaiting':
-      yield onCustomerWaiting(data)
+      yield plugins.exec('onCustomerWaiting', data)
       break
     case VERIFICATION:
-      yield handleVerification(data)
+      yield plugins.exec('onVerification', data)
       break
     // case 'tradle.ProductApplication':
     //   if (object.product === REMEDIATION) {
@@ -118,18 +106,18 @@ function install (bot, opts) {
 
     //   break
     case appModels.application.id:
-      yield handleProductApplication(data)
+      yield plugins.exec('onApplication', data)
       break
     case 'tradle.ForgetMe':
-      yield onForgetMe(data)
+      yield plugins.exec('onForgetMe', data)
       break
     default:
       if (model && model.subClassOf === 'tradle.Form') {
-        yield handleForm(data)
+        yield plugins.exec('onForm', data)
         break
       }
 
-      yield onUnknownMessage(data)
+      yield plugins.exec('onUnknownMessage', data)
       break
     }
   })
@@ -141,7 +129,6 @@ function install (bot, opts) {
     const { user, object } = data
     yield send(user, format(STRINGS.TELL_ME_MORE, object.message))
   })
-
 
   function deduceCurrentApplication (data) {
     const { user, context, type } = data
@@ -206,7 +193,8 @@ function install (bot, opts) {
       // ignore and continue existing
       //
       // delegate this decision to the outside?
-      return continueApplication(data)
+      yield continueApplication(data)
+      return
     }
 
     // if (user.products[product]) {
@@ -223,7 +211,7 @@ function install (bot, opts) {
     // user.currentApplication = { product, permalink, link }
     data.currentApplication = { product, permalink, link }
     user.applications[product].push({ product, permalink, link })
-    yield onApplication(data)
+    yield continueApplication(data)
   })
 
   const handleForm = co(function* (data) {
@@ -242,7 +230,7 @@ function install (bot, opts) {
     }
 
     known.versions.push({ link })
-    yield onForm(data)
+    yield continueApplication(data)
   })
 
   const continueApplication = co(function* (data) {
@@ -250,7 +238,7 @@ function install (bot, opts) {
 
     data = shallowExtend({ application: data.currentApplication }, data)
     const requested = yield api.requestNextForm(data)
-    if (!requested) yield onFormsCollected(data)
+    if (!requested) yield plugins.exec('onFormsCollected', data)
   })
 
   const handleVerification = co(function* (data) {
@@ -261,7 +249,7 @@ function install (bot, opts) {
       verifiedItem: object.document
     })
 
-    yield onVerification(data)
+    yield continueApplication(data)
   })
 
   function getProductFromEnumValue (value) {
@@ -281,16 +269,38 @@ function install (bot, opts) {
     ensureStateStructure(user)
   })
 
-  const {
-    onForm=continueApplication,
-    onVerification=continueApplication,
-    onApplication=continueApplication,
-    onFormsCollected=approveProduct,
-    onSimpleMessage=banter,
-    onCustomerWaiting=api.sendProductList,
-    onForgetMe=forgetUser,
-    onUnknownMessage=noComprendo
-  } = handlers
+  const saveProfile = co(function* ({ user, object }) {
+    if (!object.profile) return
+
+    const name = object.profile.firstName
+    const oldName = user.profile && user.profile.firstName
+    user.profile = object.profile
+    if (name !== oldName) {
+      yield send(user, format(STRINGS.HOT_NAME, name))
+    }
+
+    yield api.sendProductList(data)
+  })
+
+  const defaults = {
+    onSelfIntroduction: saveProfile,
+    onIdentityPublishRequest: saveProfile,
+    onForm: handleForm,
+    onVerification: handleVerification,
+    onApplication: handleProductApplication,
+    onFormsCollected: approveProduct,
+    onSimpleMessage: banter,
+    onCustomerWaiting: api.sendProductList,
+    onForgetMe: forgetUser,
+    onUnknownMessage: noComprendo,
+    getRequiredItems: api.getRequiredItems
+  }
+
+  const removeDefaultHandlers = plugins.use(defaults)
+
+  function removeDefaultHandler (method) {
+    return plugins.remove(method, defaults[method])
+  }
 
   function uninstall () {
     removeReceiveHandler()
@@ -299,5 +309,8 @@ function install (bot, opts) {
 
   return shallowExtend({
     uninstall,
+    use: plugins.use,
+    removeDefaultHandler,
+    removeDefaultHandlers
   }, api)
 }

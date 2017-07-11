@@ -16,6 +16,7 @@
     "@tradle/models": "https://github.com/tradle/models",
     "@tradle/validate-model": "tradle/validate-model",
     "@tradle/validate-resource": "tradle/validate-resource",
+    "bindall": "^2.0.1",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",
     "object.omit": "^2.0.1",
