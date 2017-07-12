@@ -27,8 +27,23 @@ function install (bot, opts) {
     appModels
   } = opts
 
-  const api = createAPI({ bot, modelById, appModels })
   const plugins = createPlugins()
+  const defaultPlugin = {}
+  const api = (function () {
+    const rawAPI = createAPI({ bot, modelById, appModels })
+    const apiProxy = {}
+    for (let key in rawAPI) {
+      let val = rawAPI[key]
+      if (typeof val === 'function') {
+        defaultPlugin[key] = val.bind(rawAPI)
+        apiProxy[key] = plugins.exec.bind(plugins, key)
+      } else {
+        apiProxy[key] = val
+      }
+    }
+
+    return apiProxy
+  }())
 
   function send (user, object) {
     return bot.send({ to: user.id, object })
@@ -97,14 +112,6 @@ function install (bot, opts) {
     case VERIFICATION:
       yield plugins.exec('onVerification', data)
       break
-    // case 'tradle.ProductApplication':
-    //   if (object.product === REMEDIATION) {
-    //     yield handleRemediation(data)
-    //   } else {
-    //     debug(`ignoring application for "${object.product}", don't know how to handle`)
-    //   }
-
-    //   break
     case appModels.application.id:
       yield plugins.exec('onApplication', data)
       break
@@ -117,7 +124,7 @@ function install (bot, opts) {
         break
       }
 
-      yield plugins.exec('onUnknownMessage', data)
+      yield plugins.exec('onUnhandledMessage', data)
       break
     }
   })
@@ -269,7 +276,7 @@ function install (bot, opts) {
     ensureStateStructure(user)
   })
 
-  const saveProfile = co(function* ({ user, object }) {
+  const saveName = co(function* ({ user, object }) {
     if (!object.profile) return
 
     const name = object.profile.firstName
@@ -278,13 +285,17 @@ function install (bot, opts) {
     if (name !== oldName) {
       yield send(user, format(STRINGS.HOT_NAME, name))
     }
-
-    yield api.sendProductList(data)
   })
 
-  const defaults = {
-    onSelfIntroduction: saveProfile,
-    onIdentityPublishRequest: saveProfile,
+  shallowExtend(defaultPlugin, {
+    onSelfIntroduction: [
+      saveName,
+      api.sendProductList
+    ],
+    onIdentityPublishRequest: [
+      saveName,
+      api.sendProductList
+    ],
     onForm: handleForm,
     onVerification: handleVerification,
     onApplication: handleProductApplication,
@@ -292,14 +303,13 @@ function install (bot, opts) {
     onSimpleMessage: banter,
     onCustomerWaiting: api.sendProductList,
     onForgetMe: forgetUser,
-    onUnknownMessage: noComprendo,
-    getRequiredItems: api.getRequiredItems
-  }
+    onUnhandledMessage: noComprendo
+  })
 
-  const removeDefaultHandlers = plugins.use(defaults)
+  const removeDefaultHandlers = plugins.use(defaultPlugin)
 
   function removeDefaultHandler (method) {
-    return plugins.remove(method, defaults[method])
+    return plugins.remove(method, defaultPlugin[method])
   }
 
   function uninstall () {
@@ -311,6 +321,7 @@ function install (bot, opts) {
     uninstall,
     use: plugins.use,
     removeDefaultHandler,
-    removeDefaultHandlers
+    removeDefaultHandlers,
+    models: modelById
   }, api)
 }

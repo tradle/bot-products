@@ -10,12 +10,8 @@ function PluginManager (defaults) {
   if (defaults) this.use(defaults)
 }
 
-PluginManager.prototype.register = function register (method, handler) {
-  if (!this._plugins[method]) {
-    this._plugins[method] = []
-  }
-
-  this._plugins[method].push(handler)
+PluginManager.prototype.register = function register (method, handlers) {
+  this._plugins[method] = (this._plugins[method] || []).concat(handlers)
   return this.unregister.bind(this, ...arguments)
 }
 
@@ -69,5 +65,5 @@ PluginManager.prototype.exec = co(function* ({
     if (waterfall) args = [ret]
   }
 
-  if (waterfall) return ret
+  return ret
 })

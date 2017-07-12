@@ -14,9 +14,7 @@ const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 
 module.exports = function createAPI ({ bot, modelById, appModels }) {
-  const productChooser = createItemRequest({
-    item: appModels.application.id
-  })
+  let productChooser
 
   function send (user, object, other) {
     return bot.send({ to: user.id, object, other })
@@ -88,12 +86,12 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
   }
 
   function getNextRequiredItem ({ user, application }) {
-    return getRequiredItems({ user, application })
+    return api.getRequiredItems({ user, application })
       .find(form => !user.forms[form])
   }
 
   const requestNextRequiredItem = co(function* ({ user, application }) {
-    const next = getNextRequiredItem({ user, application })
+    const next = api.getNextRequiredItem({ user, application })
     if (!next) return false
 
     yield requestItem({ user, application, item: next })
@@ -104,7 +102,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     const { product } = application
     const context = application.permalink
     debug(`requesting next form for ${product}: ${item}`)
-    const reqItem = createItemRequest({ product, item })
+    const reqItem = api.createItemRequest({ product, item })
     yield send(user, reqItem, { context })
     return true
   })
@@ -138,6 +136,12 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
   }
 
   function sendProductList ({ user }) {
+    if (!productChooser) {
+      productChooser = api.createItemRequest({
+        item: appModels.application.id
+      })
+    }
+
     return send(user, productChooser)
   }
 
@@ -158,7 +162,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     })
   })
 
-  return {
+  const api = {
     verify,
     issueProductCertificate,
     requestEdit,
@@ -166,8 +170,9 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     requestNextForm: requestNextRequiredItem,
     getRequiredItems,
     createItemRequest,
-    sendProductList,
-    models: modelById
+    sendProductList
     // continueApplication
   }
+
+  return api
 }
