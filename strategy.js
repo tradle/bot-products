@@ -244,7 +244,7 @@ function install (bot, opts) {
     if (!data.currentApplication) return
 
     data = shallowExtend({ application: data.currentApplication }, data)
-    const requested = yield api.requestNextForm(data)
+    const requested = yield api.requestNextRequiredItem(data)
     if (!requested) yield plugins.exec('onFormsCollected', data)
   })
 
@@ -320,6 +320,7 @@ function install (bot, opts) {
   return shallowExtend({
     uninstall,
     use: plugins.use,
+    override: plugins.override,
     removeDefaultHandler,
     removeDefaultHandlers,
     models: modelById

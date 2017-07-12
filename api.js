@@ -81,39 +81,37 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     })
   })
 
-  function getRequiredItems ({ user, application }) {
+  // promisified because it might be overridden by an async function
+  const getRequiredItems = co(function* ({ user, application }) {
     return modelById[application.product].forms.slice()
-  }
+  })
 
-  function getNextRequiredItem ({ user, application }) {
-    return api.getRequiredItems({ user, application })
-      .find(form => !user.forms[form])
-  }
+  // promisified because it might be overridden by an async function
+  const getNextRequiredItem = co(function* ({ user, application }) {
+    const required = yield api.getRequiredItems({ user, application })
+    return required.find(form => !user.forms[form])
+  })
 
   const requestNextRequiredItem = co(function* ({ user, application }) {
-    const next = api.getNextRequiredItem({ user, application })
+    const next = yield api.getNextRequiredItem({ user, application })
     if (!next) return false
 
     yield requestItem({ user, application, item: next })
     return true
   })
 
+  // promisified because it might be overridden by an async function
   const requestItem = co(function* ({ user, application, item }) {
     const { product } = application
     const context = application.permalink
     debug(`requesting next form for ${product}: ${item}`)
-    const reqItem = api.createItemRequest({ product, item })
+    const reqItem = yield api.createItemRequest({ product, item })
     yield send(user, reqItem, { context })
     return true
   })
 
-  /**
-   * Request the next required item from productModel.forms
-   * @param  {product} options.product [description]
-   * @param  {[type]} options.item    [description]
-   * @return {[type]}                 [description]
-   */
-  function createItemRequest ({ product, item }) {
+  // promisified because it might be overridden by an async function
+  const createItemRequest = co(function* ({ product, item }) {
     const model = modelById[item]
     let message
     if (model.id === appModels.application.id) {
@@ -133,9 +131,9 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     if (product) req.product = product
 
     return req
-  }
+  })
 
-  function sendProductList ({ user }) {
+  const sendProductList = co(function* ({ user }) {
     if (!productChooser) {
       productChooser = api.createItemRequest({
         item: appModels.application.id
@@ -143,7 +141,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     }
 
     return send(user, productChooser)
-  }
+  })
 
   const requestEdit = co(function* ({ user, object, message, errors=[] }) {
     if (!message && errors.length) {
@@ -167,7 +165,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     issueProductCertificate,
     requestEdit,
     getNextRequiredItem,
-    requestNextForm: requestNextRequiredItem,
+    requestNextRequiredItem,
     getRequiredItems,
     createItemRequest,
     sendProductList

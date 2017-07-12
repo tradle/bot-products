@@ -216,6 +216,42 @@ test('basic form loop', loudCo(function* (t) {
   t.end()
 }))
 
+test('plugins', loudCo(function* (t) {
+  const productModels = [
+    baseModels[CURRENT_ACCOUNT]
+  ]
+
+  const productsStrategy = createProductsStrategy({
+    namespace: 'test.namespace',
+    models: toObject(productModels),
+    products: productModels.map(model => model.id)
+  })
+
+  const bot = {
+    use: (strategy, opts) => strategy(bot, opts),
+    onmessage: () => {},
+    onusercreate: () => {}
+  }
+
+  const productsAPI = productsStrategy.install(bot)
+  productsAPI.override({
+    getRequiredItems: function () {
+      return ['blah']
+    }
+  })
+
+  t.same(productsAPI.getRequiredItems(), ['blah'])
+
+  productsAPI.override({
+    getRequiredItems: function () {
+      return Promise.resolve(['blah1'])
+    }
+  })
+
+  t.same(yield productsAPI.getRequiredItems(), ['blah1'])
+  t.end()
+}))
+
 function toObject (models) {
   const obj = {}
   models.forEach(model => obj[model.id] = model)

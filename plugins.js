@@ -33,6 +33,17 @@ PluginManager.prototype.use = function use (plugin) {
   return this.unregister.bind(this, ...arguments)
 }
 
+PluginManager.prototype.override = function override (plugin) {
+  if (arguments.length > 1) {
+    this._plugins[arguments[0]] = []
+    return this.register(...arguments)
+  }
+
+  for (let method in plugin) {
+    this.override(method, plugin[method])
+  }
+}
+
 PluginManager.prototype.remove = function remove (plugin) {
   if (arguments.length > 1) {
     return this.unregister(...arguments)
@@ -43,7 +54,7 @@ PluginManager.prototype.remove = function remove (plugin) {
   }
 }
 
-PluginManager.prototype.exec = co(function* ({
+PluginManager.prototype.exec = function ({
   method,
   args,
   waterfall,
@@ -57,13 +68,39 @@ PluginManager.prototype.exec = co(function* ({
   const handlers = this._plugins[method]
   if (!handlers) return
 
+  return execute({
+    fns: handlers,
+    args,
+    allowExit, waterfall
+  })
+}
+
+/**
+ * execute in series, with synchronous and promise support
+ */
+function execute ({ fns, args, allowExit, waterfall }) {
   let ret
-  for (const handler of handlers) {
-    ret = handler.apply(this, args)
-    if (isPromise(ret)) ret = yield ret
-    if (allowExit && ret === false) return ret
-    if (waterfall) args = [ret]
+  fns = fns.slice()
+  while (fns.length) {
+    let fn = fns.shift()
+    ret = fn.apply(this, args)
+    if (isPromise(ret)) {
+      return ret.then(continueExec)
+    }
+
+    return continueExec(ret)
   }
 
-  return ret
-})
+  function continueExec (ret) {
+    if (allowExit && ret === false) return ret
+    if (!fns.length) return ret
+    if (waterfall) args = [ret]
+
+    return execute({
+      fns,
+      args: waterfall ? args : [ret],
+      allowExit,
+      waterfall
+    })
+  }
+}
