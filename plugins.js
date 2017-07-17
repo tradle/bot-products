@@ -10,9 +10,13 @@ function PluginManager (defaults) {
   if (defaults) this.use(defaults)
 }
 
-PluginManager.prototype.register = function register (method, handlers) {
-  this._plugins[method] = (this._plugins[method] || []).concat(handlers)
-  return this.unregister.bind(this, ...arguments)
+PluginManager.prototype.register = function register (method, handlers, unshift) {
+  handlers = [].concat(handlers)
+  const current = this._plugins[method] || []
+  const first = unshift ? handlers : current
+  const second = unshift ? current : handlers
+  this._plugins[method] = first.concat(second)
+  return this.unregister.bind(this, method, handlers)
 }
 
 PluginManager.prototype.unregister = function unregister (method, handler) {
@@ -21,34 +25,23 @@ PluginManager.prototype.unregister = function unregister (method, handler) {
   this._plugins[method] = this._plugins[method].filter(fn => fn !== handler)
 }
 
-PluginManager.prototype.use = function use (plugin) {
-  if (arguments.length > 1) {
-    return this.register(...arguments)
-  }
-
+PluginManager.prototype.use = function use (plugin, unshift) {
   for (let method in plugin) {
-    this.register(method, plugin[method])
+    this.register(method, plugin[method], unshift)
   }
 
-  return this.unregister.bind(this, ...arguments)
+  return this.remove.bind(this, plugin)
 }
 
-PluginManager.prototype.override = function override (plugin) {
-  if (arguments.length > 1) {
-    this._plugins[arguments[0]] = []
-    return this.register(...arguments)
-  }
-
-  for (let method in plugin) {
-    this.override(method, plugin[method])
+PluginManager.prototype.clear = function clear (method) {
+  if (method) {
+    this._plugins[method] = []
+  } else {
+    this._plugins = {}
   }
 }
 
 PluginManager.prototype.remove = function remove (plugin) {
-  if (arguments.length > 1) {
-    return this.unregister(...arguments)
-  }
-
   for (let method in plugin) {
     this.unregister(method, plugin[method])
   }

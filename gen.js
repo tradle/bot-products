@@ -70,7 +70,7 @@ function genApplicationModels ({ namespace, models, products }) {
 
   const application = GenModel.productApplication({
     productList,
-    id: GenId.productApplication(namespace)
+    id: GenId.productApplication({ namespace })
   })
 
   const all = {}

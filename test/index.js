@@ -234,7 +234,8 @@ test('plugins', loudCo(function* (t) {
   }
 
   const productsAPI = productsStrategy.install(bot)
-  productsAPI.override({
+  productsAPI.plugins.clear('getRequiredItems')
+  productsAPI.plugins.use({
     getRequiredItems: function () {
       return ['blah']
     }
@@ -242,7 +243,8 @@ test('plugins', loudCo(function* (t) {
 
   t.same(productsAPI.getRequiredItems(), ['blah'])
 
-  productsAPI.override({
+  productsAPI.plugins.clear('getRequiredItems')
+  productsAPI.plugins.use({
     getRequiredItems: function () {
       return Promise.resolve(['blah1'])
     }

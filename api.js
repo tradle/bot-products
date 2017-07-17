@@ -61,13 +61,16 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
         model: baseModels[VERIFICATION],
         resource: verification
       })
-      .document(object)
+      .set('document', object)
 
-    if (!verification.dateVerified) builder.dateVerified(Date.now())
+    if (!verification.dateVerified) {
+      builder.set('dateVerified', Date.now())
+    }
+
     if (!verification.sources) {
       const sources = user.importedVerifications[permalink]
       if (sources) {
-        builder.sources(sources.map(source => source.verification))
+        builder.set('sources', sources.map(source => source.verification))
       }
     }
 

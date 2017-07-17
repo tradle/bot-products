@@ -318,9 +318,8 @@ function install (bot, opts) {
   }
 
   return shallowExtend({
+    plugins,
     uninstall,
-    use: plugins.use,
-    override: plugins.override,
     removeDefaultHandler,
     removeDefaultHandlers,
     models: modelById
