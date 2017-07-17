@@ -64,7 +64,8 @@ PluginManager.prototype.exec = function ({
   return execute({
     fns: handlers,
     args,
-    allowExit, waterfall
+    allowExit,
+    waterfall
   })
 }
 
@@ -91,7 +92,7 @@ function execute ({ fns, args, allowExit, waterfall }) {
 
     return execute({
       fns,
-      args: waterfall ? args : [ret],
+      args: waterfall ? [ret] : args,
       allowExit,
       waterfall
     })

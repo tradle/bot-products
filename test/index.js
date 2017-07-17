@@ -23,6 +23,7 @@ const TYPE = '_t'
 const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const FORM_REQ = 'tradle.FormRequest'
+const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 
 const series = co(function* (arr, fn) {
   for (let i = 0; i < arr.length; i++) {
@@ -102,7 +103,9 @@ test('basic form loop', loudCo(function* (t) {
     })
 
     const payload = message.object
-    buildResource.setVirtual(message, { _context: context })
+    if (context) {
+      buildResource.setVirtual(message, { _context: context })
+    }
 
     const type = payload[TYPE]
     const wait = awaitResponse ? awaitMessageFromProvider() : Promise.resolve()
@@ -210,6 +213,16 @@ test('basic form loop', loudCo(function* (t) {
 
     productModel.forms.forEach(form => t.notOk(form in user.forms))
   })
+
+  const selfIntroResp = yield receiveFromUser({
+    object: fakeResource({
+      models,
+      model: models[SELF_INTRODUCTION]
+    }),
+    awaitResponse: true
+  })
+
+  console.log(selfIntroResp)
 
   for (let productModel of productModels) {
     yield testProduct({ productModel })

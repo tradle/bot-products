@@ -110,7 +110,7 @@
 
 "@tradle/validate-model@tradle/validate-model":
   version "1.0.0"
-  resolved "https://codeload.github.com/tradle/validate-model/tar.gz/c67483a907399b56f06ade15c25bf5950bf3a3fd"
+  resolved "https://codeload.github.com/tradle/validate-model/tar.gz/aed6a361a46429d4d21c4dd1b318509ab56067fe"
   dependencies:
     object.omit "^2.0.1"
     object.pick "^1.2.0"
