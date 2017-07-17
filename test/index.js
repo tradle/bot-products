@@ -9,6 +9,7 @@ const test = require('tape')
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
 const fakeResource = require('@tradle/build-resource/fake')
+const buildResource = require('@tradle/build-resource')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
 const ageModels = require('./fixtures/agemodels')
@@ -37,7 +38,7 @@ test('basic form loop', loudCo(function* (t) {
     onmessage: handler => handlers.push(handler),
     onusercreate: () => {},
     send: co(function* ({ to, object }) {
-      const ret = fakeWrapper({ from, to, object })
+      const ret = fakeMessage({ from, to, object })
       process.nextTick(() => bot.emit('sent', ret))
       return ret
     })
@@ -94,18 +95,20 @@ test('basic form loop', loudCo(function* (t) {
       link = permalink = 'link' + (linkCounter++)
     }
 
-    const wrapper = fakeWrapper({
+    const message = fakeMessage({
       from: to,
       to: from,
       object
     })
 
-    wrapper.message.context = context
+    const payload = message.object
+    buildResource.setVirtual(message, { _context: context })
 
+    const type = payload[TYPE]
     const wait = awaitResponse ? awaitMessageFromProvider() : Promise.resolve()
-    yield series(handlers, fn => fn({ user, wrapper }))
+    yield series(handlers, fn => fn({ user, message, payload, type }))
     return {
-      request: wrapper,
+      request: message,
       response: yield wait
     }
   })
@@ -129,8 +132,8 @@ test('basic form loop', loudCo(function* (t) {
       bot.on('sent', checkType)
 
       function checkType (...args) {
-        const { payload } = args[0]
-        if (!type || payload.type === type) {
+        const { object } = args[0]
+        if (!type || object[TYPE] === type) {
           bot.removeListener('sent', checkType)
           resolve(...args)
         }
@@ -140,8 +143,7 @@ test('basic form loop', loudCo(function* (t) {
 
   const awaitFormRequest = co(function* (formType) {
     const { payload } = yield awaitMessageFromProvider(FORM_REQ)
-    const { object } = payload
-    t.equal(object.form, formType)
+    t.equal(payload.form, formType)
   })
 
   const testProduct = co(function* ({ productModel }) {
@@ -153,7 +155,7 @@ test('basic form loop', loudCo(function* (t) {
 
     for (let i = 0; i < forms.length; i++) {
       let nextForm = forms[i]
-      t.equal(response.payload.object.form, nextForm)
+      t.equal(response.object.form, nextForm)
       let result = yield receiveFromUser({
         object: fakeResource({
           models,
@@ -166,7 +168,7 @@ test('basic form loop', loudCo(function* (t) {
         // user corrects form
         productsAPI.requestEdit({
           user,
-          object: result.request.payload.object,
+          object: result.request.object,
           message: 'dude, seriously',
           errors: []
         })
@@ -185,7 +187,7 @@ test('basic form loop', loudCo(function* (t) {
       response = result.response
       yield productsAPI.verify({
         user,
-        item: result.request.payload
+        item: result.request.object
       })
 
       yield awaitMessageFromProvider('tradle.Verification')
@@ -194,7 +196,7 @@ test('basic form loop', loudCo(function* (t) {
     }
 
     // get product cert
-    t.equal(response.payload.type, productsStrategy.models.certificateForProduct[productModel.id].id)
+    t.equal(response.object[TYPE], productsStrategy.models.certificateForProduct[productModel.id].id)
     t.ok(productModel.id in user.products)
     t.same(user.applications[productModel.id], [])
 
@@ -266,32 +268,27 @@ function toObject (models) {
 //   t.end()
 // })
 
-function fakeWrapper ({ from, to, object }) {
-  object = shallowExtend({
-    _s: object._s || newSig()
-  }, object)
-
+function fakeMessage ({ from, to, object }) {
   const msgLink = newLink()
   const objLink = newLink()
+  if (typeof object === 'string') debugger
+  object = shallowExtend({
+    _s: object._s || newSig(),
+    _author: from,
+    _link: objLink,
+    _permalink: objLink,
+    _virtual: ['_author', '_link', '_permalink']
+  }, object)
+
   return {
-    message: {
-      author: from,
-      recipient: to,
-      link: msgLink,
-      permalink: msgLink,
-      object: {
-        _t: 'tradle.Message',
-        _s: newSig(),
-        object
-      }
-    },
-    payload: {
-      author: from,
-      link: objLink,
-      permalink: objLink,
-      object,
-      type: object[TYPE]
-    }
+    _author: from,
+    _recipient: to,
+    _link: msgLink,
+    _permalink: msgLink,
+    _t: 'tradle.Message',
+    _s: newSig(),
+    _virtual: ['_author', '_recipient', '_link', '_permalink'],
+    object
   }
 }
 

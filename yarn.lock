@@ -31,9 +31,11 @@
 
 "@tradle/build-resource@tradle/build-resource":
   version "1.0.0"
-  resolved "https://codeload.github.com/tradle/build-resource/tar.gz/b565bf893e27b3cf6f6d8b5e1bc59fec7d4b38ad"
+  resolved "https://codeload.github.com/tradle/build-resource/tar.gz/b102cc490c1827c883506b9d4e788670652a53ad"
   dependencies:
     clone "^2.1.0"
+    deep-equal "^1.0.1"
+    object.pick "^1.2.0"
     xtend "^4.0.1"
 
 "@tradle/custom-models@https://github.com/tradle/custom-models":
@@ -84,7 +86,7 @@
 
 "@tradle/models@https://github.com/tradle/models":
   version "4.10.10"
-  resolved "https://github.com/tradle/models#39d3a14423db9009d0c53e6ba6f8f55d3867e97b"
+  resolved "https://github.com/tradle/models#7ebb1f5cf29893bc18e41c9725e628328be99608"
   dependencies:
     minimist "^1.2.0"
     typeforce "^1.10.6"
@@ -117,8 +119,10 @@
 
 "@tradle/validate-resource@tradle/validate-resource":
   version "1.0.0"
-  resolved "https://codeload.github.com/tradle/validate-resource/tar.gz/842c37f47f25a5a7ab4ca6a4d2927957e89e9a13"
+  resolved "https://codeload.github.com/tradle/validate-resource/tar.gz/422efe4339a999bb2f0e253fa2a26b93df0c745f"
   dependencies:
+    object.omit "^2.0.1"
+    object.pick "^1.2.0"
     traverse "^0.6.6"
 
 abstract-leveldown@^2.4.1:

@@ -8,13 +8,20 @@ function addVerification ({ state, verification, verifiedItem }) {
     verifiedItem = verifiedItem.id
   }
 
-  if (typeof verifiedItem === 'string') {
-    verifiedItem = parseId(verifiedItem)
-  }
-
-  const { link, permalink, object } = verifiedItem
-  const type = verifiedItem.type || object[TYPE]
+  const { type, link, permalink } = getInfo(verifiedItem)
   if (!state[permalink]) state[permalink] = []
 
   state[permalink].push({ type, link, permalink, verification })
+}
+
+function getInfo (objOrId) {
+  if (typeof verifiedItem === 'string') {
+    return parseId(verifiedItem)
+  }
+
+  return {
+    link: objOrId._link,
+    permalink: objOrId._permalink,
+    type: objOrId[TYPE],
+  }
 }

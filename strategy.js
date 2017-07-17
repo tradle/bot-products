@@ -86,8 +86,10 @@ function install (bot, opts) {
 
   const onmessage = co(function* (data) {
     // make a defensive copy
-    const { wrapper } = data
-    data = shallowClone(data, wrapper.payload)
+    data = shallowClone(data)
+    if (!data.object && data.payload) {
+      data.object = data.payload
+    }
 
     const { user, object, type } = data
 

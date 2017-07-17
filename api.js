@@ -51,24 +51,23 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
   })
 
   const verify = co(function* ({ user, item, verification={} }) {
-    const { object, permalink, link } = item
     if (typeof user === 'string') {
       user = yield bot.users.get(user)
     }
 
     const builder = buildResource({
-        models: modelById,
-        model: baseModels[VERIFICATION],
-        resource: verification
-      })
-      .set('document', object)
+      models: modelById,
+      model: baseModels[VERIFICATION],
+      resource: verification
+    })
+    .set('document', item)
 
     if (!verification.dateVerified) {
       builder.set('dateVerified', Date.now())
     }
 
     if (!verification.sources) {
-      const sources = user.importedVerifications[permalink]
+      const sources = user.importedVerifications[item._permalink]
       if (sources) {
         builder.set('sources', sources.map(source => source.verification))
       }
@@ -80,7 +79,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     addVerification({
       state: user.issuedVerifications,
       verification: result,
-      verifiedItem: { object, link, permalink }
+      verifiedItem: item
     })
   })
 
