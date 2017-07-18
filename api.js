@@ -137,7 +137,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
 
   const sendProductList = co(function* ({ user }) {
     if (!productChooser) {
-      productChooser = api.createItemRequest({
+      productChooser = yield api.createItemRequest({
         item: appModels.application.id
       })
     }

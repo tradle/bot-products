@@ -222,8 +222,6 @@ test('basic form loop', loudCo(function* (t) {
     awaitResponse: true
   })
 
-  console.log(selfIntroResp)
-
   for (let productModel of productModels) {
     yield testProduct({ productModel })
   }
