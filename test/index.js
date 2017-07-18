@@ -55,7 +55,7 @@ test('basic form loop', loudCo(function* (t) {
       type: 'tradle.Model',
       id: 'tradle.TestProduct',
       title: 'Test Product',
-      interfaces: ['tradle.Message'],
+      interfaces: ['tradle.ChatItem'],
       subClassOf: 'tradle.FinancialProduct',
       forms: [
         'tradle.ORV',

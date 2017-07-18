@@ -40,7 +40,7 @@
 
 "@tradle/custom-models@https://github.com/tradle/custom-models":
   version "4.10.10"
-  resolved "https://github.com/tradle/custom-models#6bc2bbb00eabc084fcdd166f09e9638ea48546a5"
+  resolved "https://github.com/tradle/custom-models#3e51ee7cd842350c571abd1bb002001dbe0261bb"
   dependencies:
     minimist "^1.2.0"
     typeforce "^1.10.6"
@@ -86,7 +86,7 @@
 
 "@tradle/models@https://github.com/tradle/models":
   version "4.10.10"
-  resolved "https://github.com/tradle/models#7ebb1f5cf29893bc18e41c9725e628328be99608"
+  resolved "https://github.com/tradle/models#db823088a672162b4752c05495fd36b0b1dd5ca6"
   dependencies:
     minimist "^1.2.0"
     typeforce "^1.10.6"
@@ -110,7 +110,7 @@
 
 "@tradle/validate-model@tradle/validate-model":
   version "1.0.0"
-  resolved "https://codeload.github.com/tradle/validate-model/tar.gz/aed6a361a46429d4d21c4dd1b318509ab56067fe"
+  resolved "https://codeload.github.com/tradle/validate-model/tar.gz/ba39da038d63e237fd969cb2449c36e92a2edc3c"
   dependencies:
     object.omit "^2.0.1"
     object.pick "^1.2.0"
@@ -2072,8 +2072,8 @@ wrappy@1:
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
 
 write-file-atomic@^1.1.4:
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/write-file-atomic/-/write-file-atomic-1.3.1.tgz#7d45ba32316328dd1ec7d90f60ebc0d845bb759a"
+  version "1.3.4"
+  resolved "https://registry.yarnpkg.com/write-file-atomic/-/write-file-atomic-1.3.4.tgz#f807a4f0b1d9e913ae7a48112e6cc3af1991b45f"
   dependencies:
     graceful-fs "^4.1.11"
     imurmurhash "^0.1.4"
