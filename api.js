@@ -1,10 +1,10 @@
-const debug = require('debug')('tradle:bot:products:api')
 const uuid = require('uuid/v4')
 const omit = require('object.omit')
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
 const {
   co,
+  debug
   // parseId
 } = require('./utils')
 

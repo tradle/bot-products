@@ -1,10 +1,10 @@
-const debug = require('debug')('tradle:bot:products')
 const {
   co,
   isPromise,
   format,
   shallowExtend,
-  shallowClone
+  shallowClone,
+  debug
 } = require('./utils')
 
 const { addVerification } = require('./state')

@@ -1,4 +1,4 @@
-const { co, isPromise, bindAll } = require('./utils')
+const { co, isPromise, bindAll, debug } = require('./utils')
 
 module.exports = function createPluginManager (defaults) {
   return new PluginManager(defaults)
@@ -58,8 +58,9 @@ PluginManager.prototype.exec = function ({
     args = Array.prototype.slice.call(arguments, 1)
   }
 
-  const handlers = this._plugins[method]
-  if (!handlers) return
+  const handlers = this._plugins[method] || []
+  this._debug(`${handlers.length} handlers found for "${method}"`)
+  if (!handlers.length) return
 
   return execute({
     fns: handlers,
@@ -67,6 +68,11 @@ PluginManager.prototype.exec = function ({
     allowExit,
     waterfall
   })
+}
+
+PluginManager.prototype._debug = function (...args) {
+  args.unshift('plugins')
+  return debug(...args)
 }
 
 /**

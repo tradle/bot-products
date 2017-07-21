@@ -1,3 +1,4 @@
+const debug = require('debug')('tradle:bot:products')
 const co = require('co').wrap
 const bindAll = require('bindall')
 const shallowExtend = require('xtend/mutable')
@@ -56,5 +57,6 @@ module.exports = {
   shallowExtend,
   shallowClone,
   bindAll,
-  getValues
+  getValues,
+  debug
 }
