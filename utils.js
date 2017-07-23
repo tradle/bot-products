@@ -5,7 +5,6 @@ const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
 const pick = require('object.pick')
 const isPromise = obj => obj && typeof obj.then === 'function'
-const STRINGS = require('./strings')
 
 // function getNamespaceIds (namespace) {
 //   return {

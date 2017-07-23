@@ -77,12 +77,12 @@ function install (bot, opts) {
     // user.imported = {}
   }
 
-  const oncreate = co(function* (user) {
-    // yield save(user)
-    if (!TESTING) {
-      yield send(user, STRINGS.NICE_TO_MEET_YOU)
-    }
-  })
+  // const oncreate = co(function* (user) {
+  //   // yield save(user)
+  //   if (!TESTING) {
+  //     yield send(user, STRINGS.NICE_TO_MEET_YOU)
+  //   }
+  // })
 
   const onmessage = co(function* (data) {
     // make a defensive copy
@@ -132,7 +132,7 @@ function install (bot, opts) {
   })
 
   const removeReceiveHandler = bot.onmessage(onmessage)
-  const removeCreateHandler = bot.onusercreate(oncreate)
+  // const removeCreateHandler = bot.onusercreate(oncreate)
 
   const banter = co(function* (data) {
     const { user, object } = data
@@ -285,7 +285,7 @@ function install (bot, opts) {
     const oldName = user.profile && user.profile.firstName
     user.profile = object.profile
     if (name !== oldName) {
-      yield send(user, format(STRINGS.HOT_NAME, name))
+      yield send(user, format(STRINGS.HI_JOE, name))
     }
   })
 
@@ -316,7 +316,7 @@ function install (bot, opts) {
 
   function uninstall () {
     removeReceiveHandler()
-    removeCreateHandler()
+    // removeCreateHandler()
   }
 
   return shallowExtend({

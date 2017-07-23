@@ -15,8 +15,8 @@ function addVerification ({ state, verification, verifiedItem }) {
 }
 
 function getInfo (objOrId) {
-  if (typeof verifiedItem === 'string') {
-    return parseId(verifiedItem)
+  if (typeof objOrId === 'string') {
+    return parseId(objOrId)
   }
 
   return {
