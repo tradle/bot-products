@@ -72,11 +72,20 @@ test('basic form loop', loudCo(function* (t) {
   })
 
   const productsAPI = productsStrategy.install(bot)
-  // productsAPI.use({
-  //   onForm: function () {
-  //     console.log('onForm', ...arguments)
-  //   }
-  // })
+  const pluginsCalled = {
+    onForm: {},
+    onFormsCollected: {}
+  }
+
+  productsAPI.plugins.use({
+    onForm: function ({ type }) {
+      pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
+    },
+    onFormsCollected: function ({ application }) {
+      t.notOk(pluginsCalled.onFormsCollected[application.product])
+      pluginsCalled.onFormsCollected[application.product] = true
+    }
+  })
 
   const { models } = productsAPI
 
@@ -109,7 +118,15 @@ test('basic form loop', loudCo(function* (t) {
 
     const type = payload[TYPE]
     const wait = awaitResponse ? awaitMessageFromProvider() : Promise.resolve()
-    yield series(handlers, fn => fn({ user, message, payload, type }))
+    yield series(handlers, fn => fn({
+      user,
+      message,
+      payload,
+      type,
+      permalink: payload._permalink,
+      link: payload._link
+    }))
+
     return {
       request: message,
       response: yield wait
@@ -150,6 +167,9 @@ test('basic form loop', loudCo(function* (t) {
   })
 
   const testProduct = co(function* ({ productModel }) {
+    pluginsCalled.onForm = {}
+    pluginsCalled.onFormsCollected = {}
+
     let { response } = yield applyForProduct({ productModel })
     const forms = productModel.forms.slice()
     const bad = {
@@ -202,6 +222,13 @@ test('basic form loop', loudCo(function* (t) {
     t.equal(response.object[TYPE], productsStrategy.models.certificateForProduct[productModel.id].id)
     t.ok(productModel.id in user.products)
     t.same(user.applications[productModel.id], [])
+    productModel.forms.forEach(form => {
+      t.equal(pluginsCalled.onForm[form], form in bad ? 2 : 1)
+    })
+
+    t.same(pluginsCalled.onFormsCollected, {
+      [productModel.id]: true
+    })
 
     yield receiveFromUser({
       object: fakeResource({
