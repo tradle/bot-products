@@ -63,6 +63,8 @@ function validateRequired ({ model, resource }) {
       }]
     }
   }
+
+  return null
 }
 
 function newFormState ({ type, object, link, permalink }) {
@@ -91,7 +93,7 @@ function normalizeFormState (state) {
 }
 
 function normalizeUserState (state) {
-  ;['products', 'applications'].forEach(key => {
+  ['products', 'applications'].forEach(key => {
     const subState = state[key]
     if (subState) {
       for (let productType in subState) {
@@ -110,6 +112,14 @@ const series = co(function* (arr, fn) {
   }
 })
 
+function getProductFromEnumValue ({ appModels, value }) {
+  if (value.indexOf(appModels.productList.id) === 0) {
+    return value.slice(appModels.productList.id.length + 1)
+  }
+
+  return value
+}
+
 module.exports = {
   co,
   isPromise,
@@ -127,4 +137,5 @@ module.exports = {
   validateRequired,
   newFormState,
   normalizeUserState,
+  getProductFromEnumValue
 }

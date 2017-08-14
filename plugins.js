@@ -63,7 +63,7 @@ PluginManager.prototype.exec = function ({
 
   const handlers = this._plugins[method] || []
   this._debug(`${handlers.length} handlers found for "${method}"`)
-  if (!handlers.length) return
+  if (!handlers.length) return Promise.resolve()
 
   return execute({
     fns: handlers,
@@ -77,6 +77,16 @@ PluginManager.prototype.exec = function ({
 
 PluginManager.prototype.setContext = function (context) {
   this._defaultContext = context
+}
+
+PluginManager.prototype.count = function (method) {
+  if (method) {
+    return Object.keys(this._plugins[method])
+  }
+
+  return Object.keys(this._plugins).reduce((total, method) => {
+    return total + this.count(method)
+  }, 0)
 }
 
 PluginManager.prototype._debug = function (...args) {

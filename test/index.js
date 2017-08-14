@@ -1,8 +1,8 @@
-
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test'
 }
 
+const { EventEmitter } = require('events')
 const test = require('tape')
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
@@ -22,7 +22,120 @@ const {
 const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
-const { formLoop, loudCo, toObject } = require('./helpers')
+const { formLoop, loudCo, toObject, hex32 } = require('./helpers')
+const TEST_PRODUCT = {
+  type: 'tradle.Model',
+  id: 'tradle.TestProduct',
+  title: 'Test Product',
+  interfaces: ['tradle.Message'],
+  subClassOf: 'tradle.FinancialProduct',
+  forms: [
+    'tradle.ORV',
+    'tradle.AboutYou'
+  ],
+  properties: {}
+}
+
+const noop = () => {}
+
+const series = co(function* (arr, fn) {
+  for (let i = 0; i < arr.length; i++) {
+    yield fn(arr[i])
+  }
+})
+
+test('state', function (t) {
+  const namespace = 'test.namespace'
+  const user = { id: 'bob' }
+  const productModel = TEST_PRODUCT
+  const productModels = [productModel]
+  const productsStrategy = createProductsStrategy({
+    namespace,
+    models: toObject(productModels),
+    products: productModels.map(model => model.id)
+  })
+
+  const handlers = []
+  const bot = shallowExtend(new EventEmitter(), {
+    use: (strategy, opts) => strategy(bot, opts),
+    onmessage: handler => handlers.push(handler),
+    onusercreate: () => {},
+  })
+
+  const {
+    state,
+    models,
+    appModels,
+    privateModels
+  } = productsStrategy.install(bot)
+
+  const application = fakeResource({
+    models,
+    model: appModels.application,
+    signed: true
+  })
+
+  state.init(user)
+  t.same(user, {
+    id: user.id,
+    applications: [],
+    products: [],
+    forms: [],
+    importedVerifications: [],
+    issuedVerifications: []
+  })
+
+  state.addApplication({
+    user,
+    object: application,
+    type: application[TYPE]
+  })
+
+  productModel.forms.forEach((form, i) => {
+    const link = hex32()
+    const signedForm = fakeResource({
+      models,
+      model: models[form],
+      signed: true
+    })
+
+    state.addForm({
+      user,
+      object: signedForm,
+      type: form,
+      link,
+      permalink: link
+    })
+
+    if (i === 0) {
+      state.importVerification({
+        user,
+        object: createSignedVerification({ user, state, form: signedForm })
+      })
+    }
+
+    state.addVerification({
+      user,
+      verification: createSignedVerification({ user, state, form: signedForm })
+    })
+  })
+
+  t.equal(user.applications.length, 1)
+  t.equal(user.products.length, 0)
+
+  const certificate = state.createCertificate({ application })
+  state.addCertificate({ user, application, certificate })
+
+  t.equal(user.applications.length, 0)
+  t.equal(user.products.length, 1)
+  t.equal(user.issuedVerifications.length, productModel.forms.length)
+  t.equal(user.importedVerifications.length, 1)
+  t.equal(user.forms.length, productModel.forms.length)
+  t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
+  t.ok(user.products.every(f => f[TYPE] === privateModels.applicationState.id))
+
+  t.end()
+})
 
 test('basic form loop', loudCo(function* (t) {
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
@@ -266,3 +379,22 @@ test('complex form loop', loudCo(co(function* (t) {
 // })
 //
 // process.on('uncaughtException', console.error)
+
+function prettify (obj) {
+  return JSON.stringify(obj, null, 2)
+}
+
+function createSignedVerification ({ state, user, form }) {
+  const verification = state.createVerification({
+    user,
+    object: form
+  })
+
+  const vLink = hex32()
+  buildResource.setVirtual(verification, {
+    _link: vLink,
+    _permalink: vLink
+  })
+
+  return verification
+}

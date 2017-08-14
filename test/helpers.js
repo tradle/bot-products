@@ -16,7 +16,8 @@ module.exports = {
   loudCo,
   newLink,
   newSig,
-  toObject
+  toObject,
+  hex32
 }
 
 function formLoop ({ models, products }) {

@@ -1,7 +1,6 @@
-const uuid = require('uuid/v4')
 const omit = require('object.omit')
-const buildResource = require('@tradle/build-resource')
-const baseModels = require('./base-models')
+const { TYPE } = require('@tradle/constants')
+const createStateMutater = require('./state')
 const {
   co,
   debug,
@@ -9,79 +8,48 @@ const {
   // parseId
 } = require('./utils')
 
-const { addVerification } = require('./state')
-const STRINGS = require('./strings')
-const TYPE = '_t'
-const VERIFICATION = 'tradle.Verification'
-
-module.exports = function createAPI ({ bot, plugins, models, appModels }) {
+module.exports = function createAPI ({ bot, plugins, models, appModels, privateModels }) {
   let productChooser
+
+  const State = createStateMutater({
+    models,
+    appModels,
+    privateModels
+  })
 
   function send (user, object, other) {
     return bot.send({ to: user.id, object, other })
   }
 
+  function getContext (application) {
+    return application.permalink
+  }
+
   const issueProductCertificate = co(function* ({ user, application }) {
-    if (!application.type) {
-      application = user.applications.find(app => app.permalink === application.permalink)
-    }
-
-    const product = application.type
-
-    // we're done!
-    if (!user.products[product]) {
-      user.products[product] = []
-    }
-
-    // if (user.currentApplication.link === application.link) {
-    //   delete user.currentApplication
-    // }
-
-    const certificateModel = appModels.certificateForProduct[product]
-    const certificate = application.certificate = {
-      [TYPE]: certificateModel.id,
-      myProductId: uuid()
-    }
-
-    user.products[product].push(application)
-    user.applications[product] = user.applications[product].filter(app => {
-      app.permalink !== application.permalink
-    })
-
-    return send(user, certificate)
+    State.addCertificate({ user, application })
+    return send(user, application.certificate, getContext(application))
   })
 
-  const verify = co(function* ({ user, item, verification={} }) {
+  const revokeProductCertificate = co(function* ({ user, appState, certificate }) {
+    if (!appState) {
+      appState = user.products.find(app => {
+        return app.certificate._link === certificate._link
+      })
+    }
+
+    State.revokeCertificate({ user, appState })
+    return send(user, appState.certificate)
+  })
+
+  const verify = co(function* ({ user, object, verification={} }) {
     if (typeof user === 'string') {
       user = yield bot.users.get(user)
     }
 
-    const builder = buildResource({
-      models: models,
-      model: baseModels[VERIFICATION],
-      resource: verification
-    })
-    .set('document', item)
-
-    if (!verification.dateVerified) {
-      builder.set('dateVerified', Date.now())
-    }
-
-    if (!verification.sources) {
-      const sources = user.importedVerifications[item._permalink]
-      if (sources) {
-        builder.set('sources', sources.map(source => source.verification))
-      }
-    }
-
-    const result = builder.toJSON()
-
-    yield send(user, result)
-    addVerification({
-      state: user.issuedVerifications,
-      verification: result,
-      verifiedItem: item
-    })
+    verification = State.createVerification({ user, object, verification })
+    verification = yield send(user, verification)
+    State.addVerification({ user, object, verification })
+    return verification
   })
 
   // promisified because it might be overridden by an async function
@@ -98,11 +66,11 @@ module.exports = function createAPI ({ bot, plugins, models, appModels }) {
     })
   })
 
-  const requestNextRequiredItem = co(function* ({ user, application }) {
-    const next = yield api.getNextRequiredItem({ user, application })
+  const requestNextRequiredItem = co(function* ({ user, appState }) {
+    const next = yield api.getNextRequiredItem({ user, appState })
     if (!next) return false
 
-    yield requestItem({ user, application, item: next })
+    yield requestItem({ user, appState, item: next })
     return true
   })
 
@@ -156,14 +124,11 @@ module.exports = function createAPI ({ bot, plugins, models, appModels }) {
     }
 
     debug(`requesting edit for form ${object[TYPE]}`)
-    yield bot.send({
-      to: user.id,
-      object: {
-        _t: 'tradle.FormError',
-        prefill: omit(object, '_s'),
-        message,
-        errors
-      }
+    yield send(user, {
+      _t: 'tradle.FormError',
+      prefill: omit(object, '_s'),
+      message,
+      errors
     })
   })
 

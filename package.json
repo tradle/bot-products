@@ -10,9 +10,13 @@
   "license": "MIT",
   "author": "mvayngrib",
   "dependencies": {
-    "@tradle/bot-require-models": "tradle/bot-require-models#cloud",
+    "@tradle/bot-require-models": "github:tradle/bot-require-models#cloud",
     "@tradle/build-resource": "2.2.0",
-    "@tradle/validate-model": "tradle/validate-model",
+    "@tradle/constants": "^2.1.0",
+    "@tradle/custom-models": "github:tradle/custom-models",
+    "@tradle/merge-models": "2.0.0",
+    "@tradle/models": "github:tradle/models",
+    "@tradle/validate-model": "github:tradle/validate-model",
     "@tradle/validate-resource": "2.2.0",
     "bindall": "^2.0.1",
     "co": "^4.6.0",
@@ -23,8 +27,8 @@
     "xtend": "^4.0.1"
   },
   "peerDependencies": {
-    "@tradle/custom-models": "https://github.com/tradle/custom-models",
-    "@tradle/models": "https://github.com/tradle/models"
+    "@tradle/custom-models": "github:tradle/custom-models",
+    "@tradle/models": "github:tradle/models"
   },
   "devDependencies": {
     "@tradle/biz-plugins": "github:tradle/biz-plugins",

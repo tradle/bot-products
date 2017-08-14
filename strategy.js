@@ -1,6 +1,7 @@
 const validateResource = require('@tradle/validate-resource')
 const { parseEnumValue } = validateResource.utils
 const { TYPE, SIG } = require('@tradle/constants')
+const buildResource = require('@tradle/build-resource')
 const {
   co,
   isPromise,
@@ -10,16 +11,17 @@ const {
   debug,
   validateRequired,
   newFormState,
-  normalizeUserState
+  normalizeUserState,
+  getProductFromEnumValue
 } = require('./utils')
 
-const { addVerification } = require('./state')
+const createStateMutater = require('./state')
 const createAPI = require('./api')
 const createPlugins = require('./plugins')
+const createPrivateModels = require('./private-models')
 const STRINGS = require('./strings')
 const VERIFICATION = 'tradle.Verification'
 const TESTING = process.env.NODE_ENV === 'test'
-const STATE_PROPS = ['forms', 'applications', 'products', 'importedVerifications', 'issuedVerifications', 'imported']
 const REMEDIATION = 'tradle.Remediation'
 
 module.exports = function productsStrategyImpl (opts) {
@@ -28,10 +30,21 @@ module.exports = function productsStrategyImpl (opts) {
 
 function install (bot, opts) {
   const {
+    namespace,
     models,
     appModels,
     validateIncoming
   } = opts
+
+  const privateModels = createPrivateModels(namespace)
+  shallowExtend(models, privateModels.all)
+
+  const STATE_PROPS = Object.keys(privateModels.customer.properties)
+  const State = createStateMutater({
+    models,
+    appModels,
+    privateModels
+  })
 
   const pluginContext = { models, appModels }
   const plugins = createPlugins()
@@ -40,7 +53,7 @@ function install (bot, opts) {
 
   const defaultPlugin = {}
   const api = (function () {
-    const rawAPI = createAPI({ bot, plugins, models, appModels })
+    const rawAPI = createAPI({ bot, plugins, models, appModels, privateModels })
     const apiProxy = {}
     for (let key in rawAPI) {
       let val = rawAPI[key]
@@ -59,34 +72,6 @@ function install (bot, opts) {
     return bot.send({ to: user.id, object })
   }
 
-  function ensureStateStructure (user) {
-    STATE_PROPS.forEach(prop => {
-      if (!user[prop]) user[prop] = {}
-    })
-
-    // user.forms = {
-    //   // structure:
-    //   //
-    //   // 'tradle.AboutYou': {
-    //   //   [form.permalink]: [link1, link2, ...]
-    //   // }
-    //   // 'tradle.PhotoID': {
-    //   //   [form.permalink]: [link1, link2, ...]
-    //   // }
-    // }
-
-    // user.applications = {
-    //   // structure:
-    //   //
-    //   // 'tradle.CurrentAccount': [{ link, permalink }]
-    // }
-
-    // user.products = {}
-    // user.importedVerifications = {}
-    // user.issuedVerifications = {}
-    // user.imported = {}
-  }
-
   // const oncreate = co(function* (user) {
   //   // yield save(user)
   //   if (!TESTING) {
@@ -101,45 +86,18 @@ function install (bot, opts) {
       data.object = data.payload
     }
 
+    data.models = models
+    data.privateModels = privateModels
     const { user, object, type } = data
-
-    ensureStateStructure(user)
-    normalizeUserState(user)
+    State.init(user)
     deduceCurrentApplication(data)
 
     const model = models[type]
-
-    let maybePromise
-    switch (type) {
-    case 'tradle.SelfIntroduction':
-      maybePromise = execPlugins('onSelfIntroduction', data)
-      break
-    case 'tradle.IdentityPublishRequest':
-      maybePromise = execPlugins('onIdentityPublishRequest', data)
-      break
-    case 'tradle.SimpleMessage':
-      maybePromise = execPlugins('onSimpleMessage', data)
-      break
-    case 'tradle.CustomerWaiting':
-      maybePromise = execPlugins('onCustomerWaiting', data)
-      break
-    case VERIFICATION:
-      maybePromise = execPlugins('onVerification', data)
-      break
-    case appModels.application.id:
-      maybePromise = execPlugins('onApplication', data)
-      break
-    case 'tradle.ForgetMe':
-      maybePromise = execPlugins('onForgetMe', data)
-      break
-    default:
-      if (model && model.subClassOf === 'tradle.Form') {
-        maybePromise = execPlugins('onForm', data)
-        break
-      }
-
-      maybePromise = execPlugins('onUnhandledMessage', data)
-      break
+    const args = [data]
+    yield plugins.exec({ method: 'onmessage', args })
+    yield plugins.exec({ method: `onmessage:${type}`, args })
+    if (model.subClassOf) {
+      yield plugins.exec({ method: `onmessage:${model.subClassOf}`, args })
     }
 
     if (isPromise(maybePromise)) yield maybePromise
@@ -147,7 +105,6 @@ function install (bot, opts) {
 
 
   const removeReceiveHandler = bot.onmessage(onmessage)
-  // const removeCreateHandler = bot.onusercreate(oncreate)
 
   const banter = co(function* (data) {
     const { user, object } = data
@@ -178,24 +135,26 @@ function install (bot, opts) {
 
   function guessApplicationFromIncomingType (applications, type) {
     return findApplication(applications, app => {
-      const productModel = models[app.type]
+      const productModel = models[app.product]
       return productModel.forms.indexOf(type) !== -1
     })
   }
 
   function findApplication (applications, test) {
     for (let productType in applications) {
-      let match = applications[productType].find(test)
+      let match = applications.find(test)
       if (match) return match
     }
   }
 
   function getApplicationByPermalink (applications, permalink) {
-    return findApplication(applications, app => app.permalink === permalink)
+    return findApplication(applications, appState => {
+      return appState.application.permalink === permalink
+    })
   }
 
   function getApplicationByType (applications, type) {
-    return (applications[type] || [])[0]
+    return applications.filter(appState => appState.product === type)
   }
 
   function noComprendo ({ user, type }) {
@@ -206,7 +165,12 @@ function install (bot, opts) {
 
   const handleProductApplication = co(function* (data) {
     const { user, object, permalink, link, currentApplication, currentProduct } = data
-    const product = getProductFromEnumValue(object.product)
+    const product = getProductFromEnumValue({
+      appModels,
+      value: object.product
+    })
+
+    debug(`received application for "${product}"`)
     const isOfferedProduct = appModels.products.find(model => model.id === product)
     if (!isOfferedProduct) {
       debug(`ignoring application for "${product}" as it's not in specified offering`)
@@ -221,32 +185,21 @@ function install (bot, opts) {
       return
     }
 
-    // if (user.products[product]) {
-    //   const productModel = models[product]
-    //   // toy response
-    //   yield send(user, format(STRINGS.ANOTHER, productModel.title))
-    // }
+    const existingProduct = user.products.find(applicationState => {
+      return applicationState.product == object.product
+    })
 
-
-    if (!user.applications[product]) {
-      user.applications[product] = []
+    if (existingProduct) {
+      yield plugins.exec('onApplicationForExistingProduct', data)
     }
 
-    // user.currentApplication = { product, permalink, link }
-    data.currentApplication = {
-      type: product,
-      link,
-      permalink,
-      forms: []
-    }
-
-    user.applications[product].push(data.currentApplication)
+    data.currentApplication = State.addApplication(data)
     yield continueApplication(data)
   })
 
   const handleForm = co(function* (data) {
-    const { user, object, type, link, permalink, currentApplication } = data
-    if (currentApplication && currentApplication.type === REMEDIATION) return
+    const { currentApplication, object } = data
+    if (currentApplication && currentApplication.product === REMEDIATION) return
 
     const err = execPlugins('validateForm', {
       application: currentApplication,
@@ -259,16 +212,7 @@ function install (bot, opts) {
       return
     }
 
-    currentApplication.forms.push(newFormState(data))
-
-    // const forms = user.forms[type]
-    // let known = forms.find(form => form.permalink === permalink)
-    // if (!known) {
-    //   known = { permalink, versions: [] }
-    //   forms.push(known)
-    // }
-
-    // known.versions.push({ link })
+    State.addForm(data)
     yield continueApplication(data)
   })
 
@@ -283,43 +227,32 @@ function install (bot, opts) {
     }
   })
 
-  function handleVerification (data) {
-    const { user, object } = data
-    addVerification({
-      state: user.importedVerifications,
-      verification: object,
-      verifiedItem: object.document
-    })
+  const handleVerification = co(function* (data) {
+    State.importVerification(data)
+    yield continueApplication(data)
+  })
 
-    return continueApplication(data)
+  const approveProduct = ({ user, currentApplication }) => {
+    return api.issueProductCertificate({ user, application: currentApplication })
   }
 
-  function getProductFromEnumValue (value) {
-    return parseEnumValue({
-      model: appModels.productList,
-      value
-    }).id
-  }
-
-  const approveProduct = api.issueProductCertificate
-  function forgetUser ({ user }) {
+  const forgetUser = function ({ user }) {
     STATE_PROPS.forEach(prop => {
       delete user[prop]
     })
 
-    ensureStateStructure(user)
+    State.init(user)
   }
 
-  function saveName ({ user, object }) {
+  const saveName = co(function* ({ user, object }) {
     if (!object.profile) return
 
-    const name = object.profile.firstName
-    const oldName = user.profile && user.profile.firstName
-    user.profile = object.profile
-    if (name !== oldName) {
-      return send(user, format(STRINGS.HI_JOE, name))
+    const { firstName } = user
+    State.setProfile({ user, object })
+    if (user.firstName !== firstName) {
+      yield send(user, format(STRINGS.HI_JOE, user.firstName))
     }
-  }
+  })
 
   function validateForm ({ application, form }) {
     const type = form[TYPE]
@@ -358,27 +291,32 @@ function install (bot, opts) {
     formRequest.message = message
   }
 
-  shallowExtend(defaultPlugin, {
-    validateForm,
-    getRequiredForms,
-    willRequestForm,
-    onSelfIntroduction: [
-      saveName,
-      api.sendProductList
-    ],
-    onIdentityPublishRequest: [
-      saveName,
-      api.sendProductList
-    ],
-    onForm: handleForm,
-    onVerification: handleVerification,
-    onApplication: handleProductApplication,
-    onFormsCollected: approveProduct,
-    onSimpleMessage: banter,
-    onCustomerWaiting: api.sendProductList,
-    onForgetMe: forgetUser,
-    onUnhandledMessage: noComprendo
-  })
+  shallowExtend(defaultPlugin,
+    {
+      validateForm,
+      getRequiredForms,
+      willRequestForm,
+    },
+    prependKeysWith('onmessage:', {
+      'tradle.SelfIntroduction': [
+        saveName,
+        api.sendProductList
+      ],
+      'tradle.IdentityPublishRequest': [
+        saveName,
+        api.sendProductList
+      ],
+      'tradle.Form': handleForm,
+      'tradle.Verification': handleVerification,
+      [appModels.application.id]: handleProductApplication,
+      'tradle.SimpleMessage': banter,
+      'tradle.CustomerWaiting': api.sendProductList,
+      'tradle.ForgetMe': forgetUser,
+      // onUnhandledMessage: noComprendo
+    })
+  )
+
+  defaultPlugin['onFormsCollected'] = approveProduct
 
   const removeDefaultHandlers = plugins.use(defaultPlugin)
 
@@ -394,10 +332,22 @@ function install (bot, opts) {
   }
 
   return shallowExtend({
+    state: State,
     plugins,
     uninstall,
     removeDefaultHandler,
     removeDefaultHandlers,
-    models
+    models,
+    appModels,
+    privateModels
   }, api)
+}
+
+function prependKeysWith (prefix, obj) {
+  const copy = {}
+  for (let key in obj) {
+    copy[prefix + key] = obj[key]
+  }
+
+  return copy
 }
