@@ -102,7 +102,7 @@ function genProductApplicationModel ({ productList, id, title }) {
     id,
     notShareable: true,
     title: title || idToTitle(id),
-    interfaces: ['tradle.ChatItem'],
+    interfaces: ['tradle.Message'],
     subClassOf: 'tradle.Form',
     properties: {
       product: {
@@ -129,7 +129,7 @@ function genProductCertificateModel ({ productModel, id, title }) {
     id,
     subClassOf: 'tradle.MyProduct',
     title: title || `My ${productModel.title}`,
-    interfaces: ['tradle.ChatItem'],
+    interfaces: ['tradle.Message'],
     properties: {
       myProductId: {
         type: 'string'
