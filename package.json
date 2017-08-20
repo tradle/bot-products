@@ -12,8 +12,6 @@
   "dependencies": {
     "@tradle/bot-require-models": "tradle/bot-require-models#cloud",
     "@tradle/build-resource": "tradle/build-resource",
-    "@tradle/custom-models": "https://github.com/tradle/custom-models",
-    "@tradle/models": "https://github.com/tradle/models",
     "@tradle/validate-model": "tradle/validate-model",
     "@tradle/validate-resource": "tradle/validate-resource",
     "bindall": "^2.0.1",
@@ -24,9 +22,14 @@
     "uuid": "^3.0.1",
     "xtend": "^4.0.1"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "@tradle/custom-models": "https://github.com/tradle/custom-models",
+    "@tradle/models": "https://github.com/tradle/models"
+  },
   "devDependencies": {
+    "@tradle/custom-models": "https://github.com/tradle/custom-models",
     "@tradle/engine": "^4.9.0",
+    "@tradle/models": "https://github.com/tradle/models",
     "eslint": "^3.15.0",
     "tape": "^4.6.3"
   },
