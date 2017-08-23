@@ -1,17 +1,21 @@
+const validateResource = require('@tradle/validate-resource')
+const { TYPE, SIG } = require('@tradle/constants')
 const {
   co,
   isPromise,
   format,
   shallowExtend,
   shallowClone,
-  debug
+  debug,
+  validateRequired,
+  newFormState,
+  normalizeUserState
 } = require('./utils')
 
 const { addVerification } = require('./state')
 const createAPI = require('./api')
 const createPlugins = require('./plugins')
 const STRINGS = require('./strings')
-const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 const TESTING = process.env.NODE_ENV === 'test'
 const STATE_PROPS = ['forms', 'applications', 'products', 'importedVerifications', 'issuedVerifications', 'imported']
@@ -23,20 +27,29 @@ module.exports = function productsStrategyImpl (opts) {
 
 function install (bot, opts) {
   const {
-    modelById,
-    appModels
+    models,
+    appModels,
+    validateIncoming
   } = opts
 
+  const pluginContext = { models }
   const plugins = createPlugins()
+  const execPlugins = (method, ...args) => plugins.exec({
+    method,
+    // coerce to array
+    args,
+    context: pluginContext
+  })
+
   const defaultPlugin = {}
   const api = (function () {
-    const rawAPI = createAPI({ bot, modelById, appModels })
+    const rawAPI = createAPI({ bot, models, appModels })
     const apiProxy = {}
     for (let key in rawAPI) {
       let val = rawAPI[key]
       if (typeof val === 'function') {
         defaultPlugin[key] = val.bind(rawAPI)
-        apiProxy[key] = plugins.exec.bind(plugins, key)
+        apiProxy[key] = execPlugins.bind(null, key)
       } else {
         apiProxy[key] = val
       }
@@ -94,39 +107,40 @@ function install (bot, opts) {
     const { user, object, type } = data
 
     ensureStateStructure(user)
+    normalizeUserState(user)
     deduceCurrentApplication(data)
 
-    const model = modelById[type]
+    const model = models[type]
 
     switch (type) {
     case 'tradle.SelfIntroduction':
-      yield plugins.exec('onSelfIntroduction', data)
+      yield execPlugins('onSelfIntroduction', data)
       break
     case 'tradle.IdentityPublishRequest':
-      yield plugins.exec('onIdentityPublishRequest', data)
+      yield execPlugins('onIdentityPublishRequest', data)
       break
     case 'tradle.SimpleMessage':
-      yield plugins.exec('onSimpleMessage', data)
+      yield execPlugins('onSimpleMessage', data)
       break
     case 'tradle.CustomerWaiting':
-      yield plugins.exec('onCustomerWaiting', data)
+      yield execPlugins('onCustomerWaiting', data)
       break
     case VERIFICATION:
-      yield plugins.exec('onVerification', data)
+      yield execPlugins('onVerification', data)
       break
     case appModels.application.id:
-      yield plugins.exec('onApplication', data)
+      yield execPlugins('onApplication', data)
       break
     case 'tradle.ForgetMe':
-      yield plugins.exec('onForgetMe', data)
+      yield execPlugins('onForgetMe', data)
       break
     default:
       if (model && model.subClassOf === 'tradle.Form') {
-        yield plugins.exec('onForm', data)
+        yield execPlugins('onForm', data)
         break
       }
 
-      yield plugins.exec('onUnhandledMessage', data)
+      yield execPlugins('onUnhandledMessage', data)
       break
     }
   })
@@ -163,7 +177,7 @@ function install (bot, opts) {
 
   function guessApplicationFromIncomingType (applications, type) {
     return findApplication(applications, app => {
-      const productModel = modelById[app.product]
+      const productModel = models[app.type]
       return productModel.forms.indexOf(type) !== -1
     })
   }
@@ -184,7 +198,7 @@ function install (bot, opts) {
   }
 
   function noComprendo ({ user, type }) {
-    const model = modelById[type]
+    const model = models[type]
     const title = model ? model.title : type
     return send(user, format(STRINGS.NO_COMPRENDO, title))
   }
@@ -207,7 +221,7 @@ function install (bot, opts) {
     }
 
     // if (user.products[product]) {
-    //   const productModel = modelById[product]
+    //   const productModel = models[product]
     //   // toy response
     //   yield send(user, format(STRINGS.ANOTHER, productModel.title))
     // }
@@ -218,8 +232,14 @@ function install (bot, opts) {
     }
 
     // user.currentApplication = { product, permalink, link }
-    data.currentApplication = { product, permalink, link }
-    user.applications[product].push({ product, permalink, link })
+    data.currentApplication = {
+      type: product,
+      link,
+      permalink,
+      forms: []
+    }
+
+    user.applications[product].push(data.currentApplication)
     yield continueApplication(data)
   })
 
@@ -227,18 +247,26 @@ function install (bot, opts) {
     const { user, object, type, link, permalink, currentApplication } = data
     if (currentApplication && currentApplication.type === REMEDIATION) return
 
-    if (!user.forms[type]) {
-      user.forms[type] = []
+    const err = execPlugins('validateForm', {
+      application: currentApplication,
+      form: object
+    })
+
+    if (err) {
+      yield api.requestEdit(shallowExtend(data, err))
+      return
     }
 
-    const forms = user.forms[type]
-    let known = forms.find(form => form.permalink === permalink)
-    if (!known) {
-      known = { permalink, versions: [] }
-      forms.push(known)
-    }
+    currentApplication.forms.push(newFormState(data))
 
-    known.versions.push({ link })
+    // const forms = user.forms[type]
+    // let known = forms.find(form => form.permalink === permalink)
+    // if (!known) {
+    //   known = { permalink, versions: [] }
+    //   forms.push(known)
+    // }
+
+    // known.versions.push({ link })
     yield continueApplication(data)
   })
 
@@ -247,7 +275,7 @@ function install (bot, opts) {
 
     data = shallowExtend({ application: data.currentApplication }, data)
     const requested = yield api.requestNextRequiredItem(data)
-    if (!requested) yield plugins.exec('onFormsCollected', data)
+    if (!requested) yield execPlugins('onFormsCollected', data)
   })
 
   const handleVerification = co(function* (data) {
@@ -289,7 +317,26 @@ function install (bot, opts) {
     }
   })
 
+  const validateForm = (function ({ application, form }) {
+    const type = form[TYPE]
+    const model = this.models[type]
+    if (!model) throw new Error(`unknown type ${type}`)
+
+    let err = validateRequired({ model, resource: form })
+    if (!err) {
+      if (!form[SIG]) {
+        err = {
+          message: 'Please review',
+          errors: []
+        }
+      }
+    }
+
+    return err
+  }.bind(pluginContext))
+
   shallowExtend(defaultPlugin, {
+    validateForm,
     onSelfIntroduction: [
       saveName,
       api.sendProductList
@@ -324,6 +371,6 @@ function install (bot, opts) {
     uninstall,
     removeDefaultHandler,
     removeDefaultHandlers,
-    models: modelById
+    models: models
   }, api)
 }

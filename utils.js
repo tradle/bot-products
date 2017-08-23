@@ -4,6 +4,8 @@ const bindAll = require('bindall')
 const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
 const pick = require('object.pick')
+const validateResource = require('@tradle/validate-resource')
+const { getPropertyTitle } = validateResource.utils
 const isPromise = obj => obj && typeof obj.then === 'function'
 
 // function getNamespaceIds (namespace) {
@@ -45,6 +47,62 @@ function getValues (obj) {
   return Object.keys(obj).map(id => obj[id])
 }
 
+function validateRequired ({ model, resource }) {
+  const propertyName = (model.required || []).find(name => {
+    return !(name in resource)
+  })
+
+  if (propertyName) {
+    const title = getPropertyTitle({ model, propertyName })
+    const message = `"${title}" is required`
+    return {
+      message,
+      errors: [{
+        name: propertyName,
+        message
+      }]
+    }
+  }
+}
+
+function newFormState ({ type, object, link, permalink }) {
+  const state = {
+    type,
+    form: {
+      link,
+      permalink,
+      object
+    }
+  }
+
+  return normalizeFormState(state)
+}
+
+function normalizeFormState (state) {
+  // add "body" alias
+  if (!state.form.body) {
+    Object.defineProperty(state.form, 'body', {
+      enumerable: false,
+      get: () => state.form.object
+    })
+  }
+
+  return state
+}
+
+function normalizeUserState (state) {
+  ;['products', 'applications'].forEach(key => {
+    const subState = state[key]
+    if (subState) {
+      for (let productType in subState) {
+        subState[productType].forEach(appState => {
+          appState.forms.forEach(normalizeFormState)
+        })
+      }
+    }
+  })
+}
+
 module.exports = {
   co,
   isPromise,
@@ -57,5 +115,8 @@ module.exports = {
   shallowClone,
   bindAll,
   getValues,
-  debug
+  debug,
+  validateRequired,
+  newFormState,
+  normalizeUserState
 }

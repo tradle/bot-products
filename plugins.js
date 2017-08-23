@@ -49,6 +49,7 @@ PluginManager.prototype.remove = function remove (plugin) {
 
 PluginManager.prototype.exec = function ({
   method,
+  context,
   args,
   waterfall,
   allowExit
@@ -64,6 +65,7 @@ PluginManager.prototype.exec = function ({
 
   return execute({
     fns: handlers,
+    context,
     args,
     allowExit,
     waterfall
@@ -78,12 +80,17 @@ PluginManager.prototype._debug = function (...args) {
 /**
  * execute in series, with synchronous and promise support
  */
-function execute ({ fns, args, allowExit, waterfall }) {
+function execute ({ fns, context, args, allowExit, waterfall }) {
   let ret
   fns = fns.slice()
   while (fns.length) {
     let fn = fns.shift()
-    ret = fn.apply(this, args)
+    if (context) {
+      ret = fn.apply(context, args)
+    } else {
+      ret = fn(...args)
+    }
+
     if (isPromise(ret)) {
       return ret.then(continueExec)
     }

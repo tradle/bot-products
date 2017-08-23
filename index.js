@@ -51,7 +51,7 @@ module.exports = function creator (opts={}) {
     }
 
     const publicAPI = bot.use(productsStrategy({
-      modelById,
+      models: modelById,
       appModels
     }))
 

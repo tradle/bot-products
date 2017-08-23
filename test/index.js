@@ -55,7 +55,7 @@ test('basic form loop', loudCo(function* (t) {
       type: 'tradle.Model',
       id: 'tradle.TestProduct',
       title: 'Test Product',
-      interfaces: ['tradle.ChatItem'],
+      interfaces: ['tradle.Message'],
       subClassOf: 'tradle.FinancialProduct',
       forms: [
         'tradle.ORV',
@@ -82,9 +82,12 @@ test('basic form loop', loudCo(function* (t) {
       pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
     },
     onFormsCollected: function ({ application }) {
-      t.notOk(pluginsCalled.onFormsCollected[application.product])
-      pluginsCalled.onFormsCollected[application.product] = true
-    }
+      t.notOk(pluginsCalled.onFormsCollected[application.type])
+      pluginsCalled.onFormsCollected[application.type] = true
+    },
+    // validateForm: function ({ application, form }) {
+    //   console.log(application, form)
+    // }
   })
 
   const { models } = productsAPI
@@ -214,8 +217,11 @@ test('basic form loop', loudCo(function* (t) {
       })
 
       yield awaitMessageFromProvider('tradle.Verification')
-      t.ok(nextForm in user.forms)
-      t.ok(productModel.id in user.applications)
+      let app = user.applications[productModel.id][0] ||
+        user.products[productModel.id][0]
+
+      t.ok(app)
+      t.ok(app.forms.some(({ type }) => type === nextForm))
     }
 
     // get product cert

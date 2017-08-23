@@ -13,7 +13,7 @@ const STRINGS = require('./strings')
 const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 
-module.exports = function createAPI ({ bot, modelById, appModels }) {
+module.exports = function createAPI ({ bot, models, appModels }) {
   let productChooser
 
   function send (user, object, other) {
@@ -21,11 +21,11 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
   }
 
   const issueProductCertificate = co(function* ({ user, application }) {
-    if (!application.product) {
+    if (!application.type) {
       application = user.applications.find(app => app.permalink === application.permalink)
     }
 
-    const { product } = application
+    const product = application.type
 
     // we're done!
     if (!user.products[product]) {
@@ -56,7 +56,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
     }
 
     const builder = buildResource({
-      models: modelById,
+      models: models,
       model: baseModels[VERIFICATION],
       resource: verification
     })
@@ -85,13 +85,15 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
 
   // promisified because it might be overridden by an async function
   const getRequiredItems = co(function* ({ user, application }) {
-    return modelById[application.product].forms.slice()
+    return models[application.type].forms.slice()
   })
 
   // promisified because it might be overridden by an async function
   const getNextRequiredItem = co(function* ({ user, application }) {
     const required = yield api.getRequiredItems({ user, application })
-    return required.find(form => !user.forms[form])
+    return required.find(form => {
+      return application.forms.every(({ type }) => type !== form)
+    })
   })
 
   const requestNextRequiredItem = co(function* ({ user, application }) {
@@ -114,7 +116,7 @@ module.exports = function createAPI ({ bot, modelById, appModels }) {
 
   // promisified because it might be overridden by an async function
   const createItemRequest = co(function* ({ product, item }) {
-    const model = modelById[item]
+    const model = models[item]
     let message
     if (model.id === appModels.application.id) {
       message = STRINGS.PRODUCT_LIST_MESSAGE
