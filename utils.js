@@ -103,9 +103,16 @@ function normalizeUserState (state) {
   })
 }
 
+const series = co(function* (arr, fn) {
+  for (let i = 0; i < arr.length; i++) {
+    yield fn(arr[i])
+  }
+})
+
 module.exports = {
   co,
   isPromise,
+  series,
   format,
   splitCamelCase,
   parseId,
@@ -118,5 +125,5 @@ module.exports = {
   debug,
   validateRequired,
   newFormState,
-  normalizeUserState
+  normalizeUserState,
 }

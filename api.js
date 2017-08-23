@@ -165,6 +165,8 @@ module.exports = function createAPI ({ bot, models, appModels }) {
   })
 
   const api = {
+    models,
+    appModels,
     verify,
     issueProductCertificate,
     requestEdit,

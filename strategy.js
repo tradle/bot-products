@@ -371,6 +371,6 @@ function install (bot, opts) {
     uninstall,
     removeDefaultHandler,
     removeDefaultHandlers,
-    models: models
+    models
   }, api)
 }
