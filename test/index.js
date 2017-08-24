@@ -186,25 +186,84 @@ test('plugins', loudCo(function* (t) {
   }
 
   const productsAPI = productsStrategy.install(bot)
-  productsAPI.plugins.clear('getRequiredItems')
+  productsAPI.plugins.clear('getRequiredForms')
   productsAPI.plugins.use({
-    getRequiredItems: function () {
+    getRequiredForms: function () {
       return ['blah']
     }
   })
 
-  t.same(productsAPI.getRequiredItems(), ['blah'])
+  t.same(productsAPI.plugins.exec('getRequiredForms'), ['blah'])
 
-  productsAPI.plugins.clear('getRequiredItems')
+  productsAPI.plugins.clear('getRequiredForms')
   productsAPI.plugins.use({
-    getRequiredItems: function () {
+    getRequiredForms: function () {
       return Promise.resolve(['blah1'])
     }
   })
 
-  t.same(yield productsAPI.getRequiredItems(), ['blah1'])
+  t.same(yield productsAPI.plugins.exec('getRequiredForms'), ['blah1'])
   t.end()
 }))
+
+test('complex form loop', loudCo(co(function* (t) {
+  const bizPlugins = require('@tradle/biz-plugins')
+  // const corpModels = require('./fixtures/biz-models')
+  const corpModels = require('@tradle/models-corporate-onboarding')
+  const productModelId = 'tradle.CRSSelection'
+  // const productModelId = 'tradle.TaxChooser_Individual'
+  // const productModelId = 'cp.tradle.CorporateAccount'
+  // const productModelId = 'tradle.TestConditionals'
+  const products = [productModelId]
+  const productModel = corpModels[productModelId]
+  const {
+    bot,
+    api,
+    applyForProduct,
+    awaitBotResponse,
+    receiveFromUser,
+    plugins,
+    models,
+    appModels,
+    user
+  } = formLoop({
+    products,
+    models: mergeModels()
+      .add(baseModels)
+      .add(corpModels)
+      .get()
+  })
+
+  // const getRequiredForms = bot.removeDefaultHandler('getRequiredForms')
+  bizPlugins.forEach(plugin => plugins.use(plugin(), true)) // unshift
+  // // fall back to default
+  // plugins.use({ getRequiredForms })
+
+  // const appResult = yield applyForProduct({ productModel })
+  const testProduct = co(function* ({ productModel }) {
+    let { request, response } = yield applyForProduct({ productModel })
+    const { context } = request
+    let nextForm
+    while (nextForm = response.object.form) {
+      console.log(nextForm)
+      // t.equal(response.object.form, nextForm)
+      let result = yield receiveFromUser({
+        object: fakeResource({
+          models,
+          model: models[nextForm]
+        }),
+        context
+      })
+
+      response = result.response
+    }
+
+    t.equal(response.object[TYPE], 'tradle.MyCRSSelection')
+    t.end()
+  })
+
+  yield testProduct({ productModel })
+})))
 
 // test('genModels', function (t) {
 //   const enumModel = genEnumModel({ models, id: 'my.enum.of.Goodness' })

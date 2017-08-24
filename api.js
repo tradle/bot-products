@@ -13,7 +13,7 @@ const STRINGS = require('./strings')
 const TYPE = '_t'
 const VERIFICATION = 'tradle.Verification'
 
-module.exports = function createAPI ({ bot, models, appModels }) {
+module.exports = function createAPI ({ bot, plugins, models, appModels }) {
   let productChooser
 
   function send (user, object, other) {
@@ -84,13 +84,14 @@ module.exports = function createAPI ({ bot, models, appModels }) {
   })
 
   // promisified because it might be overridden by an async function
-  const getRequiredItems = co(function* ({ user, application }) {
-    return models[application.type].forms.slice()
-  })
+  const getNextRequiredItem = co(function* ({ application }) {
+    const productModel = models[application.type]
+    const required = yield plugins.exec({
+      method: 'getRequiredForms',
+      args: [{ application, productModel }],
+      returnResult: true
+    })
 
-  // promisified because it might be overridden by an async function
-  const getNextRequiredItem = co(function* ({ user, application }) {
-    const required = yield api.getRequiredItems({ user, application })
     return required.find(form => {
       return application.forms.every(({ type }) => type !== form)
     })
@@ -172,7 +173,6 @@ module.exports = function createAPI ({ bot, models, appModels }) {
     requestEdit,
     getNextRequiredItem,
     requestNextRequiredItem,
-    getRequiredItems,
     createItemRequest,
     sendProductList
     // continueApplication

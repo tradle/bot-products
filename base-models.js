@@ -1,13 +1,8 @@
-const shallowClone = require('xtend')
+const mergeModels = require('@tradle/merge-models')
 const base = require('@tradle/models').models
 const custom = require('@tradle/custom-models')
 
-module.exports = toModelsMap(base.concat(custom))
-
-function toModelsMap (arr) {
-  if (!Array.isArray(arr)) return shallowClone(arr)
-
-  const obj = {}
-  arr.forEach(item => obj[item.id] = item)
-  return obj
-}
+module.exports = mergeModels()
+  .add(base)
+  .add(custom)
+  .get()

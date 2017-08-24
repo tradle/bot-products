@@ -27,9 +27,11 @@
     "@tradle/models": "https://github.com/tradle/models"
   },
   "devDependencies": {
-    "@tradle/custom-models": "https://github.com/tradle/custom-models",
-    "@tradle/engine": "^4.9.0",
-    "@tradle/models": "https://github.com/tradle/models",
+    "@tradle/biz-plugins": "github:tradle/biz-plugins",
+    "@tradle/custom-models": "github:tradle/custom-models",
+    "@tradle/engine": "4.10.0",
+    "@tradle/models": "github:tradle/models",
+    "@tradle/models-corporate-onboarding": "github:tradle/models-corporate-onboarding",
     "eslint": "^3.15.0",
     "tape": "^4.6.3"
   },

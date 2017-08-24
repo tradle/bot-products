@@ -49,9 +49,10 @@ PluginManager.prototype.remove = function remove (plugin) {
 
 PluginManager.prototype.exec = function ({
   method,
-  context,
+  context=this._defaultContext,
   args,
   waterfall,
+  returnResult,
   allowExit
 }) {
   if (typeof arguments[0] === 'string') {
@@ -68,8 +69,13 @@ PluginManager.prototype.exec = function ({
     context,
     args,
     allowExit,
+    returnResult,
     waterfall
   })
+}
+
+PluginManager.prototype.setContext = function (context) {
+  this._defaultContext = context
 }
 
 PluginManager.prototype._debug = function (...args) {
@@ -80,7 +86,7 @@ PluginManager.prototype._debug = function (...args) {
 /**
  * execute in series, with synchronous and promise support
  */
-function execute ({ fns, context, args, allowExit, waterfall }) {
+function execute ({ fns, context, args, waterfall, allowExit, returnResult }) {
   let ret
   fns = fns.slice()
   while (fns.length) {
@@ -100,6 +106,7 @@ function execute ({ fns, context, args, allowExit, waterfall }) {
 
   function continueExec (ret) {
     if (allowExit && ret === false) return ret
+    if (returnResult && ret != null) return ret
     if (!fns.length) return ret
     if (waterfall) args = [ret]
 

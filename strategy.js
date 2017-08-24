@@ -34,16 +34,16 @@ function install (bot, opts) {
 
   const pluginContext = { models }
   const plugins = createPlugins()
+  plugins.setContext(pluginContext)
   const execPlugins = (method, ...args) => plugins.exec({
     method,
     // coerce to array
-    args,
-    context: pluginContext
+    args
   })
 
   const defaultPlugin = {}
   const api = (function () {
-    const rawAPI = createAPI({ bot, models, appModels })
+    const rawAPI = createAPI({ bot, plugins, models, appModels })
     const apiProxy = {}
     for (let key in rawAPI) {
       let val = rawAPI[key]
@@ -249,7 +249,8 @@ function install (bot, opts) {
 
     const err = execPlugins('validateForm', {
       application: currentApplication,
-      form: object
+      form: object,
+      returnResult: true
     })
 
     if (err) {
@@ -335,8 +336,14 @@ function install (bot, opts) {
     return err
   }.bind(pluginContext))
 
+  // promisified because it might be overridden by an async function
+  const getRequiredForms = co(function* ({ application, productModel }) {
+    return productModel.forms.slice()
+  })
+
   shallowExtend(defaultPlugin, {
     validateForm,
+    getRequiredForms,
     onSelfIntroduction: [
       saveName,
       api.sendProductList
@@ -358,7 +365,9 @@ function install (bot, opts) {
   const removeDefaultHandlers = plugins.use(defaultPlugin)
 
   function removeDefaultHandler (method) {
-    return plugins.remove(method, defaultPlugin[method])
+    const handler = defaultPlugin[method]
+    plugins.remove(method, handler)
+    return handler
   }
 
   function uninstall () {
