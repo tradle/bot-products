@@ -4,7 +4,8 @@ const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
 const {
   co,
-  debug
+  debug,
+  isPromise
   // parseId
 } = require('./utils')
 
@@ -107,33 +108,34 @@ module.exports = function createAPI ({ bot, plugins, models, appModels }) {
 
   // promisified because it might be overridden by an async function
   const requestItem = co(function* ({ user, application, item }) {
-    const { product } = application
+    const product = application.type
     const context = application.permalink
     debug(`requesting next form for ${product}: ${item}`)
-    const reqItem = yield api.createItemRequest({ product, item })
+    const reqItem = yield api.createItemRequest({ user, application, product, item })
     yield send(user, reqItem, { context })
     return true
   })
 
   // promisified because it might be overridden by an async function
-  const createItemRequest = co(function* ({ product, item }) {
-    const model = models[item]
-    let message
-    if (model.id === appModels.application.id) {
-      message = STRINGS.PRODUCT_LIST_MESSAGE
-    } else if (model.subClassOf === 'tradle.Form') {
-      message = STRINGS.PLEASE_FILL_FIRM
-    } else {
-      message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
-    }
-
+  const createItemRequest = co(function* ({ user, application, product, item }) {
     const req = {
       [TYPE]: 'tradle.FormRequest',
-      form: item,
-      message
+      form: item
     }
 
+    if (!product && application) product = application.type
     if (product) req.product = product
+
+    const ret = plugins.exec('willRequestForm', {
+      application,
+      form: item,
+      formRequest: req,
+      user,
+      // compat with tradle/tim-bank
+      state: user
+    })
+
+    if (isPromise(ret)) yield ret
 
     return req
   })

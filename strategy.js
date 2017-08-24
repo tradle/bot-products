@@ -33,14 +33,10 @@ function install (bot, opts) {
     validateIncoming
   } = opts
 
-  const pluginContext = { models }
+  const pluginContext = { models, appModels }
   const plugins = createPlugins()
   plugins.setContext(pluginContext)
-  const execPlugins = (method, ...args) => plugins.exec({
-    method,
-    // coerce to array
-    args
-  })
+  const execPlugins = (method, ...args) => plugins.exec({ method, args })
 
   const defaultPlugin = {}
   const api = (function () {
@@ -113,38 +109,42 @@ function install (bot, opts) {
 
     const model = models[type]
 
+    let maybePromise
     switch (type) {
     case 'tradle.SelfIntroduction':
-      yield execPlugins('onSelfIntroduction', data)
+      maybePromise = execPlugins('onSelfIntroduction', data)
       break
     case 'tradle.IdentityPublishRequest':
-      yield execPlugins('onIdentityPublishRequest', data)
+      maybePromise = execPlugins('onIdentityPublishRequest', data)
       break
     case 'tradle.SimpleMessage':
-      yield execPlugins('onSimpleMessage', data)
+      maybePromise = execPlugins('onSimpleMessage', data)
       break
     case 'tradle.CustomerWaiting':
-      yield execPlugins('onCustomerWaiting', data)
+      maybePromise = execPlugins('onCustomerWaiting', data)
       break
     case VERIFICATION:
-      yield execPlugins('onVerification', data)
+      maybePromise = execPlugins('onVerification', data)
       break
     case appModels.application.id:
-      yield execPlugins('onApplication', data)
+      maybePromise = execPlugins('onApplication', data)
       break
     case 'tradle.ForgetMe':
-      yield execPlugins('onForgetMe', data)
+      maybePromise = execPlugins('onForgetMe', data)
       break
     default:
       if (model && model.subClassOf === 'tradle.Form') {
-        yield execPlugins('onForm', data)
+        maybePromise = execPlugins('onForm', data)
         break
       }
 
-      yield execPlugins('onUnhandledMessage', data)
+      maybePromise = execPlugins('onUnhandledMessage', data)
       break
     }
+
+    if (isPromise(maybePromise)) yield maybePromise
   })
+
 
   const removeReceiveHandler = bot.onmessage(onmessage)
   // const removeCreateHandler = bot.onusercreate(oncreate)
@@ -277,10 +277,13 @@ function install (bot, opts) {
 
     data = shallowExtend({ application: data.currentApplication }, data)
     const requested = yield api.requestNextRequiredItem(data)
-    if (!requested) yield execPlugins('onFormsCollected', data)
+    if (!requested) {
+      const maybePromise = execPlugins('onFormsCollected', data)
+      if (isPromise(maybePromise)) yield maybePromise
+    }
   })
 
-  const handleVerification = co(function* (data) {
+  function handleVerification (data) {
     const { user, object } = data
     addVerification({
       state: user.importedVerifications,
@@ -288,8 +291,8 @@ function install (bot, opts) {
       verifiedItem: object.document
     })
 
-    yield continueApplication(data)
-  })
+    return continueApplication(data)
+  }
 
   function getProductFromEnumValue (value) {
     return parseEnumValue({
@@ -299,26 +302,26 @@ function install (bot, opts) {
   }
 
   const approveProduct = api.issueProductCertificate
-  const forgetUser = co(function* ({ user }) {
+  function forgetUser ({ user }) {
     STATE_PROPS.forEach(prop => {
       delete user[prop]
     })
 
     ensureStateStructure(user)
-  })
+  }
 
-  const saveName = co(function* ({ user, object }) {
+  function saveName ({ user, object }) {
     if (!object.profile) return
 
     const name = object.profile.firstName
     const oldName = user.profile && user.profile.firstName
     user.profile = object.profile
     if (name !== oldName) {
-      yield send(user, format(STRINGS.HI_JOE, name))
+      return send(user, format(STRINGS.HI_JOE, name))
     }
-  })
+  }
 
-  const validateForm = (function ({ application, form }) {
+  function validateForm ({ application, form }) {
     const type = form[TYPE]
     const model = this.models[type]
     if (!model) throw new Error(`unknown type ${type}`)
@@ -334,16 +337,31 @@ function install (bot, opts) {
     }
 
     return err
-  }.bind(pluginContext))
+  }
 
   // promisified because it might be overridden by an async function
-  const getRequiredForms = co(function* ({ application, productModel }) {
+  function getRequiredForms ({ application, productModel }) {
     return productModel.forms.slice()
-  })
+  }
+
+  function willRequestForm ({ formRequest }) {
+    const model = this.models[formRequest.form]
+    let message
+    if (model.id === this.appModels.application.id) {
+      message = STRINGS.PRODUCT_LIST_MESSAGE
+    } else if (model.subClassOf === 'tradle.Form') {
+      message = STRINGS.PLEASE_FILL_FIRM
+    } else {
+      message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
+    }
+
+    formRequest.message = message
+  }
 
   shallowExtend(defaultPlugin, {
     validateForm,
     getRequiredForms,
+    willRequestForm,
     onSelfIntroduction: [
       saveName,
       api.sendProductList

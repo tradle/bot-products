@@ -55,6 +55,7 @@ PluginManager.prototype.exec = function ({
   returnResult,
   allowExit
 }) {
+  if (!context) debugger
   if (typeof arguments[0] === 'string') {
     method = arguments[0]
     args = Array.prototype.slice.call(arguments, 1)
@@ -110,11 +111,6 @@ function execute ({ fns, context, args, waterfall, allowExit, returnResult }) {
     if (!fns.length) return ret
     if (waterfall) args = [ret]
 
-    return execute({
-      fns,
-      args: waterfall ? [ret] : args,
-      allowExit,
-      waterfall
-    })
+    return execute({ fns, context, args, waterfall, allowExit, returnResult })
   }
 }

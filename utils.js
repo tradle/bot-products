@@ -105,7 +105,8 @@ function normalizeUserState (state) {
 
 const series = co(function* (arr, fn) {
   for (let i = 0; i < arr.length; i++) {
-    yield fn(arr[i])
+    let ret = fn(arr[i])
+    if (isPromise(ret)) yield ret
   }
 })
 
