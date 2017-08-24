@@ -208,12 +208,8 @@ test('plugins', loudCo(function* (t) {
 
 test('complex form loop', loudCo(co(function* (t) {
   const bizPlugins = require('@tradle/biz-plugins')
-  // const corpModels = require('./fixtures/biz-models')
   const corpModels = require('@tradle/models-corporate-onboarding')
   const productModelId = 'tradle.CRSSelection'
-  // const productModelId = 'tradle.TaxChooser_Individual'
-  // const productModelId = 'cp.tradle.CorporateAccount'
-  // const productModelId = 'tradle.TestConditionals'
   const products = [productModelId]
   const productModel = corpModels[productModelId]
   const {
@@ -234,10 +230,8 @@ test('complex form loop', loudCo(co(function* (t) {
       .get()
   })
 
-  // const getRequiredForms = bot.removeDefaultHandler('getRequiredForms')
-  bizPlugins.forEach(plugin => plugins.use(plugin(), true)) // unshift
-  // // fall back to default
-  // plugins.use({ getRequiredForms })
+  // unshift (put ahead of defaults)
+  bizPlugins.forEach(plugin => plugins.use(plugin(), true))
 
   // const appResult = yield applyForProduct({ productModel })
   const testProduct = co(function* ({ productModel }) {
