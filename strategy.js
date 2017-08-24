@@ -1,4 +1,5 @@
 const validateResource = require('@tradle/validate-resource')
+const { parseEnumValue } = validateResource.utils
 const { TYPE, SIG } = require('@tradle/constants')
 const {
   co,
@@ -205,7 +206,7 @@ function install (bot, opts) {
 
   const handleProductApplication = co(function* (data) {
     const { user, object, permalink, link, currentApplication, currentProduct } = data
-    const product = getProductFromEnumValue(object.product.id)
+    const product = getProductFromEnumValue(object.product)
     const isOfferedProduct = appModels.products.find(model => model.id === product)
     if (!isOfferedProduct) {
       debug(`ignoring application for "${product}" as it's not in specified offering`)
@@ -291,11 +292,10 @@ function install (bot, opts) {
   })
 
   function getProductFromEnumValue (value) {
-    if (value.indexOf(appModels.productList.id) === 0) {
-      return value.slice(appModels.productList.id.length + 1)
-    }
-
-    return value
+    return parseEnumValue({
+      model: appModels.productList,
+      value
+    }).id
   }
 
   const approveProduct = api.issueProductCertificate

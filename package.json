@@ -11,9 +11,9 @@
   "author": "mvayngrib",
   "dependencies": {
     "@tradle/bot-require-models": "tradle/bot-require-models#cloud",
-    "@tradle/build-resource": "tradle/build-resource",
+    "@tradle/build-resource": "2.2.0",
     "@tradle/validate-model": "tradle/validate-model",
-    "@tradle/validate-resource": "tradle/validate-resource",
+    "@tradle/validate-resource": "2.2.0",
     "bindall": "^2.0.1",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",

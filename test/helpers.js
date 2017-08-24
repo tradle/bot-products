@@ -89,12 +89,12 @@ function formLoop ({ models, products }) {
   const applyForProduct = ({ productModel }) => {
     const context = hex32()
     return receiveFromUser({
-      object: {
-        [TYPE]: productsStrategy.models.application.id,
-        product: {
-          id: productModel.id
-        }
-      },
+      object: buildResource({
+          models: productsStrategy.models.all,
+          model: productsStrategy.models.application,
+        })
+        .set('product', productModel.id)
+        .toJSON(),
       context,
       link: context,
       permalink: context
