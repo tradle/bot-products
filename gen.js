@@ -22,7 +22,7 @@ function idToTitle (id) {
   return splitCamelCase(camel).join(' ')
 }
 
-function getProductCertificateModelId ({ productModel }) {
+function getCertificateModelId ({ productModel }) {
   const id = productModel.id || productModel
   const lastIdx = id.lastIndexOf('.')
   return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
@@ -53,39 +53,39 @@ function genApplicationModels ({ namespace, models, products }) {
   }
 
   const certificates = {}
-  const certificateForProduct = {}
+  const certificateFor = {}
   const productForCertificate = {}
 
   productModels.forEach(productModel => {
     const { id } = productModel
-    const certId = GenId.productCertificate({ productModel })
-    const cert = models[certId] || GenModel.productCertificate({ productModel })
+    const certId = GenId.certificate({ productModel })
+    const cert = models[certId] || GenModel.certificate({ productModel })
     certificates[certId] = cert
     productForCertificate[certId] = productModel
-    certificateForProduct[id] = cert
+    certificateFor[id] = cert
     if (!(certId in models)) {
       additional[certId] = cert
     }
   })
 
-  const application = GenModel.productApplication({
+  const productRequest = GenModel.productRequest({
     productList,
-    id: GenId.productApplication({ namespace })
+    id: GenId.productRequest({ namespace })
   })
 
   const all = {}
   const applicationModels = {
     products: productModels,
     productList,
-    application,
+    productRequest,
     certificates,
-    certificateForProduct,
+    certificateFor,
     productForCertificate,
     additional,
     all
   }
 
-  additional[application.id] = application
+  additional[productRequest.id] = productRequest
   additional[productList.id] = productList
 
   getValues(models)
@@ -96,7 +96,7 @@ function genApplicationModels ({ namespace, models, products }) {
   return applicationModels
 }
 
-function genProductApplicationModel ({ productList, id, title }) {
+function genProductRequestModel ({ productList, id, title }) {
   return normalize({
     type: 'tradle.Model',
     id,
@@ -105,23 +105,23 @@ function genProductApplicationModel ({ productList, id, title }) {
     interfaces: ['tradle.Message'],
     subClassOf: 'tradle.Form',
     properties: {
-      product: {
+      requestFor: {
         inlined: true,
         type: 'object',
         displayName: true,
         ref: productList.id
       }
     },
-    required: ['product'],
-    viewCols: ['product']
+    required: ['requestFor'],
+    viewCols: ['requestFor']
   })
 }
 
 
-function genProductCertificateModel ({ productModel, id, title }) {
+function genCertificateModel ({ productModel, id, title }) {
   // com.example.Furniture => com.example.MyFurniture
   if (!id) {
-    id = GenId.productCertificate({ productModel })
+    id = GenId.certificate({ productModel })
   }
 
   return normalize({
@@ -161,14 +161,14 @@ function genEnumModel ({ models, id, title }) {
 
 const GenId = {
   productList: ({ namespace }) => `${namespace}.Product`,
-  productApplication: ({ namespace }) => `${namespace}.ProductApplication`,
-  productCertificate: getProductCertificateModelId
+  productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
+  certificate: getCertificateModelId
 }
 
 const GenModel = {
   productList: genProductListModel,
-  productApplication: genProductApplicationModel,
-  productCertificate: genProductCertificateModel
+  productRequest: genProductRequestModel,
+  certificate: genCertificateModel
 }
 
 module.exports = {

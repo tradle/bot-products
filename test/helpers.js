@@ -12,6 +12,7 @@ const {
 
 module.exports = {
   formLoop,
+  fakeBot: createFakeBot,
   fakeMessage,
   loudCo,
   newLink,
@@ -20,16 +21,12 @@ module.exports = {
   hex32
 }
 
-function formLoop ({ models, products }) {
-  let linkCounter = 0
+function createFakeBot () {
+  const user = { id: 'bill' }
+  const botId = 'ted'
+  const byPermalink = {}
+  const byLink = {}
   const handlers = []
-  const productModels = products.map(id => models[id])
-  const from = 'bill'
-  const to = 'ted'
-  const user = {
-    id: to
-  }
-
   const bot = shallowExtend(new EventEmitter(), {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
@@ -38,14 +35,42 @@ function formLoop ({ models, products }) {
       object[SIG] = newSig()
       return object
     }),
-    save: co(function* (object) {}),
+    save: co(function (object) {
+      byPermalink[buildResource.permalink(object)] = object
+      byLink[buildResource.link(object)] = object
+    }),
     send: co(function* ({ to, object }) {
-      const ret = fakeMessage({ from, to, object })
+      object = yield bot.sign(object)
+      yield bot.save(object)
+      const ret = fakeMessage({ from: botId, to: user.id, object })
       process.nextTick(() => bot.emit('sent', ret))
       return ret
-    })
+    }),
+    db: {
+      latest: co(function* ({ type, permalink }) {
+        const object = byPermalink[permalink]
+        if (!object) {
+          throw new Error('NotFound')
+        }
+
+        return object
+      })
+    }
   })
 
+  return { bot, handlers }
+}
+
+function formLoop ({ models, products }) {
+  let linkCounter = 0
+  const productModels = products.map(id => models[id])
+  const from = 'bill'
+  const to = 'ted'
+  const user = {
+    id: to
+  }
+
+  const { bot, handlers } = createFakeBot()
   const productsStrategy = createProductsStrategy({
     namespace: 'test.namespace',
     models,
@@ -97,9 +122,9 @@ function formLoop ({ models, products }) {
     return receiveFromUser({
       object: buildResource({
           models: productsStrategy.models.all,
-          model: productsStrategy.models.biz.application,
+          model: productsStrategy.models.biz.productRequest,
         })
-        .set('product', productModel.id)
+        .set('requestFor', productModel.id)
         .toJSON(),
       context,
       link: context,

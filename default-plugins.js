@@ -17,7 +17,7 @@ module.exports = function ({ models, plugins }) {
     const { user, object, permalink, link, application } = data
     const product = getProductFromEnumValue({
       bizModels: models.biz,
-      value: object.product
+      value: object.requestFor
     })
 
     debug(`received application for "${product}"`)
@@ -35,26 +35,27 @@ module.exports = function ({ models, plugins }) {
       return
     }
 
-    const existingProduct = user.certificates.find(applicationState => {
-      return applicationState.product == object.product
+    const existingProduct = user.certificates.find(application => {
+      return application.requestFor == object.requestFor
     })
 
     if (existingProduct) {
       const maybePromise = plugins.exec({
-        method: 'onApplicationForExistingProduct',
+        method: 'onrequestForExistingProduct',
         args: [data]
       })
 
       if (isPromise(maybePromise)) yield maybePromise
     }
 
-    data.application = this.state.addApplication(data)
+    data.application = yield this.signAndSave(this.state.createApplication(data))
+    this.state.addApplication(data)
     yield this.continueApplication(data)
   })
 
   const handleForm = co(function* (data) {
     const { application, object } = data
-    if (application && application.product === REMEDIATION) return
+    if (application && application.requestFor === REMEDIATION) return
 
     let err = plugins.exec({
       method: 'validateForm',
@@ -117,7 +118,7 @@ module.exports = function ({ models, plugins }) {
   function willRequestForm ({ formRequest }) {
     const model = models.all[formRequest.form]
     let message
-    if (model.id === models.biz.application.id) {
+    if (model.id === models.biz.productRequest.id) {
       message = STRINGS.PRODUCT_LIST_MESSAGE
     } else if (model.subClassOf === 'tradle.Form') {
       message = STRINGS.PLEASE_FILL_FIRM
@@ -152,7 +153,7 @@ module.exports = function ({ models, plugins }) {
     ],
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
-    [models.biz.application.id]: handleProductApplication,
+    [models.biz.productRequest.id]: handleProductApplication,
     'tradle.SimpleMessage': banter,
     'tradle.CustomerWaiting': proxyFor('sendProductList'),
     'tradle.ForgetMe': proxyFor('forgetUser'),

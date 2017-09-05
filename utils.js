@@ -6,8 +6,12 @@ const shallowClone = require('xtend')
 const pick = require('object.pick')
 const omit = require('object.omit')
 const validateResource = require('@tradle/validate-resource')
+const buildResource = require('@tradle/build-resource')
 const { getPropertyTitle } = validateResource.utils
-const isPromise = obj => obj && typeof obj.then === 'function'
+
+function isPromise (obj) {
+  return obj && typeof obj.then === 'function'
+}
 
 // function getNamespaceIds (namespace) {
 //   return {
@@ -98,8 +102,8 @@ function normalizeUserState (state) {
     const subState = state[key]
     if (subState) {
       for (let productType in subState) {
-        subState[productType].forEach(appState => {
-          appState.forms.forEach(normalizeFormState)
+        subState[productType].forEach(application => {
+          application.forms.forEach(normalizeFormState)
         })
       }
     }
@@ -107,8 +111,8 @@ function normalizeUserState (state) {
 }
 
 const series = co(function* (arr, fn) {
-  for (let i = 0; i < arr.length; i++) {
-    let ret = fn(arr[i])
+  for (const arg of arr) {
+    const ret = fn(arg)
     if (isPromise(ret)) yield ret
   }
 })
@@ -121,11 +125,27 @@ function getProductFromEnumValue ({ bizModels, value }) {
   return value.id
 }
 
+function ensureLinks (object) {
+  if (!object._link) {
+    const link = buildResource.calcLink(object)
+    buildResource.setVirtual(object, {
+      _link: link,
+    })
+  }
+
+  if (!object._permalink) {
+    buildResource.setVirtual(object, {
+      _permalink: buildResource.permalink(object),
+    })
+  }
+
+  return object
+}
+
 module.exports = {
   co,
   isPromise,
   series,
-  bindAll,
   format,
   splitCamelCase,
   parseId,
@@ -140,5 +160,6 @@ module.exports = {
   validateRequired,
   newFormState,
   normalizeUserState,
-  getProductFromEnumValue
+  getProductFromEnumValue,
+  ensureLinks
 }

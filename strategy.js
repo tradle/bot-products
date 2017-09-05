@@ -60,7 +60,7 @@ proto._exec = function (method, ...args) {
 
 proto._onmessage = co(function* (data) {
   // make a defensive copy
-  const { state, models } = this
+  const { bot, state, models } = this
   data = shallowClone(data)
   if (!data.object && data.payload) {
     data.object = data.payload
@@ -72,6 +72,11 @@ proto._onmessage = co(function* (data) {
 
   state.init(user)
   state.deduceCurrentApplication(data)
+  const { application } = data
+  if (application) {
+    // lookup current application state
+    data.application = yield this._getApplicationFromStub(application)
+  }
 
   yield this._exec('onmessage', data)
   yield this._exec(`onmessage:${type}`, data)
@@ -79,6 +84,17 @@ proto._onmessage = co(function* (data) {
     yield this._exec(`onmessage:${model.subClassOf}`, data)
   }
 })
+
+proto._getApplicationFromStub = function ({ statePermalink }) {
+  return this._getApplication(statePermalink)
+}
+
+proto._getApplication = function (permalink) {
+  return this.bot.db.latest({
+    type: this.models.private.application.id,
+    permalink
+  })
+}
 
 proto._noComprendo = function ({ user, type }) {
   const model = this.models.all[type]
@@ -97,15 +113,24 @@ proto.removeDefaultHandler = function (method) {
   return handler
 }
 
-proto.send = function (user, object, other={}) {
+proto.send = function send (user, object, other={}) {
   const to = user.id
   return this.bot.send({ to, object, other })
 }
 
-proto.signAndSave = function (object) {
+proto.sign = function sign (object) {
   return this.bot.sign(object)
-    .then(signed => this.bot.save(signed))
 }
+
+proto.save = function save (signedObject) {
+  return this.bot.save(signedObject)
+}
+
+proto.signAndSave = co(function* (object) {
+  const signed = yield this.sign(object)
+  yield this.save(signed)
+  return signed
+})
 
 proto.continueApplication = co(function* (data) {
   const { application } = data
@@ -141,13 +166,13 @@ proto.verify = co(function* ({ user, object, verification={} }) {
 
 proto.issueCertificate = co(function* ({ user, application }) {
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.signAndSave(unsigned)
+  const certificate = yield this.sign(unsigned)
   const certState = this.state.addCertificate({ user, application, certificate })
-  const context = this.state.getAppStateContext(certState)
+  const context = this.state.getApplicationContext(certState)
   return this.send(user, certificate, { context })
 })
 
-proto.revokeProductCertificate = co(function* ({ user, application, certificate }) {
+proto.revokeCertificate = co(function* ({ user, application, certificate }) {
   if (!application) {
     application = user.certificates.find(app => {
       return app.certificate._link === certificate._link
@@ -162,7 +187,7 @@ proto.revokeProductCertificate = co(function* ({ user, application, certificate 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ application }) {
   const { models, plugins } = this
-  const productModel = models.all[application.product]
+  const productModel = models.all[application.requestFor]
   const required = yield this._exec({
     method: 'getRequiredForms',
     args: [{ application, productModel }],
@@ -184,7 +209,7 @@ proto.requestNextRequiredItem = co(function* ({ user, application }) {
 
 // promisified because it might be overridden by an async function
 proto.requestItem = co(function* ({ user, application, item }) {
-  const product = application.type
+  const product = application.requestFor
   const context = application.permalink
   debug(`requesting next form for ${product}: ${item}`)
   const reqItem = yield this.createItemRequest({ user, application, product, item })
@@ -199,8 +224,11 @@ proto.createItemRequest = co(function* ({ user, application, product, item }) {
     form: item
   }
 
-  if (!product && application) product = application.type
-  if (product) req.product = product
+  if (!product && application) {
+    product = application.requestFor
+  }
+
+  if (product) req.requestFor = product
 
   const ret = this._exec('willRequestForm', {
     application,
@@ -217,7 +245,7 @@ proto.createItemRequest = co(function* ({ user, application, product, item }) {
 })
 
 proto.sendProductList = co(function* ({ user }) {
-  const item = this.models.biz.application.id
+  const item = this.models.biz.productRequest.id
   const productChooser = yield this.createItemRequest({ item })
   return this.send(user, productChooser)
 })

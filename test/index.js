@@ -19,10 +19,9 @@ const {
   // getApplicationModels
 } = require('../utils')
 
-const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
-const { formLoop, loudCo, toObject, hex32, newSig } = require('./helpers')
+const { formLoop, loudCo, toObject, hex32, newSig, fakeBot } = require('./helpers')
 const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
@@ -44,7 +43,7 @@ const series = co(function* (arr, fn) {
   }
 })
 
-test('state', function (t) {
+test('state', loudCo(function* (t) {
   const namespace = 'test.namespace'
   const user = { id: 'bob' }
   const productModel = TEST_PRODUCT
@@ -55,28 +54,23 @@ test('state', function (t) {
     products: productModels.map(model => model.id)
   })
 
-  const handlers = []
-  const bot = shallowExtend(new EventEmitter(), {
-    use: (strategy, opts) => strategy(bot, opts),
-    onmessage: handler => handlers.push(handler),
-    onusercreate: () => {},
-  })
-
+  const { bot } = fakeBot({ user })
   const {
     state,
     models,
   } = productsStrategy.install(bot)
 
   const privateModels = models.private
-  const application = fakeResource({
+  const productRequest = fakeResource({
     models: models.all,
-    model: models.biz.application,
+    model: models.biz.productRequest,
     signed: true
   })
 
   state.init(user)
   t.same(user, {
     id: user.id,
+    roles: [],
     applications: [],
     certificates: [],
     // forms: [],
@@ -84,12 +78,11 @@ test('state', function (t) {
     issuedVerifications: []
   })
 
-  const appState = state.addApplication({
-    user,
-    object: application,
-    type: application[TYPE],
-    permalink: application._permalink
-  })
+  const application = yield bot.sign(state.createApplication({
+    object: productRequest
+  }))
+
+  state.addApplication({ user, application })
 
   productModel.forms.forEach((form, i) => {
     const link = hex32()
@@ -101,7 +94,7 @@ test('state', function (t) {
 
     state.addForm({
       user,
-      application: appState,
+      application,
       object: signedForm,
       type: form,
       link,
@@ -123,29 +116,24 @@ test('state', function (t) {
 
   t.equal(user.applications.length, 1)
   t.equal(user.certificates.length, 0)
+  t.ok(user.applications.every(f => f[TYPE] === privateModels.applicationStub.id))
 
-  const certificate = state.createCertificate({ application: appState })
+  const certificate = state.createCertificate({ application })
   certificate[SIG] = newSig()
 
-  state.addCertificate({
-    user,
-    application: appState,
-    certificate
-  })
-
+  state.addCertificate({ user, application, certificate })
   t.equal(user.applications.length, 0)
   t.equal(user.certificates.length, 1)
   t.equal(user.issuedVerifications.length, productModel.forms.length)
   t.equal(user.importedVerifications.length, 1)
   // t.equal(user.forms.length, productModel.forms.length)
   // t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
-  t.ok(user.certificates.every(f => f[TYPE] === privateModels.applicationState.id))
+  t.ok(user.certificates.every(f => f[TYPE] === privateModels.applicationStub.id))
 
   t.end()
-})
+}))
 
 test('basic form loop', loudCo(function* (t) {
-  debugger
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
   const {
     bot,
@@ -171,8 +159,8 @@ test('basic form loop', loudCo(function* (t) {
       pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
     },
     onFormsCollected: function ({ application }) {
-      t.notOk(pluginsCalled.onFormsCollected[application.product])
-      pluginsCalled.onFormsCollected[application.product] = true
+      t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
+      pluginsCalled.onFormsCollected[application.requestFor] = true
     },
     // validateForm: function ({ application, form }) {
     //   console.log(application, form)
@@ -230,15 +218,16 @@ test('basic form loop', loudCo(function* (t) {
       })
 
       yield awaitBotResponse('tradle.Verification')
-      let app = user.applications.find(app => app.product === productModel.id)
-        || user.certificates.find(app => app.product === productModel.id)
+      let app = user.applications.find(app => app.requestFor === productModel.id)
+        || user.certificates.find(app => app.requestFor === productModel.id)
 
       t.ok(app)
-      t.ok(app.forms.some(({ type }) => type === nextForm))
+      const appState = yield api._getApplicationFromStub(app)
+      t.ok(appState.forms.some(({ type }) => type === nextForm))
     }
 
     // get product cert
-    t.equal(response.object[TYPE], models.biz.certificateForProduct[productModel.id].id)
+    t.equal(response.object[TYPE], models.biz.certificateFor[productModel.id].id)
     // t.ok(productModel.id in user.products)
     // t.same(user.applications[productModel.id], [])
     productModel.forms.forEach(form => {
