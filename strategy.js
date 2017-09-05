@@ -102,8 +102,9 @@ proto.send = function (user, object, other={}) {
   return this.bot.send({ to, object, other })
 }
 
-proto.sign = function (object) {
+proto.signAndSave = function (object) {
   return this.bot.sign(object)
+    .then(signed => this.bot.save(signed))
 }
 
 proto.continueApplication = co(function* (data) {
@@ -140,7 +141,7 @@ proto.verify = co(function* ({ user, object, verification={} }) {
 
 proto.issueCertificate = co(function* ({ user, application }) {
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.sign(unsigned)
+  const certificate = yield this.signAndSave(unsigned)
   const certState = this.state.addCertificate({ user, application, certificate })
   const context = this.state.getAppStateContext(certState)
   return this.send(user, certificate, { context })

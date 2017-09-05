@@ -38,6 +38,7 @@ function formLoop ({ models, products }) {
       object[SIG] = newSig()
       return object
     }),
+    save: co(function* (object) {}),
     send: co(function* ({ to, object }) {
       const ret = fakeMessage({ from, to, object })
       process.nextTick(() => bot.emit('sent', ret))

@@ -9,7 +9,7 @@ const shallowExtend = require('xtend/mutable')
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
-const { TYPE } = require('@tradle/constants')
+const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
 const ageModels = require('./fixtures/agemodels')
@@ -22,7 +22,7 @@ const {
 const PRODUCT_APPLICATION = 'tradle.ProductApplication'
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
-const { formLoop, loudCo, toObject, hex32 } = require('./helpers')
+const { formLoop, loudCo, toObject, hex32, newSig } = require('./helpers')
 const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
@@ -44,7 +44,7 @@ const series = co(function* (arr, fn) {
   }
 })
 
-test.skip('state', function (t) {
+test('state', function (t) {
   const namespace = 'test.namespace'
   const user = { id: 'bob' }
   const productModel = TEST_PRODUCT
@@ -78,8 +78,8 @@ test.skip('state', function (t) {
   t.same(user, {
     id: user.id,
     applications: [],
-    products: [],
-    forms: [],
+    certificates: [],
+    // forms: [],
     importedVerifications: [],
     issuedVerifications: []
   })
@@ -101,7 +101,7 @@ test.skip('state', function (t) {
 
     state.addForm({
       user,
-      application,
+      application: appState,
       object: signedForm,
       type: form,
       link,
@@ -124,10 +124,12 @@ test.skip('state', function (t) {
   t.equal(user.applications.length, 1)
   t.equal(user.certificates.length, 0)
 
-  const certificate = state.createCertificate({ application: application._permalink })
+  const certificate = state.createCertificate({ application: appState })
+  certificate[SIG] = newSig()
+
   state.addCertificate({
     user,
-    application: application._permalink,
+    application: appState,
     certificate
   })
 
@@ -135,8 +137,8 @@ test.skip('state', function (t) {
   t.equal(user.certificates.length, 1)
   t.equal(user.issuedVerifications.length, productModel.forms.length)
   t.equal(user.importedVerifications.length, 1)
-  t.equal(user.forms.length, productModel.forms.length)
-  t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
+  // t.equal(user.forms.length, productModel.forms.length)
+  // t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
   t.ok(user.certificates.every(f => f[TYPE] === privateModels.applicationState.id))
 
   t.end()
@@ -317,7 +319,7 @@ test('plugins', loudCo(function* (t) {
   t.end()
 }))
 
-test('complex form loop', loudCo(co(function* (t) {
+test.skip('complex form loop', loudCo(co(function* (t) {
   const bizPlugins = require('@tradle/biz-plugins')
   const corpModels = require('@tradle/models-corporate-onboarding')
   const productModelId = 'tradle.CRSSelection'

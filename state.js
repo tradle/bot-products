@@ -83,7 +83,7 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function addApplication ({ user, object, message }) {
+  const addApplication = co(function* ({ user, object, message }) {
     const application = toItem({ object, message })
     const appState = build(privateModels.applicationState)
       .set({
@@ -96,7 +96,7 @@ module.exports = function stateMutater ({ models }) {
     user.applications.push(appState)
     validateCustomer(user)
     return appState
-  }
+  })
 
   function createVerification ({ user, object, verification={} }) {
     const builder = build(baseModels[VERIFICATION])
