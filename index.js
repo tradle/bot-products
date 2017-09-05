@@ -2,7 +2,9 @@
 const shallowClone = require('xtend')
 const validateModels = require('@tradle/validate-model')
 const keepModelsFresh = require('@tradle/bot-require-models')
+const mergeModels = require('@tradle/merge-models')
 const baseModels = require('./base-models')
+const createPrivateModels = require('./private-models')
 const productsStrategy = require('./strategy')
 const Gen = require('./gen')
 
@@ -24,23 +26,35 @@ module.exports = function creator (opts={}) {
     throw new Error('namespace "tradle" is reserved. Your models will be ignored by the application')
   }
 
-  const appModels = Gen.applicationModels({
+  const bizModels = Gen.applicationModels({
     models: shallowClone(baseModels, models),
     products,
     namespace
   })
 
-  if (!Object.keys(appModels.products).length) {
+  if (!Object.keys(bizModels.products).length) {
     throw new Error('no product models found')
   }
 
-  const customModels = shallowClone(models, appModels.additional)
-  const modelById = shallowClone(baseModels, customModels)
-  validateModels(values(modelById))
+  const customModels = shallowClone(models, bizModels.additional)
+  const privateModels = createPrivateModels(namespace)
+  const allModels = mergeModels()
+    .add(baseModels)
+    .add(bizModels.all)
+    .add(privateModels.all)
+    .get()
+
+  validateModels(allModels)
+
+  const modelsGroups = {
+    biz: bizModels,
+    private: privateModels,
+    all: allModels,
+  }
 
   return {
     install,
-    models: appModels
+    models: modelsGroups
   }
 
   function install (bot) {
@@ -51,12 +65,11 @@ module.exports = function creator (opts={}) {
     }
 
     const publicAPI = bot.use(productsStrategy({
-      namespace,
-      models: modelById,
-      appModels
+      models: modelsGroups
     }))
 
-    return shallowClone(publicAPI, { uninstall })
+    publicAPI.uninstall = uninstall
+    return publicAPI
 
     function uninstall () {
       if (uninstallKeepFresh) uninstallKeepFresh()

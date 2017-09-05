@@ -1,11 +1,13 @@
+const typeforce = require('typeforce')
 const validateResource = require('@tradle/validate-resource')
 const { parseEnumValue } = validateResource.utils
 const { TYPE, SIG } = require('@tradle/constants')
-const buildResource = require('@tradle/build-resource')
 const {
   co,
   isPromise,
+  bindAll,
   format,
+  omit,
   shallowExtend,
   shallowClone,
   debug,
@@ -16,338 +18,219 @@ const {
 } = require('./utils')
 
 const createStateMutater = require('./state')
-const createAPI = require('./api')
 const createPlugins = require('./plugins')
-const createPrivateModels = require('./private-models')
+const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const VERIFICATION = 'tradle.Verification'
 const TESTING = process.env.NODE_ENV === 'test'
-const REMEDIATION = 'tradle.Remediation'
 
 module.exports = function productsStrategyImpl (opts) {
-  return bot => install(bot, opts)
+  return bot => new Strategy(bot, opts)
 }
 
-function install (bot, opts) {
+function Strategy (bot, opts) {
   const {
-    namespace,
     models,
-    appModels,
     validateIncoming
   } = opts
 
-  const privateModels = createPrivateModels(namespace)
-  shallowExtend(models, privateModels.all)
+  bindAll(this)
 
-  const STATE_PROPS = Object.keys(privateModels.customer.properties)
-  const State = createStateMutater({
-    models,
-    appModels,
-    privateModels
-  })
+  this.bot = bot
+  this.opts = opts
+  this.models = models
 
-  const pluginContext = { models, appModels }
-  const plugins = createPlugins()
-  plugins.setContext(pluginContext)
-  const execPlugins = (method, ...args) => plugins.exec({ method, args })
+  this._stateProps = Object.keys(models.private.customer.properties)
+  this.state = createStateMutater({ models })
+  this.plugins = createPlugins()
+  this.plugins.setContext(this)
+  this.plugins.use(createDefaultPlugins(this))
+  this.uninstall = bot.onmessage(this._onmessage)
+}
 
-  const defaultPlugin = {}
-  const api = (function () {
-    const rawAPI = createAPI({ bot, plugins, models, appModels, privateModels })
-    const apiProxy = {}
-    for (let key in rawAPI) {
-      let val = rawAPI[key]
-      if (typeof val === 'function') {
-        defaultPlugin[key] = val.bind(rawAPI)
-        apiProxy[key] = execPlugins.bind(null, key)
-      } else {
-        apiProxy[key] = val
-      }
-    }
+const proto = Strategy.prototype
 
-    return apiProxy
-  }())
-
-  function send (user, object) {
-    return bot.send({ to: user.id, object })
+proto._exec = function (method, ...args) {
+  if (typeof method === 'object') {
+    return Promise.resolve(this.plugins.exec(...arguments))
   }
 
-  // const oncreate = co(function* (user) {
-  //   // yield save(user)
-  //   if (!TESTING) {
-  //     yield send(user, STRINGS.NICE_TO_MEET_YOU)
-  //   }
-  // })
+  return Promise.resolve(this.plugins.exec({ method, args }))
+}
 
-  const onmessage = co(function* (data) {
-    // make a defensive copy
-    data = shallowClone(data)
-    if (!data.object && data.payload) {
-      data.object = data.payload
-    }
+proto._onmessage = co(function* (data) {
+  // make a defensive copy
+  const { state, models } = this
+  data = shallowClone(data)
+  if (!data.object && data.payload) {
+    data.object = data.payload
+  }
 
-    data.models = models
-    data.privateModels = privateModels
-    const { user, object, type } = data
-    State.init(user)
-    deduceCurrentApplication(data)
+  data.models = models
+  const { user, object, type } = data
+  const model = models.all[type]
 
-    const model = models[type]
-    const args = [data]
-    yield plugins.exec({ method: 'onmessage', args })
-    yield plugins.exec({ method: `onmessage:${type}`, args })
-    if (model.subClassOf) {
-      yield plugins.exec({ method: `onmessage:${model.subClassOf}`, args })
-    }
+  state.init(user)
+  state.deduceCurrentApplication(data)
 
+  yield this._exec('onmessage', data)
+  yield this._exec(`onmessage:${type}`, data)
+  if (model.subClassOf) {
+    yield this._exec(`onmessage:${model.subClassOf}`, data)
+  }
+})
+
+proto._noComprendo = function ({ user, type }) {
+  const model = this.models.all[type]
+  const title = model ? model.title : type
+  return this.send(user, format(STRINGS.NO_COMPRENDO, title))
+}
+
+// Public API
+proto.removeDefaultHandlers = function () {
+  this.plugins.remove(this._defaultPlugins)
+}
+
+proto.removeDefaultHandler = function (method) {
+  const handler = this._defaultPlugins[method]
+  this.plugins.remove(method, handler)
+  return handler
+}
+
+proto.send = function (user, object, other={}) {
+  const to = user.id
+  return this.bot.send({ to, object, other })
+}
+
+proto.sign = function (object) {
+  return this.bot.sign(object)
+}
+
+proto.continueApplication = co(function* (data) {
+  const { application } = data
+  if (!application) return
+
+  const requested = yield this.requestNextRequiredItem(data)
+  if (!requested) {
+    const maybePromise = this._exec('onFormsCollected', data)
     if (isPromise(maybePromise)) yield maybePromise
+  }
+})
+
+proto.forgetUser = function ({ user }) {
+  this._stateProps.forEach(prop => {
+    delete user[prop]
   })
 
-
-  const removeReceiveHandler = bot.onmessage(onmessage)
-
-  const banter = co(function* (data) {
-    const { user, object } = data
-    yield send(user, format(STRINGS.TELL_ME_MORE, object.message))
-  })
-
-  function deduceCurrentApplication (data) {
-    const { user, context, type } = data
-    if (type === appModels.application.id) return
-
-    const { applications, products } = user
-    if (context) {
-      data.currentApplication = getApplicationByPermalink(applications, context)
-      data.currentProduct = getApplicationByPermalink(products, context)
-      if (!(data.currentApplication || data.currentProduct)) {
-        throw new Error(`application ${context} not found`)
-      }
-
-      return
-    }
-
-    data.currentApplication = guessApplicationFromIncomingType(applications, type)
-    data.currentProduct = guessApplicationFromIncomingType(products, type)
-
-    // data.currentApplication = getApplicationByType(applications)
-    // data.currentProduct = getApplicationByType(products)
-  }
-
-  function guessApplicationFromIncomingType (applications, type) {
-    return findApplication(applications, app => {
-      const productModel = models[app.product]
-      return productModel.forms.indexOf(type) !== -1
-    })
-  }
-
-  function findApplication (applications, test) {
-    for (let productType in applications) {
-      let match = applications.find(test)
-      if (match) return match
-    }
-  }
-
-  function getApplicationByPermalink (applications, permalink) {
-    return findApplication(applications, appState => {
-      return appState.application.permalink === permalink
-    })
-  }
-
-  function getApplicationByType (applications, type) {
-    return applications.filter(appState => appState.product === type)
-  }
-
-  function noComprendo ({ user, type }) {
-    const model = models[type]
-    const title = model ? model.title : type
-    return send(user, format(STRINGS.NO_COMPRENDO, title))
-  }
-
-  const handleProductApplication = co(function* (data) {
-    const { user, object, permalink, link, currentApplication, currentProduct } = data
-    const product = getProductFromEnumValue({
-      appModels,
-      value: object.product
-    })
-
-    debug(`received application for "${product}"`)
-    const isOfferedProduct = appModels.products.find(model => model.id === product)
-    if (!isOfferedProduct) {
-      debug(`ignoring application for "${product}" as it's not in specified offering`)
-      return
-    }
-
-    if (data.currentApplication) {
-      // ignore and continue existing
-      //
-      // delegate this decision to the outside?
-      yield continueApplication(data)
-      return
-    }
-
-    const existingProduct = user.products.find(applicationState => {
-      return applicationState.product == object.product
-    })
-
-    if (existingProduct) {
-      yield plugins.exec('onApplicationForExistingProduct', data)
-    }
-
-    data.currentApplication = State.addApplication(data)
-    yield continueApplication(data)
-  })
-
-  const handleForm = co(function* (data) {
-    const { currentApplication, object } = data
-    if (currentApplication && currentApplication.product === REMEDIATION) return
-
-    const err = execPlugins('validateForm', {
-      application: currentApplication,
-      form: object,
-      returnResult: true
-    })
-
-    if (err) {
-      yield api.requestEdit(shallowExtend(data, err))
-      return
-    }
-
-    State.addForm(data)
-    yield continueApplication(data)
-  })
-
-  const continueApplication = co(function* (data) {
-    if (!data.currentApplication) return
-
-    data = shallowExtend({ application: data.currentApplication }, data)
-    const requested = yield api.requestNextRequiredItem(data)
-    if (!requested) {
-      const maybePromise = execPlugins('onFormsCollected', data)
-      if (isPromise(maybePromise)) yield maybePromise
-    }
-  })
-
-  const handleVerification = co(function* (data) {
-    State.importVerification(data)
-    yield continueApplication(data)
-  })
-
-  const approveProduct = ({ user, currentApplication }) => {
-    return api.issueProductCertificate({ user, application: currentApplication })
-  }
-
-  const forgetUser = function ({ user }) {
-    STATE_PROPS.forEach(prop => {
-      delete user[prop]
-    })
-
-    State.init(user)
-  }
-
-  const saveName = co(function* ({ user, object }) {
-    if (!object.profile) return
-
-    const { firstName } = user
-    State.setProfile({ user, object })
-    if (user.firstName !== firstName) {
-      yield send(user, format(STRINGS.HI_JOE, user.firstName))
-    }
-  })
-
-  function validateForm ({ application, form }) {
-    const type = form[TYPE]
-    const model = this.models[type]
-    if (!model) throw new Error(`unknown type ${type}`)
-
-    let err = validateRequired({ model, resource: form })
-    if (!err) {
-      if (!form[SIG]) {
-        err = {
-          message: 'Please review',
-          errors: []
-        }
-      }
-    }
-
-    return err
-  }
-
-  // promisified because it might be overridden by an async function
-  function getRequiredForms ({ application, productModel }) {
-    return productModel.forms.slice()
-  }
-
-  function willRequestForm ({ formRequest }) {
-    const model = this.models[formRequest.form]
-    let message
-    if (model.id === this.appModels.application.id) {
-      message = STRINGS.PRODUCT_LIST_MESSAGE
-    } else if (model.subClassOf === 'tradle.Form') {
-      message = STRINGS.PLEASE_FILL_FIRM
-    } else {
-      message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
-    }
-
-    formRequest.message = message
-  }
-
-  shallowExtend(defaultPlugin,
-    {
-      validateForm,
-      getRequiredForms,
-      willRequestForm,
-    },
-    prependKeysWith('onmessage:', {
-      'tradle.SelfIntroduction': [
-        saveName,
-        api.sendProductList
-      ],
-      'tradle.IdentityPublishRequest': [
-        saveName,
-        api.sendProductList
-      ],
-      'tradle.Form': handleForm,
-      'tradle.Verification': handleVerification,
-      [appModels.application.id]: handleProductApplication,
-      'tradle.SimpleMessage': banter,
-      'tradle.CustomerWaiting': api.sendProductList,
-      'tradle.ForgetMe': forgetUser,
-      // onUnhandledMessage: noComprendo
-    })
-  )
-
-  defaultPlugin['onFormsCollected'] = approveProduct
-
-  const removeDefaultHandlers = plugins.use(defaultPlugin)
-
-  function removeDefaultHandler (method) {
-    const handler = defaultPlugin[method]
-    plugins.remove(method, handler)
-    return handler
-  }
-
-  function uninstall () {
-    removeReceiveHandler()
-    // removeCreateHandler()
-  }
-
-  return shallowExtend({
-    state: State,
-    plugins,
-    uninstall,
-    removeDefaultHandler,
-    removeDefaultHandlers,
-    models,
-    appModels,
-    privateModels
-  }, api)
+  this.state.init(user)
 }
 
-function prependKeysWith (prefix, obj) {
-  const copy = {}
-  for (let key in obj) {
-    copy[prefix + key] = obj[key]
+proto.verify = co(function* ({ user, object, verification={} }) {
+  const { bot, state } = this
+  if (typeof user === 'string') {
+    user = yield bot.users.get(user)
   }
 
-  return copy
-}
+  verification = state.createVerification({ user, object, verification })
+  const message = yield this.send(user, verification)
+  verification = message.object
+  state.addVerification({ user, object, verification })
+  return verification
+})
+
+proto.issueCertificate = co(function* ({ user, application }) {
+  const unsigned = this.state.createCertificate({ application })
+  const certificate = yield this.sign(unsigned)
+  const certState = this.state.addCertificate({ user, application, certificate })
+  const context = this.state.getAppStateContext(certState)
+  return this.send(user, certificate, { context })
+})
+
+proto.revokeProductCertificate = co(function* ({ user, application, certificate }) {
+  if (!application) {
+    application = user.certificates.find(app => {
+      return app.certificate._link === certificate._link
+    })
+  }
+
+  this.state.revokeCertificate({ user, application })
+  return this.send(user, application.certificate)
+})
+
+
+// promisified because it might be overridden by an async function
+proto.getNextRequiredItem = co(function* ({ application }) {
+  const { models, plugins } = this
+  const productModel = models.all[application.product]
+  const required = yield this._exec({
+    method: 'getRequiredForms',
+    args: [{ application, productModel }],
+    returnResult: true
+  })
+
+  return required.find(form => {
+    return application.forms.every(({ type }) => type !== form)
+  })
+})
+
+proto.requestNextRequiredItem = co(function* ({ user, application }) {
+  const next = yield this.getNextRequiredItem({ user, application })
+  if (!next) return false
+
+  yield this.requestItem({ user, application, item: next })
+  return true
+})
+
+// promisified because it might be overridden by an async function
+proto.requestItem = co(function* ({ user, application, item }) {
+  const product = application.type
+  const context = application.permalink
+  debug(`requesting next form for ${product}: ${item}`)
+  const reqItem = yield this.createItemRequest({ user, application, product, item })
+  yield this.send(user, reqItem, { context })
+  return true
+})
+
+// promisified because it might be overridden by an async function
+proto.createItemRequest = co(function* ({ user, application, product, item }) {
+  const req = {
+    [TYPE]: 'tradle.FormRequest',
+    form: item
+  }
+
+  if (!product && application) product = application.type
+  if (product) req.product = product
+
+  const ret = this._exec('willRequestForm', {
+    application,
+    form: item,
+    formRequest: req,
+    user,
+    // compat with tradle/tim-bank
+    state: user
+  })
+
+  if (isPromise(ret)) yield ret
+
+  return req
+})
+
+proto.sendProductList = co(function* ({ user }) {
+  const item = this.models.biz.application.id
+  const productChooser = yield this.createItemRequest({ item })
+  return this.send(user, productChooser)
+})
+
+proto.requestEdit = co(function* ({ user, object, message, errors=[] }) {
+  if (!message && errors.length) {
+    message = errors[0].error
+  }
+
+  debug(`requesting edit for form ${object[TYPE]}`)
+  yield this.send(user, {
+    _t: 'tradle.FormError',
+    prefill: omit(object, '_s'),
+    message,
+    errors
+  })
+})

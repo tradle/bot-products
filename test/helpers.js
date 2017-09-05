@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const { EventEmitter } = require('events')
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
-const { TYPE } = require('@tradle/constants')
+const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const createProductsStrategy = require('../')
 const FORM_REQ = 'tradle.FormRequest'
@@ -34,6 +34,10 @@ function formLoop ({ models, products }) {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
     onusercreate: () => {},
+    sign: co(function* (object) {
+      object[SIG] = newSig()
+      return object
+    }),
     send: co(function* ({ to, object }) {
       const ret = fakeMessage({ from, to, object })
       process.nextTick(() => bot.emit('sent', ret))
@@ -92,7 +96,7 @@ function formLoop ({ models, products }) {
     return receiveFromUser({
       object: buildResource({
           models: productsStrategy.models.all,
-          model: productsStrategy.models.application,
+          model: productsStrategy.models.biz.application,
         })
         .set('product', productModel.id)
         .toJSON(),
@@ -128,7 +132,6 @@ function formLoop ({ models, products }) {
     api: productsAPI,
     plugins: productsAPI.plugins,
     models: productsAPI.models,
-    appModels: productsAPI.appModels,
     user,
     awaitBotResponse,
     awaitFormRequest,
@@ -141,7 +144,7 @@ function fakeMessage ({ from, to, object }) {
   const msgLink = newLink()
   const objLink = newLink()
   object = shallowExtend({
-    _s: object._s || newSig(),
+    [SIG]: object[SIG] || newSig(),
     _author: from,
     _link: objLink,
     _permalink: objLink,
@@ -153,8 +156,8 @@ function fakeMessage ({ from, to, object }) {
     _recipient: to,
     _link: msgLink,
     _permalink: msgLink,
-    _t: 'tradle.Message',
-    _s: newSig(),
+    [TYPE]: 'tradle.Message',
+    [SIG]: newSig(),
     _virtual: ['_author', '_recipient', '_link', '_permalink'],
     object
   }

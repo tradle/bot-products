@@ -4,6 +4,7 @@ const bindAll = require('bindall')
 const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
 const pick = require('object.pick')
+const omit = require('object.omit')
 const validateResource = require('@tradle/validate-resource')
 const { getPropertyTitle } = validateResource.utils
 const isPromise = obj => obj && typeof obj.then === 'function'
@@ -112,22 +113,24 @@ const series = co(function* (arr, fn) {
   }
 })
 
-function getProductFromEnumValue ({ appModels, value }) {
-  if (value.indexOf(appModels.productList.id) === 0) {
-    return value.slice(appModels.productList.id.length + 1)
+function getProductFromEnumValue ({ bizModels, value }) {
+  if (value.id.indexOf(bizModels.productList.id) === 0) {
+    return value.id.slice(bizModels.productList.id.length + 1)
   }
 
-  return value
+  return value.id
 }
 
 module.exports = {
   co,
   isPromise,
   series,
+  bindAll,
   format,
   splitCamelCase,
   parseId,
   wait,
+  omit,
   pick,
   shallowExtend,
   shallowClone,

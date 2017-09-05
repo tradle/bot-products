@@ -7,45 +7,48 @@ const { parseId, getProductFromEnumValue } = require('./utils')
 const baseModels = require('./base-models')
 const VERIFICATION = 'tradle.Verification'
 
-module.exports = function stateMutater ({ models, appModels, privateModels }) {
+module.exports = function stateMutater ({ models }) {
+
+  const privateModels = models.private
+  const bizModels = models.biz
+  const allModels = models.all
+  const build = model => buildResource({ model, models: allModels })
 
   function validateCustomer (user) {
     user[TYPE] = privateModels.customer.id
     validateResource({
-      models,
+      models: allModels,
       model: privateModels.customer,
       resource: user
     })
   }
 
   function createCertificate ({ application }) {
-    const product = getProductFromEnumValue({
-      appModels,
-      value: application.product
-    })
-
-    return buildResource({
-      models,
-      model: appModels.certificateForProduct[product],
-      resource: {
-        myProductId: uuid()
-      }
-    })
-    .toJSON()
+    const { product } = application
+    return build(bizModels.certificateForProduct[product])
+      .set('myProductId', uuid())
+      .toJSON()
   }
 
   function addCertificate ({ user, application, certificate }) {
     const idx = user.applications.findIndex(appState => {
-      return application._link === appState.application.link
+      return application.application.permalink === appState.application.permalink
     })
 
     if (idx === -1) {
       throw new Error('application not found')
     }
 
-    user.products.push(user.applications[idx])
+    const appState = user.applications[idx]
+    appState.certificate = buildResource.stub({
+      models: bizModels.all,
+      resource: certificate
+    })
+
+    user.certificates.push(appState)
     user.applications.splice(idx, 1)
     validateCustomer(user)
+    return appState
   }
 
   // function revokeCertificate ({ user, application }) {
@@ -70,41 +73,25 @@ module.exports = function stateMutater ({ models, appModels, privateModels }) {
   }
 
   function createVerifiedItem ({ verification }) {
-    return buildResource({
-      model: privateModels.verifiedItem,
-      models,
-      resource: {
+    return build(privateModels.verifiedItem)
+      .set({
         time: getTime(verification),
         link: verification._link,
         permalink: verification._permalink,
         verifiedItem: verification.document
-      }
-    })
-    .toJSON()
+      })
+      .toJSON()
   }
 
-  function addApplication ({ user, object, message, type }) {
-    const application = buildResource({
-      models,
-      model: privateModels.item,
-      resource: {
-        type: object[TYPE],
-        link: object._link,
-        permalink: object._permalink,
-        time: getTime(object, message)
-      }
-    })
-    .toJSON()
-
-    const appState = buildResource({
-      models,
-      model: privateModels.applicationState,
-      resource: {
-        product: object.product,
-        application
-      }
-    })
-    .toJSON()
+  function addApplication ({ user, object, message }) {
+    const application = toItem({ object, message })
+    const appState = build(privateModels.applicationState)
+      .set({
+        application,
+        product: getProductFromEnumValue({ bizModels, value: object.product }),
+        forms: []
+      })
+      .toJSON()
 
     user.applications.push(appState)
     validateCustomer(user)
@@ -112,12 +99,9 @@ module.exports = function stateMutater ({ models, appModels, privateModels }) {
   }
 
   function createVerification ({ user, object, verification={} }) {
-    const builder = buildResource({
-      models,
-      model: baseModels[VERIFICATION],
-      resource: verification
-    })
-    .set('document', object)
+    const builder = build(baseModels[VERIFICATION])
+      .set(verification)
+      .set('document', object)
 
     if (!verification.dateVerified) {
       builder.set('dateVerified', new Date().toISOString())
@@ -153,37 +137,21 @@ module.exports = function stateMutater ({ models, appModels, privateModels }) {
     return verification
   }
 
-  function addForm ({ user, object, message, type, link, permalink }) {
-    const version = buildResource({
-      models,
-      model: privateModels.item,
-      resource: {
-        type,
-        link,
-        permalink,
-        time: getTime(object, message)
-      }
-    })
-    .toJSON()
-
-    let formState = user.forms.find(state => {
+  function addForm ({ user, object, message, application, type, link, permalink }) {
+    const time = getTime(object, message)
+    const version = toItem({ object, message })
+    let formState = application.forms.find(state => {
       if (state.type === type) {
         return state.versions[0].permalink === permalink
       }
     })
 
     if (!formState) {
-      formState = buildResource({
-        models,
-        model: privateModels.formState,
-        resource: {
-          type,
-          versions: []
-        }
-      })
-      .toJSON()
+      formState = build(privateModels.formState)
+        .set({ type, versions: [] })
+        .toJSON()
 
-      user.forms.push(formState)
+      application.forms.push(formState)
     }
 
     formState.versions.push(version)
@@ -202,6 +170,72 @@ module.exports = function stateMutater ({ models, appModels, privateModels }) {
     }
   }
 
+  function toItem ({ object, message }) {
+    const time = getTime(object, message)
+    return build(privateModels.item)
+      .set({
+        type: object[TYPE],
+        permalink: object._permalink,
+        time
+      })
+      .toJSON()
+  }
+
+  function findApplication (applications, test) {
+    return applications.find(test)
+  }
+
+  function getApplicationByPermalink (applications, permalink) {
+    return findApplication(applications, appState => {
+      return appState.application.permalink === permalink
+    })
+  }
+
+  function getApplicationByType (applications, type) {
+    return applications.filter(appState => appState.product === type)
+  }
+
+  function getApplicationPermalink (appState) {
+    return appState.application.permalink
+  }
+
+  function deduceCurrentApplication (data) {
+    const { user, context, type } = data
+    if (type === bizModels.application.id) return
+
+    const { applications=[], certificates=[] } = user
+    if (context) {
+      data.application = getApplicationByPermalink(applications, context) ||
+        getApplicationByPermalink(certificates, context)
+
+      if (!data.application) {
+        throw new Error(`application ${context} not found`)
+      }
+
+      return
+    }
+
+    data.application = guessApplicationFromIncomingType(applications, type) ||
+      guessApplicationFromIncomingType(certificates, type)
+
+    if (certificates.some(certState => certState === data.application)) {
+      data.forCertificate = true
+    }
+
+    return data.application
+  }
+
+  function guessApplicationFromIncomingType (applications, type) {
+    return findApplication(applications, app => {
+      const productModel = models.all[app.product]
+      return productModel.forms.indexOf(type) !== -1
+    })
+  }
+
+  function getAppStateContext (appState) {
+    return getApplicationPermalink(appState)
+  }
+
   return {
     addApplication,
     createCertificate,
@@ -212,7 +246,14 @@ module.exports = function stateMutater ({ models, appModels, privateModels }) {
     addForm,
     validateCustomer,
     setProfile,
-    init
+    init,
+    getApplicationByType,
+    getApplicationByPermalink,
+    getApplicationPermalink,
+    findApplication,
+    deduceCurrentApplication,
+    guessApplicationFromIncomingType,
+    getAppStateContext
   }
 }
 

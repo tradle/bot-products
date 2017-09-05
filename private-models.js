@@ -28,9 +28,6 @@ module.exports = namespace => {
       time: {
         type: 'number',
       },
-      link: {
-        type: 'string'
-      },
       permalink: {
         type: 'string'
       }
@@ -85,23 +82,26 @@ module.exports = namespace => {
     id: `${namespace}.ApplicationState`,
     inlined: true,
     properties: {
-      product: {
+      application: {
+        inlined: true,
         type: 'object',
-        ref: Gen.id.productList({ namespace })
+        ref: item.id
+      },
+      product: {
+        type: 'string',
+        // ref: Gen.id.productList({ namespace })
       },
       forms: {
         type: 'array',
         items: {
-          ref: 'tradle.Form'
+          ref: formState.id
         }
       },
+      // prob better to store stub with state
+      // e.g. permalink, revoked: false,
       certificate: {
         type: 'object',
         ref: 'tradle.MyProduct'
-      },
-      application: {
-        type: 'object',
-        ref: item.id
       }
     }
   }
@@ -111,12 +111,6 @@ module.exports = namespace => {
     title: 'Customer',
     id: `${namespace}.Customer`,
     properties: {
-      id: {
-        type: 'string'
-      },
-      firstName: {
-        type: 'string'
-      },
       lastName: {
         type: 'string'
       },
@@ -126,21 +120,21 @@ module.exports = namespace => {
       },
       // latestApplication: {
       //   type: 'object',
-      //   ref:
+      //   ref: applicationState.id
       // },
       // profile: {
       //   type: 'object',
       //   inlined: true,
       //   ref: `${namespace}.Profile`
       // },
-      forms: {
-        type: 'array',
-        inlined: true,
-        items: {
-          type: 'object',
-          ref: formState.id
-        }
-      },
+      // forms: {
+      //   type: 'array',
+      //   inlined: true,
+      //   items: {
+      //     type: 'object',
+      //     ref: formState.id
+      //   }
+      // },
       applications: {
         type: 'array',
         inlined: true,
@@ -149,7 +143,7 @@ module.exports = namespace => {
           ref: applicationState.id
         }
       },
-      products: {
+      certificates: {
         type: 'array',
         inlined: true,
         items: {
@@ -186,8 +180,7 @@ module.exports = namespace => {
         type: 'object',
         ref: 'tradle.Identity'
       }
-    },
-    required: ['id']
+    }
   }
 
   const ret = {
