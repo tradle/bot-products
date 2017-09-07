@@ -1,7 +1,8 @@
 const typeforce = require('typeforce')
 const validateResource = require('@tradle/validate-resource')
-const { parseEnumValue } = validateResource.utils
-const { TYPE, SIG } = require('@tradle/constants')
+const { parseEnumValue, omitVirtual } = validateResource.utils
+const buildResource = require('@tradle/build-resource')
+const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const {
   co,
   isPromise,
@@ -10,11 +11,14 @@ const {
   omit,
   shallowExtend,
   shallowClone,
+  clone,
+  deepEqual,
   debug,
   validateRequired,
   newFormState,
   normalizeUserState,
-  getProductFromEnumValue
+  getProductFromEnumValue,
+  parseId,
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -73,15 +77,24 @@ proto._onmessage = co(function* (data) {
   state.init(user)
   state.deduceCurrentApplication(data)
   const { application } = data
+
+  let applicationBefore
   if (application) {
     // lookup current application state
     data.application = yield this._getApplicationFromStub(application)
+    applicationBefore = clone(data.application)
   }
 
   yield this._exec('onmessage', data)
   yield this._exec(`onmessage:${type}`, data)
   if (model.subClassOf) {
     yield this._exec(`onmessage:${model.subClassOf}`, data)
+  }
+
+  if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
+    const newVersion = toNewVersion(data.application)
+    const signed = yield this.bot.sign(newVersion)
+    yield this.bot.save(signed)
   }
 })
 
@@ -210,7 +223,7 @@ proto.requestNextRequiredItem = co(function* ({ user, application }) {
 // promisified because it might be overridden by an async function
 proto.requestItem = co(function* ({ user, application, item }) {
   const product = application.requestFor
-  const context = application.permalink
+  const context = parseId(application.request.id).permalink
   debug(`requesting next form for ${product}: ${item}`)
   const reqItem = yield this.createItemRequest({ user, application, product, item })
   yield this.send(user, reqItem, { context })
@@ -263,3 +276,11 @@ proto.requestEdit = co(function* ({ user, object, message, errors=[] }) {
     errors
   })
 })
+
+function toNewVersion (object) {
+  const newVersion = clone(object)
+  delete newVersion[SIG]
+  newVersion[PREVLINK] = buildResource.link(object)
+  newVersion[PERMALINK] = buildResource.permalink(object)
+  return omitVirtual(newVersion, ['_link'])
+}

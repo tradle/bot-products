@@ -54,7 +54,12 @@ module.exports = function ({ models, plugins }) {
   })
 
   const handleForm = co(function* (data) {
-    const { application, object } = data
+    const { application, object, type } = data
+    if (type === models.biz.productRequest.id) {
+      // handled by handleProductApplication
+      return
+    }
+
     if (application && application.requestFor === REMEDIATION) return
 
     let err = plugins.exec({
@@ -139,7 +144,9 @@ module.exports = function ({ models, plugins }) {
     getRequiredForms,
     validateForm,
     willRequestForm,
-    onFormsCollected: proxyFor('issueCertificate')
+    onFormsCollected: [
+      proxyFor('issueCertificate')
+    ]
   }
 
   shallowExtend(defaults, prependKeysWith('onmessage:', {

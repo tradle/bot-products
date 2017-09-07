@@ -3,7 +3,13 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
-const { parseId, getProductFromEnumValue, ensureLinks } = require('./utils')
+const {
+  parseId,
+  getProductFromEnumValue,
+  ensureLinks,
+  shallowExtend
+} = require('./utils')
+
 const baseModels = require('./base-models')
 const VERIFICATION = 'tradle.Verification'
 
@@ -46,13 +52,20 @@ module.exports = function stateMutater ({ models }) {
     }
 
     // lookup, modify stored version
-    application = user.applications[idx]
-    application.certificate = buildResource.stub({
-      models: bizModels.all,
-      resource: certificate
-    })
+    const updated = buildResource({
+        models: allModels,
+        model: privateModels.application,
+        resource: application,
+        mutate: true
+      })
+      .set({
+        certificate,
+        status: 'approved'
+      })
+      .toJSON()
 
-    user.certificates.push(application)
+    shallowExtend(application, updated)
+    user.certificates.push(user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
     return application
@@ -175,9 +188,17 @@ module.exports = function stateMutater ({ models }) {
   function addForm ({ user, object, message, application, type, link, permalink }) {
     const time = getTime(object, message)
     const formItem = toItem({ object, message })
-    application.forms.push(formItem)
+    addFormItem({ application, formItem })
     validateCustomer(user)
     return formItem
+  }
+
+  function addFormItem ({ application, formItem }) {
+    if (!application.forms) {
+      application.forms = []
+    }
+
+    application.forms.push(formItem)
   }
 
   function init (user) {

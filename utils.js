@@ -3,6 +3,8 @@ const co = require('co').wrap
 const bindAll = require('bindall')
 const shallowExtend = require('xtend/mutable')
 const shallowClone = require('xtend')
+const clone = require('clone')
+const deepEqual = require('deep-equal')
 const pick = require('object.pick')
 const omit = require('object.omit')
 const validateResource = require('@tradle/validate-resource')
@@ -154,6 +156,8 @@ module.exports = {
   pick,
   shallowExtend,
   shallowClone,
+  clone,
+  deepEqual,
   bindAll,
   getValues,
   debug,

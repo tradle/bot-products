@@ -69,7 +69,7 @@ module.exports = namespace => {
     type: 'tradle.Model',
     title: 'Role',
     subClassOf: 'tradle.Enum',
-    id: `${namespace}.ApplicationStatus`,
+    id: `${namespace}.Role`,
     properties: {
       role: {
         type: 'string'
