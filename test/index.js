@@ -223,6 +223,11 @@ test('basic form loop', loudCo(function* (t) {
 
       t.ok(app)
       const appState = yield api._getApplicationFromStub(app)
+      t.same(appState.status, buildResource.enumValue({
+        model: models.private.applicationStatus,
+        value: i === forms.length - 1 ? 'approved' : 'started'
+      }))
+
       t.ok(appState.forms.some(({ type }) => type === nextForm))
     }
 
@@ -237,6 +242,11 @@ test('basic form loop', loudCo(function* (t) {
     t.same(pluginsCalled.onFormsCollected, {
       [productModel.id]: true
     })
+
+    t.same(user.certificates[0].status, buildResource.enumValue({
+      model: models.private.applicationStatus,
+      value: 'approved'
+    }))
 
     yield receiveFromUser({
       object: fakeResource({

@@ -118,8 +118,14 @@ proto._processIncoming = co(function* (data) {
 
   if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
     const newVersion = toNewVersion(data.application)
+    state.updateApplication({
+      application: newVersion,
+      properties: { dateModified: Date.now() }
+    })
+
     const signed = yield this.bot.sign(newVersion)
     debug(`saving updated application for ${user.id}`)
+    state.updateApplicationStub({ user, application: newVersion })
     yield this.bot.save(signed)
   }
 })
@@ -153,7 +159,7 @@ proto.removeDefaultHandler = function (method) {
 }
 
 proto.send = co(function* (user, object, other={}) {
-  const to = user.id
+  const to = user.id || user
   const opts = { to, object, other }
   if (this._sendQueues[to]) {
     this._sendQueues[to].push(opts)

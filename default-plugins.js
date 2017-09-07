@@ -9,6 +9,7 @@ const {
   getProductFromEnumValue
 } = require('./utils')
 
+const buildResource = require('@tradle/build-resource')
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
 
@@ -140,11 +141,16 @@ module.exports = function ({ models, plugins }) {
     }
   }
 
+  function setCompleted ({ application }) {
+    this.state.setApplicationStatus({ application, status: 'completed' })
+  }
+
   const defaults = {
     getRequiredForms,
     validateForm,
     willRequestForm,
     onFormsCollected: [
+      setCompleted,
       proxyFor('issueCertificate')
     ]
   }

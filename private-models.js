@@ -103,6 +103,18 @@ module.exports = namespace => {
     title: 'Application',
     id: `${namespace}.Application`,
     properties: {
+      user: {
+        type: 'object',
+        ref: 'tradle.Identity'
+      },
+      relationshipManager: {
+        type: 'object',
+        ref: 'tradle.Identity'
+      },
+      status: {
+        type: 'object',
+        ref: applicationStatus.id
+      },
       dateStarted: {
         type: 'date',
       },
@@ -114,14 +126,6 @@ module.exports = namespace => {
       },
       dateModified: {
         type: 'date'
-      },
-      relationshipManager: {
-        type: 'object',
-        ref: 'tradle.Identity'
-      },
-      status: {
-        type: 'object',
-        ref: applicationStatus.id
       },
       // permalink of ProductRequest
       context: {
@@ -167,6 +171,10 @@ module.exports = namespace => {
       },
       context: {
         type: 'string'
+      },
+      status: {
+        type: 'object',
+        ref: applicationStatus.id
       }
     }
   }

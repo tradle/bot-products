@@ -7,7 +7,8 @@ const {
   parseId,
   getProductFromEnumValue,
   ensureLinks,
-  shallowExtend
+  shallowExtend,
+  pick
 } = require('./utils')
 
 const baseModels = require('./base-models')
@@ -43,8 +44,9 @@ module.exports = function stateMutater ({ models }) {
    * @param {Certification}    options.certificate
    */
   function addCertificate ({ user, application, certificate }) {
-    const idx = user.applications.findIndex(application2 => {
-      return application._permalink === application2.statePermalink
+    const idx = getApplicationStubIndex({
+      applications: user.applications,
+      application
     })
 
     if (idx === -1) {
@@ -60,11 +62,12 @@ module.exports = function stateMutater ({ models }) {
       })
       .set({
         certificate,
-        status: 'approved'
+        dateEvaluated: Date.now()
       })
       .toJSON()
 
     shallowExtend(application, updated)
+    setApplicationStatus({ application, status: 'approved' })
     user.certificates.push(user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
@@ -110,26 +113,83 @@ module.exports = function stateMutater ({ models }) {
       value: object.requestFor
     })
 
-    return build(privateModels.application)
+    const application = build(privateModels.application)
       .set({
-        dateStarted: Date.now(),
-        status: 'started',
         context: buildResource.permalink(object),
         request: object,
         requestFor,
         forms: []
       })
       .toJSON()
+
+    setApplicationStatus({ application, status: 'started' })
+    return application
+  }
+
+  function updateApplicationStub ({ user, application }) {
+    const updated = [
+      user.applications,
+      user.certificates
+    ].some(applications => {
+      const idx = getApplicationStubIndex({ applications, application })
+      if (idx !== -1) {
+        applications[idx] = createApplicationStub({ application })
+        return true
+      }
+    })
+
+    if (!updated) {
+      throw new Error('no matching application stub found')
+    }
+  }
+
+  function getApplicationStubIndex ({ applications, application }) {
+    return applications.findIndex(application2 => {
+      return application._permalink === application2.statePermalink
+    })
   }
 
   function createApplicationStub ({ application }) {
+    const copy = Object.keys(privateModels.applicationStub.properties)
+      .filter(propertyName => propertyName in privateModels.application.properties)
+
     return build(privateModels.applicationStub)
+      .set(pick(application, copy))
       .set({
-        requestFor: application.requestFor,
-        context: application.context,
-        statePermalink: buildResource.permalink(application),
+        statePermalink: buildResource.permalink(application)
       })
       .toJSON()
+  }
+
+  function updateApplication ({ application, properties }) {
+    buildResource.set({
+      models: models.all,
+      model: models.private.application,
+      resource: application,
+      properties
+    })
+
+    return application
+  }
+
+  function setApplicationStatus ({ application, status }) {
+    const now = Date.now()
+    const properties = { status, dateModified: now }
+    switch (status) {
+    case 'completed':
+      properties.dateCompleted = now
+      break
+    case 'started':
+      properties.dateStarted = now
+      break
+    case 'approved':
+    case 'denied':
+      properties.dateEvaluated = now
+      break
+    }
+
+    updateApplication({ application, properties })
+    return application
   }
 
   /**
@@ -283,6 +343,10 @@ module.exports = function stateMutater ({ models }) {
     createVerification,
     addVerification,
     importVerification,
+    createApplicationStub,
+    updateApplicationStub,
+    setApplicationStatus,
+    updateApplication,
     addForm,
     validateCustomer,
     setProfile,
