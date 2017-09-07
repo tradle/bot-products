@@ -2,23 +2,14 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test'
 }
 
-const { EventEmitter } = require('events')
 const test = require('tape')
 const co = require('co').wrap
-const shallowExtend = require('xtend/mutable')
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
-const ageModels = require('./fixtures/agemodels')
-const {
-  genEnumModel,
-  // genMyProductModel,
-  // getApplicationModels
-} = require('../utils')
-
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const { formLoop, loudCo, toObject, hex32, newSig, fakeBot } = require('./helpers')
@@ -34,14 +25,6 @@ const TEST_PRODUCT = {
   ],
   properties: {}
 }
-
-const noop = () => {}
-
-const series = co(function* (arr, fn) {
-  for (let i = 0; i < arr.length; i++) {
-    yield fn(arr[i])
-  }
-})
 
 test('state', loudCo(function* (t) {
   const namespace = 'test.namespace'
@@ -136,7 +119,6 @@ test('state', loudCo(function* (t) {
 test('basic form loop', loudCo(function* (t) {
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
   const {
-    bot,
     api,
     applyForProduct,
     awaitBotResponse,
@@ -377,10 +359,6 @@ test.skip('complex form loop', loudCo(co(function* (t) {
 // })
 //
 // process.on('uncaughtException', console.error)
-
-function prettify (obj) {
-  return JSON.stringify(obj, null, 2)
-}
 
 function createSignedVerification ({ state, user, form }) {
   const verification = state.createVerification({

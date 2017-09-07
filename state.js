@@ -273,6 +273,13 @@ module.exports = function stateMutater ({ models }) {
     }
   }
 
+  function setIdentity ({ user, identity }) {
+    user.identity = buildResource.stub({
+      models: allModels,
+      resource: identity
+    })
+  }
+
   function toItem ({ object, message }) {
     const time = getTime(object, message)
     return build(privateModels.item)
@@ -294,7 +301,7 @@ module.exports = function stateMutater ({ models }) {
     })
   }
 
-  function getApplicationByType (applications, type) {
+  function getApplicationsByType (applications, type) {
     return applications.filter(application => application.requestFor === type)
   }
 
@@ -350,8 +357,9 @@ module.exports = function stateMutater ({ models }) {
     addForm,
     validateCustomer,
     setProfile,
+    setIdentity,
     init,
-    getApplicationByType,
+    getApplicationsByType,
     getApplicationByPermalink,
     findApplication,
     deduceCurrentApplication,

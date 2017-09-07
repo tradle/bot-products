@@ -9,13 +9,12 @@ const {
   getProductFromEnumValue
 } = require('./utils')
 
-const buildResource = require('@tradle/build-resource')
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
 
 module.exports = function ({ models, plugins }) {
   const handleProductApplication = co(function* (data) {
-    const { user, object, permalink, link, application } = data
+    const { user, object } = data
     const product = getProductFromEnumValue({
       bizModels: models.biz,
       value: object.requestFor
@@ -37,7 +36,7 @@ module.exports = function ({ models, plugins }) {
     }
 
     const existingProduct = user.certificates.find(application => {
-      return application.requestFor == object.requestFor
+      return application.requestFor === object.requestFor
     })
 
     if (existingProduct) {
@@ -106,13 +105,17 @@ module.exports = function ({ models, plugins }) {
     yield this.continueApplication(data)
   })
 
+  function saveIdentity ({ user, object }) {
+    this.state.setIdentity({ user, identity: object.identity })
+  }
+
   const saveName = co(function* ({ user, object }) {
     if (!object.profile) return
 
     const { firstName } = user
     this.state.setProfile({ user, object })
     if (user.firstName !== firstName) {
-      yield this.bot.send(user, format(STRINGS.HI_JOE, user.firstName))
+      yield this.send(user, format(STRINGS.HI_JOE, user.firstName))
     }
   })
 
@@ -157,10 +160,12 @@ module.exports = function ({ models, plugins }) {
 
   shallowExtend(defaults, prependKeysWith('onmessage:', {
     'tradle.SelfIntroduction': [
+      saveIdentity,
       saveName,
       proxyFor('sendProductList')
     ],
     'tradle.IdentityPublishRequest': [
+      saveIdentity,
       saveName,
       proxyFor('sendProductList')
     ],

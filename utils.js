@@ -74,44 +74,6 @@ function validateRequired ({ model, resource }) {
   return null
 }
 
-function newFormState ({ type, object, link, permalink }) {
-  const state = {
-    type,
-    form: {
-      link,
-      permalink,
-      object
-    }
-  }
-
-  return normalizeFormState(state)
-}
-
-function normalizeFormState (state) {
-  // add "body" alias
-  if (!state.form.body) {
-    Object.defineProperty(state.form, 'body', {
-      enumerable: false,
-      get: () => state.form.object
-    })
-  }
-
-  return state
-}
-
-function normalizeUserState (state) {
-  ['products', 'applications'].forEach(key => {
-    const subState = state[key]
-    if (subState) {
-      for (let productType in subState) {
-        subState[productType].forEach(application => {
-          application.forms.forEach(normalizeFormState)
-        })
-      }
-    }
-  })
-}
-
 const series = co(function* (arr, fn) {
   for (const arg of arr) {
     const ret = fn(arg)
@@ -162,8 +124,6 @@ module.exports = {
   getValues,
   debug,
   validateRequired,
-  newFormState,
-  normalizeUserState,
   getProductFromEnumValue,
   ensureLinks
 }

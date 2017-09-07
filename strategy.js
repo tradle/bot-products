@@ -1,6 +1,5 @@
-const typeforce = require('typeforce')
 const validateResource = require('@tradle/validate-resource')
-const { parseEnumValue, omitVirtual } = validateResource.utils
+const { omitVirtual } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const createLocker = require('promise-locker')
@@ -10,15 +9,10 @@ const {
   bindAll,
   format,
   omit,
-  shallowExtend,
   shallowClone,
   clone,
   deepEqual,
   debug,
-  validateRequired,
-  newFormState,
-  normalizeUserState,
-  getProductFromEnumValue,
   parseId,
   series
 } = require('./utils')
@@ -27,21 +21,15 @@ const createStateMutater = require('./state')
 const createPlugins = require('./plugins')
 const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
-const VERIFICATION = 'tradle.Verification'
-const TESTING = process.env.NODE_ENV === 'test'
 
 module.exports = function productsStrategyImpl (opts) {
   return bot => new Strategy(bot, opts)
 }
 
 function Strategy (bot, opts) {
-  const {
-    models,
-    validateIncoming
-  } = opts
-
   bindAll(this)
 
+  const { models } = opts
   this.bot = bot
   this.opts = opts
   this.models = models
@@ -89,7 +77,7 @@ proto._onmessage = co(function* (data) {
 })
 
 proto._processIncoming = co(function* (data) {
-  const { bot, state, models } = this
+  const { state, models } = this
   // make a defensive copy
   data = shallowClone(data)
   if (!data.object && data.payload) {
@@ -97,8 +85,9 @@ proto._processIncoming = co(function* (data) {
   }
 
   data.models = models
-  const { user, object, type } = data
+  const { user, type } = data
   const model = models.all[type]
+  // init is non-destructive
   state.init(user)
   state.deduceCurrentApplication(data)
   const { application } = data
@@ -117,17 +106,21 @@ proto._processIncoming = co(function* (data) {
   }
 
   if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
-    const newVersion = toNewVersion(data.application)
-    state.updateApplication({
-      application: newVersion,
-      properties: { dateModified: Date.now() }
-    })
-
-    const signed = yield this.bot.sign(newVersion)
-    debug(`saving updated application for ${user.id}`)
-    state.updateApplicationStub({ user, application: newVersion })
-    yield this.bot.save(signed)
+    yield this._saveNewVersionOfApplication({ user, application: data.application })
   }
+})
+
+proto._saveNewVersionOfApplication = co(function* ({ user, application }) {
+  const newVersion = toNewVersion(application)
+  this.state.updateApplication({
+    application: newVersion,
+    properties: { dateModified: Date.now() }
+  })
+
+  const signed = yield this.bot.sign(newVersion)
+  debug(`saving updated application for ${user.id}`)
+  this.state.updateApplicationStub({ user, application: newVersion })
+  yield this.bot.save(signed)
 })
 
 proto._getApplicationFromStub = function ({ statePermalink }) {
@@ -243,7 +236,7 @@ proto.issueCertificate = co(function* ({ user, application }) {
 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ application }) {
-  const { models, plugins } = this
+  const { models } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({
     method: 'getRequiredForms',
