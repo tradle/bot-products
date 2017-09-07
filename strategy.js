@@ -3,6 +3,7 @@ const validateResource = require('@tradle/validate-resource')
 const { parseEnumValue, omitVirtual } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
+const createLocker = require('promise-locker')
 const {
   co,
   isPromise,
@@ -19,6 +20,7 @@ const {
   normalizeUserState,
   getProductFromEnumValue,
   parseId,
+  series
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -50,6 +52,7 @@ function Strategy (bot, opts) {
   this.plugins.setContext(this)
   this.plugins.use(createDefaultPlugins(this))
   this.uninstall = bot.onmessage(this._onmessage)
+  this.lock = createLocker()
 }
 
 const proto = Strategy.prototype
@@ -63,8 +66,28 @@ proto._exec = function (method, ...args) {
 }
 
 proto._onmessage = co(function* (data) {
-  // make a defensive copy
+  const userId = data.user.id
+  const unlock = yield this.lock(userId)
+  this._sendQueue = []
+  try {
+    yield this._processIncoming(data)
+  } finally {
+    try {
+      const n = this._sendQueue.length
+      if (n) {
+        debug(`processing ${n} items in send queue to ${userId}`)
+        yield series(this._sendQueue, opts => this.bot.send(opts))
+      }
+    } finally {
+      delete this._sendQueue
+      unlock()
+    }
+  }
+})
+
+proto._processIncoming = co(function* (data) {
   const { bot, state, models } = this
+  // make a defensive copy
   data = shallowClone(data)
   if (!data.object && data.payload) {
     data.object = data.payload
@@ -73,7 +96,6 @@ proto._onmessage = co(function* (data) {
   data.models = models
   const { user, object, type } = data
   const model = models.all[type]
-
   state.init(user)
   state.deduceCurrentApplication(data)
   const { application } = data
@@ -94,6 +116,7 @@ proto._onmessage = co(function* (data) {
   if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
     const newVersion = toNewVersion(data.application)
     const signed = yield this.bot.sign(newVersion)
+    debug('saving updated application')
     yield this.bot.save(signed)
   }
 })
@@ -126,14 +149,26 @@ proto.removeDefaultHandler = function (method) {
   return handler
 }
 
-proto.send = function send (user, object, other={}) {
+proto.send = co(function* (user, object, other={}) {
   const to = user.id
-  return this.bot.send({ to, object, other })
-}
+  const opts = { to, object, other }
+  if (this._sendQueue) {
+    this._sendQueue.push(opts)
+  } else {
+    yield this.bot.send(opts)
+  }
+})
 
-proto.sign = function sign (object) {
-  return this.bot.sign(object)
-}
+proto.sign = co(function* (object) {
+  const signed = yield this.bot.sign(object)
+  const link = buildResource.link(signed)
+  buildResource.setVirtual(signed, {
+    _link: link,
+    _permalink: signed[PERMALINK] || link
+  })
+
+  return signed
+})
 
 proto.save = function save (signedObject) {
   return this.bot.save(signedObject)
@@ -170,10 +205,10 @@ proto.verify = co(function* ({ user, object, verification={} }) {
     user = yield bot.users.get(user)
   }
 
-  verification = state.createVerification({ user, object, verification })
-  const message = yield this.send(user, verification)
-  verification = message.object
+  const unsigned = state.createVerification({ user, object, verification })
+  verification = yield this.sign(unsigned)
   state.addVerification({ user, object, verification })
+  yield this.send(user, verification)
   return verification
 })
 
@@ -182,20 +217,20 @@ proto.issueCertificate = co(function* ({ user, application }) {
   const certificate = yield this.sign(unsigned)
   const certState = this.state.addCertificate({ user, application, certificate })
   const context = this.state.getApplicationContext(certState)
-  return this.send(user, certificate, { context })
+  yield this.send(user, certificate, { context })
+  return certificate
 })
 
-proto.revokeCertificate = co(function* ({ user, application, certificate }) {
-  if (!application) {
-    application = user.certificates.find(app => {
-      return app.certificate._link === certificate._link
-    })
-  }
+// proto.revokeCertificate = co(function* ({ user, application, certificate }) {
+//   if (!application) {
+//     application = user.certificates.find(app => {
+//       return app.certificate._link === certificate._link
+//     })
+//   }
 
-  this.state.revokeCertificate({ user, application })
-  return this.send(user, application.certificate)
-})
-
+//   this.state.revokeCertificate({ user, application })
+//   return this.send(user, application.certificate)
+// })
 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ application }) {
@@ -283,4 +318,19 @@ function toNewVersion (object) {
   newVersion[PREVLINK] = buildResource.link(object)
   newVersion[PERMALINK] = buildResource.permalink(object)
   return omitVirtual(newVersion, ['_link'])
+}
+
+function lockify (fn, getLockId) {
+  return co(function* (...args) {
+    const unlock = yield this.lock(getLockId(...args))
+    try {
+      return yield fn.apply(this, args)
+    } finally {
+      unlock()
+    }
+  })
+}
+
+function lockOnUserId (fn) {
+  return lockify(fn, data => data.user.id)
 }
