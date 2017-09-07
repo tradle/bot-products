@@ -7,6 +7,7 @@ const clone = require('clone')
 const deepEqual = require('deep-equal')
 const pick = require('object.pick')
 const omit = require('object.omit')
+const stableStringify = require('json-stable-stringify')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
 const { getPropertyTitle } = validateResource.utils
@@ -125,5 +126,6 @@ module.exports = {
   debug,
   validateRequired,
   getProductFromEnumValue,
-  ensureLinks
+  ensureLinks,
+  stableStringify
 }

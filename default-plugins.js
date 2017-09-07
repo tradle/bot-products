@@ -1,4 +1,5 @@
 const { TYPE, SIG } = require('@tradle/constants')
+const buildResource = require('@tradle/build-resource')
 const {
   co,
   isPromise,
@@ -6,13 +7,14 @@ const {
   shallowExtend,
   debug,
   validateRequired,
-  getProductFromEnumValue
+  getProductFromEnumValue,
 } = require('./utils')
 
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
 
-module.exports = function ({ models, plugins }) {
+module.exports = function (api) {
+  const { models, plugins } = api
   const handleProductApplication = co(function* (data) {
     const { user, object } = data
     const product = getProductFromEnumValue({
@@ -138,12 +140,6 @@ module.exports = function ({ models, plugins }) {
     formRequest.message = message
   }
 
-  function proxyFor (method) {
-    return function (...args) {
-      return this[method](...args)
-    }
-  }
-
   function setCompleted ({ application }) {
     this.state.setApplicationStatus({ application, status: 'completed' })
   }
@@ -154,7 +150,7 @@ module.exports = function ({ models, plugins }) {
     willRequestForm,
     onFormsCollected: [
       setCompleted,
-      proxyFor('issueCertificate')
+      api.issueCertificate
     ]
   }
 
@@ -162,19 +158,19 @@ module.exports = function ({ models, plugins }) {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,
-      proxyFor('sendProductList')
+      api.sendProductList
     ],
     'tradle.IdentityPublishRequest': [
       saveIdentity,
       saveName,
-      proxyFor('sendProductList')
+      api.sendProductList
     ],
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     [models.biz.productRequest.id]: handleProductApplication,
     'tradle.SimpleMessage': banter,
-    'tradle.CustomerWaiting': proxyFor('sendProductList'),
-    'tradle.ForgetMe': proxyFor('forgetUser'),
+    'tradle.CustomerWaiting': api.sendProductList,
+    'tradle.ForgetMe': api.forgetUser,
     // onUnhandledMessage: noComprendo
   }))
 

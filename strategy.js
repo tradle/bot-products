@@ -14,13 +14,16 @@ const {
   deepEqual,
   debug,
   parseId,
-  series
+  series,
+  hashObject,
+  modelsToArray
 } = require('./utils')
 
 const createStateMutater = require('./state')
 const createPlugins = require('./plugins')
 const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
+const createDefiner = require('./definer')
 
 module.exports = function productsStrategyImpl (opts) {
   return bot => new Strategy(bot, opts)
@@ -29,9 +32,9 @@ module.exports = function productsStrategyImpl (opts) {
 function Strategy (bot, opts) {
   bindAll(this)
 
-  const { models } = opts
+  const { namespace, models } = opts
   this.bot = bot
-  this.opts = opts
+  this.namespace = namespace
   this.models = models
 
   this._stateProps = Object.keys(models.private.customer.properties)
@@ -42,11 +45,30 @@ function Strategy (bot, opts) {
   this.uninstall = bot.onmessage(this._onmessage)
   this.lock = createLocker()
   this._sendQueues = {}
+  this._define = createDefiner()
+  // be lazy
+  this._define('_modelsArray', () => modelsToArray(models.all))
+  this._define('_latestModelsHash', () => hashObject(this._modelsArray))
 }
 
 const proto = Strategy.prototype
 
-proto._exec = function (method, ...args) {
+proto.addModels = function addModels (models) {
+  this.models.all = mergeModels()
+    .add(this.models.all)
+    .add(models)
+    .get()
+
+  this.models.custom = mergeModels()
+    .add(this.models.custom || {})
+    .add(models)
+
+  // don't use delete, need to trigger set() to clear the cached value
+  this._modelsArray = undefined
+  this._latestModelsHash = undefined
+}
+
+proto._exec = function _exec (method, ...args) {
   if (typeof method === 'object') {
     return Promise.resolve(this.plugins.exec(...arguments))
   }
@@ -140,7 +162,6 @@ proto._noComprendo = function ({ user, type }) {
   return this.send(user, format(STRINGS.NO_COMPRENDO, title))
 }
 
-// Public API
 proto.removeDefaultHandlers = function () {
   this.plugins.remove(this._defaultPlugins)
 }

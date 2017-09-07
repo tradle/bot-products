@@ -234,6 +234,9 @@ module.exports = namespace => {
         items: {
           ref: role.id
         }
+      },
+      modelsHash: {
+        type: 'string'
       }
     }
   }

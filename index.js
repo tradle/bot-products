@@ -1,7 +1,6 @@
 
 const shallowClone = require('xtend')
 const validateModels = require('@tradle/validate-model')
-const keepModelsFresh = require('@tradle/bot-require-models')
 const mergeModels = require('@tradle/merge-models')
 const baseModels = require('./base-models')
 const createPrivateModels = require('./private-models')
@@ -54,28 +53,16 @@ module.exports = function creator (opts={}) {
 
   return {
     install,
+    // should probably deep-ishly clone this
     models: modelsGroups
   }
 
   function install (bot) {
-    let uninstallKeepFresh
-    const customModelsArr = values(customModels)
-    if (!TESTING && customModelsArr.length) {
-      uninstallKeepFresh = bot.use(keepModelsFresh(customModelsArr))
-    }
-
-    const publicAPI = bot.use(productsStrategy({
+    return bot.use(productsStrategy({
+      namespace,
+      // should probably deep-ishly clone this
       models: modelsGroups
     }))
-
-    publicAPI.uninstall = uninstall
-    return publicAPI
-
-    function uninstall () {
-      if (uninstallKeepFresh) uninstallKeepFresh()
-
-      publicAPI.uninstall()
-    }
   }
 }
 

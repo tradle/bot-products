@@ -10,6 +10,7 @@ const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
+const createDefiner = require('../definer')
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const { formLoop, loudCo, toObject, hex32, newSig, fakeBot } = require('./helpers')
@@ -25,6 +26,22 @@ const TEST_PRODUCT = {
   ],
   properties: {}
 }
+
+test('definer', function (t) {
+  const obj = {}
+  let i = 0
+  obj.define = createDefiner()
+  obj.define('blah', () => i++)
+  t.equal(obj.blah, 0)
+  // cached
+  t.equal(obj.blah, 0)
+  obj.blah = undefined
+
+  t.equal(obj.blah, 1)
+  // cached
+  t.equal(obj.blah, 1)
+  t.end()
+})
 
 test('state', loudCo(function* (t) {
   const namespace = 'test.namespace'
@@ -133,6 +150,15 @@ test('basic form loop', loudCo(function* (t) {
       .add([TEST_PRODUCT])
       .get()
   })
+
+  // api.plugins.use({
+  //   onmessage: require('../keep-models-fresh')({
+  //     getModelsForUser: function (user) {
+  //       return models.all
+  //     },
+  //     send: ({ user, object }) => api.send(user, object)
+  //   })
+  // }, true)
 
   const productModels = products.map(id => models.all[id])
   let pluginsCalled

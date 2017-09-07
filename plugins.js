@@ -1,3 +1,4 @@
+const assert = require('assert')
 const { co, isPromise, bindAll, debug } = require('./utils')
 
 module.exports = function createPluginManager (defaults) {
@@ -12,6 +13,11 @@ function PluginManager (defaults) {
 
 PluginManager.prototype.register = function register (method, handlers, unshift) {
   handlers = [].concat(handlers)
+  assert(
+    handlers.every(handler => typeof handler === 'function'),
+    'expected functions'
+  )
+
   const current = this._plugins[method] || []
   const first = unshift ? handlers : current
   const second = unshift ? current : handlers
