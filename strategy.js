@@ -53,6 +53,7 @@ function Strategy (bot, opts) {
   this.plugins.use(createDefaultPlugins(this))
   this.uninstall = bot.onmessage(this._onmessage)
   this.lock = createLocker()
+  this._sendQueues = {}
 }
 
 const proto = Strategy.prototype
@@ -68,18 +69,20 @@ proto._exec = function (method, ...args) {
 proto._onmessage = co(function* (data) {
   const userId = data.user.id
   const unlock = yield this.lock(userId)
-  this._sendQueue = []
+  this._sendQueues[userId] = []
   try {
     yield this._processIncoming(data)
   } finally {
+    debug(`failed to process incoming message from ${userId}`)
     try {
-      const n = this._sendQueue.length
+      const sendQueue = this._sendQueues[userId].slice()
+      const n = sendQueue.length
       if (n) {
         debug(`processing ${n} items in send queue to ${userId}`)
-        yield series(this._sendQueue, opts => this.bot.send(opts))
+        yield series(sendQueue, opts => this.bot.send(opts))
       }
     } finally {
-      delete this._sendQueue
+      delete this._sendQueues[userId]
       unlock()
     }
   }
@@ -116,7 +119,7 @@ proto._processIncoming = co(function* (data) {
   if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
     const newVersion = toNewVersion(data.application)
     const signed = yield this.bot.sign(newVersion)
-    debug('saving updated application')
+    debug(`saving updated application for ${user.id}`)
     yield this.bot.save(signed)
   }
 })
@@ -152,8 +155,8 @@ proto.removeDefaultHandler = function (method) {
 proto.send = co(function* (user, object, other={}) {
   const to = user.id
   const opts = { to, object, other }
-  if (this._sendQueue) {
-    this._sendQueue.push(opts)
+  if (this._sendQueues[to]) {
+    this._sendQueues[to].push(opts)
   } else {
     yield this.bot.send(opts)
   }
@@ -259,7 +262,7 @@ proto.requestNextRequiredItem = co(function* ({ user, application }) {
 proto.requestItem = co(function* ({ user, application, item }) {
   const product = application.requestFor
   const context = parseId(application.request.id).permalink
-  debug(`requesting next form for ${product}: ${item}`)
+  debug(`requesting ${item} from user ${user.id} for product ${product}`)
   const reqItem = yield this.createItemRequest({ user, application, product, item })
   yield this.send(user, reqItem, { context })
   return true
@@ -318,19 +321,4 @@ function toNewVersion (object) {
   newVersion[PREVLINK] = buildResource.link(object)
   newVersion[PERMALINK] = buildResource.permalink(object)
   return omitVirtual(newVersion, ['_link'])
-}
-
-function lockify (fn, getLockId) {
-  return co(function* (...args) {
-    const unlock = yield this.lock(getLockId(...args))
-    try {
-      return yield fn.apply(this, args)
-    } finally {
-      unlock()
-    }
-  })
-}
-
-function lockOnUserId (fn) {
-  return lockify(fn, data => data.user.id)
 }
