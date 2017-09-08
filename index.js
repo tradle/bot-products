@@ -9,7 +9,10 @@ const Gen = require('./gen')
 
 const TESTING = process.env.NODE_ENV === 'test'
 
-module.exports = function creator (opts={}) {
+exports = module.exports = createProductsStrategy
+exports.keepModelsFresh = require('./keep-models-fresh')
+
+function createProductsStrategy (opts={}) {
   const {
     // defaults
     namespace,
