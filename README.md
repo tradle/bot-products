@@ -16,7 +16,11 @@ const createProductsStrategy = require('@tradle/bot-products')
 const ageModels = require('./test/fixtures/agemodels')
 const ageVerificationStrategy = createProductsStrategy({
   namespace: 'only.people.old',
-  models: ageModels,
+  models: {
+    all: ageModels,
+    private: {},
+    biz: {}
+  },
   products: getProductModelIds(ageModels)
 })
 

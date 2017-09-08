@@ -19,6 +19,7 @@ const {
   omit,
   pick,
   shallowClone,
+  shallowExtend,
   clone,
   deepEqual,
   debug,
@@ -26,7 +27,8 @@ const {
   series,
   hashObject,
   modelsToArray,
-  createSimpleMessage
+  createSimpleMessage,
+  getValues
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -99,16 +101,34 @@ proto.install = function (bot) {
 
 proto.addProducts = function addProducts ({ models, products }) {
   this.models.biz = Gen.applicationModels({
-    models: shallowClone(this.models.all, models || {}),
+    models: shallowClone(this.models.all, models ? models.all : {}),
     products: uniq(products.concat(this.products)),
     namespace: this.namespace
   })
 
+  if (models) {
+    ;['private', 'biz'].forEach(subset => {
+      if (!models[subset] || !models[subset].all) return
+
+      if (!this.models[subset]) {
+        this.models[subset] = {}
+      }
+
+      this.models[subset] = shallowClone(this.models[subset], models[subset])
+      this.models[subset].all = mergeModels()
+        .add(baseModels)
+        .add(this.models[subset].all)
+        .add(models[subset].all)
+        // skip first layer
+        .rest()
+    })
+  }
+
   this.models.all = mergeModels()
-      .add(baseModels)
-      .add(this.models.private.all)
-      .add(this.models.biz.all)
-      .get()
+    .add(baseModels)
+    .add(this.models.private.all)
+    .add(this.models.biz.all)
+    .get()
 
   this.state = createStateMutater({ models: this.models })
   this.removeDefaultHandlers()

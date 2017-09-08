@@ -49,7 +49,9 @@ test('addProducts', function (t) {
   const productModels = [TEST_PRODUCT]
   const productsStrategy = createProductsStrategy({
     namespace,
-    models: toObject(productModels),
+    models: {
+      all: toObject(productModels)
+    },
     products: productModels.map(model => model.id)
   })
 
@@ -86,7 +88,9 @@ test('state', loudCo(function* (t) {
   const productModels = [productModel]
   const productsStrategy = createProductsStrategy({
     namespace,
-    models: toObject(productModels),
+    models: {
+      all: toObject(productModels)
+    },
     products: productModels.map(model => model.id)
   })
 
@@ -333,7 +337,9 @@ test('plugins', loudCo(function* (t) {
 
   const productsStrategy = createProductsStrategy({
     namespace: 'test.namespace',
-    models: toObject(productModels),
+    models: {
+      all: toObject(productModels)
+    },
     products: productModels.map(model => model.id)
   })
 

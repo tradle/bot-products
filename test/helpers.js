@@ -73,7 +73,9 @@ function formLoop ({ models, products }) {
   const { bot, handlers } = createFakeBot()
   const productsAPI = createProductsStrategy({
     namespace: 'test.namespace',
-    models,
+    models: {
+      all: models
+    },
     products: productModels.map(model => model.id)
   })
 
