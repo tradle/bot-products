@@ -66,8 +66,7 @@ module.exports = function keepModelsFresh ({
     })
     .toJSON()
 
-    const maybePromise = send({ user, object: pack })
-    if (isPromise(maybePromise)) yield maybePromise
+    yield send({ user, object: pack })
   })
 }
 

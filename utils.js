@@ -39,15 +39,6 @@ function splitCamelCase (str) {
   return str.split(/(?=[A-Z])/g)
 }
 
-function parseId (id) {
-  const [type, permalink, link] = id.split('_')
-  return {
-    type,
-    permalink,
-    link
-  }
-}
-
 function wait (millis) {
   return new Promise(resolve => setTimeout(resolve, millis))
 }
@@ -114,7 +105,7 @@ module.exports = {
   series,
   format,
   splitCamelCase,
-  parseId,
+  parseId: validateResource.utils.parseId,
   wait,
   uniq,
   omit,

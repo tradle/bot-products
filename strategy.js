@@ -1,3 +1,5 @@
+const { EventEmitter } = require('events')
+const inherits = require('inherits')
 const validateResource = require('@tradle/validate-resource')
 const validateModels = require('@tradle/validate-model')
 const { omitVirtual } = validateResource.utils
@@ -31,10 +33,12 @@ const createPlugins = require('./plugins')
 const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
+const triggerBeforeAfter = require('./trigger-before-after')
 
 exports = module.exports = opts => new Strategy(opts)
 
 function Strategy (opts) {
+  EventEmitter.call(this)
   bindAll(this)
 
   const { namespace, models, products } = opts
@@ -52,7 +56,7 @@ function Strategy (opts) {
   this.plugins = createPlugins()
   this.plugins.setContext(this)
   this.lock = createLocker()
-  this._sendQueues = {}
+  this._requestStates = {}
   this._define = createDefiner()
   // be lazy
   this._define('_modelsArray', () => modelsToArray(this.models.all))
@@ -67,13 +71,25 @@ function Strategy (opts) {
   if (products) {
     this.addProducts({ models, products })
   }
+
+  triggerBeforeAfter(this, ['send', 'sign', 'save'])
+  // ;['send', 'rawSend', 'sign'].forEach(method => {
+  //   this[method] = (...args) => this._exec(method, ...args)
+  //   this._hooks.hook('_' + method, this['_' + method])
+  // })
 }
 
+inherits(Strategy, EventEmitter)
 const proto = Strategy.prototype
+
+proto.getCurrentRequest = function (user) {
+  return this._requestStates[user.id || user]
+}
 
 proto.install = function (bot) {
   this.bot = bot
   this.uninstall = bot.onmessage(this._onmessage)
+  this.emit('bot', bot)
   return this
 }
 
@@ -108,23 +124,31 @@ proto._exec = function _exec (method, ...args) {
   return Promise.resolve(this.plugins.exec({ method, args }))
 }
 
+proto._setRequest = function (data) {
+  const { user } = data
+  this._requestStates[user.id] = newRequestState(data)
+}
+
+proto._deleteCurrentRequest = function ({ user }) {
+  delete this._requestStates[user.id]
+}
+
 proto._onmessage = co(function* (data) {
   const userId = data.user.id
   const unlock = yield this.lock(userId)
-  this._sendQueues[userId] = []
   try {
     yield this._processIncoming(data)
   } finally {
     debug(`failed to process incoming message from ${userId}`)
     try {
-      const sendQueue = this._sendQueues[userId].slice()
+      const sendQueue = this.getCurrentRequest(userId).sendQueue.slice()
+      this._deleteCurrentRequest(data)
       const n = sendQueue.length
       if (n) {
         debug(`processing ${n} items in send queue to ${userId}`)
-        yield series(sendQueue, opts => this.bot.send(opts))
+        yield series(sendQueue, opts => this.rawSend(opts))
       }
     } finally {
-      delete this._sendQueues[userId]
       unlock()
     }
   }
@@ -144,6 +168,8 @@ proto._processIncoming = co(function* (data) {
   // init is non-destructive
   state.init(user)
   state.deduceCurrentApplication(data)
+  this._setRequest(data)
+
   const { application } = data
 
   let applicationBefore
@@ -166,6 +192,8 @@ proto._processIncoming = co(function* (data) {
 
 proto._saveNewVersionOfApplication = co(function* ({ user, application }) {
   const newVersion = toNewVersion(application)
+  yield this._exec('willSaveApplication', { user, application })
+
   this.state.updateApplication({
     application: newVersion,
     properties: { dateModified: Date.now() }
@@ -204,15 +232,22 @@ proto.removeDefaultHandler = function (method) {
   return handler
 }
 
-proto.send = co(function* (user, object, other={}) {
+proto.rawSend = function ({ user, object, other={} }) {
   const to = user.id || user
-  const opts = { to, object, other }
-  if (this._sendQueues[to]) {
-    this._sendQueues[to].push(opts)
+  debug(`sending to ${to}`)
+  return this.bot.send({ to, object, other })
+}
+
+proto.send = function (opts) {
+  const { user } = opts
+  debug(`queueing send to ${user.id}`)
+  const req = this.getCurrentRequest(user)
+  if (req) {
+    req.sendQueue.push(opts)
   } else {
-    yield this.bot.send(opts)
+    return this.rawSend(opts)
   }
-})
+}
 
 proto.sign = co(function* (object) {
   const signed = yield this.bot.sign(object)
@@ -225,7 +260,7 @@ proto.sign = co(function* (object) {
   return signed
 })
 
-proto.save = function save (signedObject) {
+proto.save = function (signedObject) {
   return this.bot.save(signedObject)
 }
 
@@ -241,8 +276,7 @@ proto.continueApplication = co(function* (data) {
 
   const requested = yield this.requestNextRequiredItem(data)
   if (!requested) {
-    const maybePromise = this._exec('onFormsCollected', data)
-    if (isPromise(maybePromise)) yield maybePromise
+    yield this._exec('onFormsCollected', data)
   }
 })
 
@@ -263,7 +297,7 @@ proto.verify = co(function* ({ user, object, verification={} }) {
   const unsigned = state.createVerification({ user, object, verification })
   verification = yield this.sign(unsigned)
   state.addVerification({ user, object, verification })
-  yield this.send(user, verification)
+  yield this.send({ user, object: verification })
   return verification
 })
 
@@ -272,7 +306,7 @@ proto.issueCertificate = co(function* ({ user, application }) {
   const certificate = yield this.sign(unsigned)
   const certState = this.state.addCertificate({ user, application, certificate })
   const context = this.state.getApplicationContext(certState)
-  yield this.send(user, certificate, { context })
+  yield this.send({ user, object: certificate, other: { context } })
   return certificate
 })
 
@@ -316,7 +350,7 @@ proto.requestItem = co(function* ({ user, application, item }) {
   const context = parseId(application.request.id).permalink
   debug(`requesting ${item} from user ${user.id} for product ${product}`)
   const reqItem = yield this.createItemRequest({ user, application, product, item })
-  yield this.send(user, reqItem, { context })
+  yield this.send({ user, object: reqItem, other: { context } })
   return true
 })
 
@@ -333,7 +367,7 @@ proto.createItemRequest = co(function* ({ user, application, product, item }) {
 
   if (product) req.requestFor = product
 
-  const ret = this._exec('willRequestForm', {
+  yield this._exec('willRequestForm', {
     application,
     form: item,
     formRequest: req,
@@ -342,15 +376,13 @@ proto.createItemRequest = co(function* ({ user, application, product, item }) {
     state: user
   })
 
-  if (isPromise(ret)) yield ret
-
   return req
 })
 
 proto.sendProductList = co(function* ({ user }) {
   const item = this.models.biz.productRequest.id
   const productChooser = yield this.createItemRequest({ item })
-  return this.send(user, productChooser)
+  return this.send({ user, object: productChooser })
 })
 
 proto.requestEdit = co(function* ({ user, object, message, errors=[] }) {
@@ -359,11 +391,14 @@ proto.requestEdit = co(function* ({ user, object, message, errors=[] }) {
   }
 
   debug(`requesting edit for form ${object[TYPE]}`)
-  yield this.send(user, {
-    _t: 'tradle.FormError',
-    prefill: omit(object, '_s'),
-    message,
-    errors
+  yield this.send({
+    user,
+    object: {
+      _t: 'tradle.FormError',
+      prefill: omit(object, '_s'),
+      message,
+      errors
+    }
   })
 })
 
@@ -373,4 +408,11 @@ function toNewVersion (object) {
   newVersion[PREVLINK] = buildResource.link(object)
   newVersion[PERMALINK] = buildResource.permalink(object)
   return omitVirtual(newVersion, ['_link'])
+}
+
+function newRequestState (data) {
+  return {
+    application: data.application,
+    sendQueue: [],
+  }
 }

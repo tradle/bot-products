@@ -118,13 +118,19 @@ module.exports = function (api) {
     const { firstName } = user
     this.state.setProfile({ user, object })
     if (user.firstName !== firstName) {
-      yield this.send(user, format(STRINGS.HI_JOE, user.firstName))
+      yield this.send({
+        user,
+        object: format(STRINGS.HI_JOE, user.firstName)
+      })
     }
   })
 
   const banter = co(function* (data) {
     const { user, object } = data
-    yield this.bot.send(user, format(STRINGS.TELL_ME_MORE, object.message))
+    yield this.send({
+      user,
+      object: format(STRINGS.TELL_ME_MORE, object.message)
+    })
   })
 
   function willRequestForm ({ formRequest }) {
