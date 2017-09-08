@@ -3,8 +3,8 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
+const { parseStub, parseId } = validateResource.utils
 const {
-  parseId,
   getProductFromEnumValue,
   ensureLinks,
   shallowExtend,
@@ -31,10 +31,26 @@ module.exports = function stateMutater ({ models }) {
   }
 
   function createCertificate ({ application }) {
-    const { requestFor } = application
-    return build(bizModels.certificateFor[requestFor])
-      .set('myProductId', uuid())
-      .toJSON()
+    const { requestFor, forms } = application
+    const certModel = bizModels.certificateFor[requestFor]
+    // const copy = forms
+    //   .map(parseStub)
+    //   .map(({ type }) => {
+    //     const model = allModels[type]
+    //     return Object.keys(model.properties)
+    //       .filter(propertyName => propertyName in certModel.properties)
+    //       // need to lookup form bodies for this
+    //       .map(propertyName => form[propertyName])
+    //   })
+
+    // return build(certModel)
+    //   .set('myProductId', uuid())
+    //   .toJSON()
+
+    return {
+      [TYPE]: certModel.id,
+      myProductId: uuid()
+    }
   }
 
   /**

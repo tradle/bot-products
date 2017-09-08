@@ -72,7 +72,10 @@ function Strategy (opts) {
     this.addProducts({ models, products })
   }
 
-  triggerBeforeAfter(this, ['send', 'sign', 'save'])
+  triggerBeforeAfter(this, [
+    'send', 'sign', 'save'
+  ])
+
   // ;['send', 'rawSend', 'sign'].forEach(method => {
   //   this[method] = (...args) => this._exec(method, ...args)
   //   this._hooks.hook('_' + method, this['_' + method])
@@ -107,7 +110,11 @@ proto.addProducts = function addProducts ({ models, products }) {
       .get()
 
   this.state = createStateMutater({ models: this.models })
-  this.plugins.use(createDefaultPlugins(this))
+  if (this._removeDefaultPlugin) {
+    this._removeDefaultPlugin()
+  }
+
+  this._removeDefaultPlugin = this.plugins.use(createDefaultPlugins(this))
 
   // don't use delete, need to trigger set() to clear the cached value
   this._modelsArray = undefined

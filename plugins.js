@@ -25,10 +25,12 @@ PluginManager.prototype.register = function register (method, handlers, unshift)
   return this.unregister.bind(this, method, handlers)
 }
 
-PluginManager.prototype.unregister = function unregister (method, handler) {
+PluginManager.prototype.unregister = function unregister (method, handlers) {
   if (!this._plugins[method]) return
 
-  this._plugins[method] = this._plugins[method].filter(fn => fn !== handler)
+  handlers = [].concat(handlers)
+  this._plugins[method] = this._plugins[method]
+    .filter(fn => !handlers.includes(fn))
 }
 
 PluginManager.prototype.use = function use (plugin, unshift) {
