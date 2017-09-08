@@ -11,6 +11,7 @@ const uniq = require('uniq')
 const stableStringify = require('json-stable-stringify')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
+const baseModels = require('./base-models')
 const { getPropertyTitle } = validateResource.utils
 
 function isPromise (obj) {
@@ -99,6 +100,15 @@ function ensureLinks (object) {
   return object
 }
 
+function createSimpleMessage (message) {
+  return buildResource({
+      models: baseModels,
+      model: 'tradle.SimpleMessage',
+      resource: { message }
+    })
+    .toJSON()
+}
+
 module.exports = {
   co,
   isPromise,
@@ -120,5 +130,6 @@ module.exports = {
   validateRequired,
   getProductFromEnumValue,
   ensureLinks,
-  stableStringify
+  stableStringify,
+  createSimpleMessage
 }

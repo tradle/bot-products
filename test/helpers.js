@@ -71,13 +71,18 @@ function formLoop ({ models, products }) {
   }
 
   const { bot, handlers } = createFakeBot()
-  const productsStrategy = createProductsStrategy({
+  const productsAPI = createProductsStrategy({
     namespace: 'test.namespace',
     models,
     products: productModels.map(model => model.id)
   })
 
-  const productsAPI = productsStrategy.install(bot)
+  productsAPI.install(bot)
+  productsAPI.removeDefaultHandler('onFormsCollected')
+  productsAPI.plugins.use({
+    onFormsCollected: productsAPI.issueCertificate
+  })
+
   const receiveFromUser = co(function* ({
     object,
     context,
@@ -121,8 +126,8 @@ function formLoop ({ models, products }) {
     const context = hex32()
     return receiveFromUser({
       object: buildResource({
-          models: productsStrategy.models.all,
-          model: productsStrategy.models.biz.productRequest,
+          models: productsAPI.models.all,
+          model: productsAPI.models.biz.productRequest,
         })
         .set('requestFor', productModel.id)
         .toJSON(),

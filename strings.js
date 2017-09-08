@@ -6,6 +6,7 @@ module.exports = {
   // HOT_NAME: '{0}, eh? Hot name!',
   GOT_PRODUCT: 'Yes! You got a {0}. You know, we don\'t give those out to just anybody',
   APPLICATION_NOT_FOUND: 'Hm, application not found. Please re-apply, but be happy about it!',
+  APPLICATION_SUBMITTED: 'Application submitted!',
   SORRY_TO_FORGET_YOU: 'You\'re pretty unforgettable, but alright',
   // NICE_TO_MEET_YOU: 'Nice to meet you!',
   HI_JOE: 'Hi {0}!',

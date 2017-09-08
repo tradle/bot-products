@@ -25,7 +25,8 @@ const {
   parseId,
   series,
   hashObject,
-  modelsToArray
+  modelsToArray,
+  createSimpleMessage
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -110,11 +111,9 @@ proto.addProducts = function addProducts ({ models, products }) {
       .get()
 
   this.state = createStateMutater({ models: this.models })
-  if (this._removeDefaultPlugin) {
-    this._removeDefaultPlugin()
-  }
-
-  this._removeDefaultPlugin = this.plugins.use(createDefaultPlugins(this))
+  this.removeDefaultHandlers()
+  this._defaultPlugins = createDefaultPlugins(this)
+  this.plugins.use(this._defaultPlugins)
 
   // don't use delete, need to trigger set() to clear the cached value
   this._modelsArray = undefined
@@ -229,14 +228,18 @@ proto._noComprendo = function ({ user, type }) {
   return this.send(user, format(STRINGS.NO_COMPRENDO, title))
 }
 
-proto.removeDefaultHandlers = function () {
-  this.plugins.remove(this._defaultPlugins)
+proto.removeDefaultHandler = function (method) {
+  if (this._defaultPlugins) {
+    const handlers = this._defaultPlugins[method]
+    this.plugins.unregister(method, handlers)
+    return handlers
+  }
 }
 
-proto.removeDefaultHandler = function (method) {
-  const handler = this._defaultPlugins[method]
-  this.plugins.remove(method, handler)
-  return handler
+proto.removeDefaultHandlers = function () {
+  if (this._defaultPlugins) {
+    return this.plugins.remove(this._defaultPlugins)
+  }
 }
 
 proto.rawSend = function ({ user, object, other={} }) {
@@ -245,18 +248,41 @@ proto.rawSend = function ({ user, object, other={} }) {
   return this.bot.send({ to, object, other })
 }
 
-proto.send = function (opts) {
-  const { user } = opts
-  debug(`queueing send to ${user.id}`)
+proto.send = co(function* (opts) {
+  opts = shallowClone(opts)
+  let { user, object, other={}, application } = opts
+  if (typeof object === 'string') {
+    object = createSimpleMessage(object)
+  }
+
+  if (!object[SIG]) {
+    object = opts.object = yield this.sign(object)
+  }
+
   const req = this.getCurrentRequest(user)
+  if (!application && req) {
+    application = req.application
+  }
+
+  if (application) {
+    other.context = this.state.getApplicationContext(application)
+  }
+
+  debug(`queueing send to ${user.id}`)
   if (req) {
     req.sendQueue.push(opts)
   } else {
-    return this.rawSend(opts)
+    yield this.rawSend(opts)
   }
-}
+
+  return object
+})
 
 proto.sign = co(function* (object) {
+  if (typeof object === 'string') {
+    object = createSimpleMessage(object)
+  }
+
   const signed = yield this.bot.sign(object)
   const link = buildResource.link(signed)
   buildResource.setVirtual(signed, {
@@ -302,18 +328,16 @@ proto.verify = co(function* ({ user, object, verification={} }) {
   }
 
   const unsigned = state.createVerification({ user, object, verification })
-  verification = yield this.sign(unsigned)
+  verification = yield this.send({ user, object: unsigned })
   state.addVerification({ user, object, verification })
-  yield this.send({ user, object: verification })
   return verification
 })
 
+proto.approve =
 proto.issueCertificate = co(function* ({ user, application }) {
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.sign(unsigned)
+  const certificate = yield this.send({ user, object: unsigned })
   const certState = this.state.addCertificate({ user, application, certificate })
-  const context = this.state.getApplicationContext(certState)
-  yield this.send({ user, object: certificate, other: { context } })
   return certificate
 })
 

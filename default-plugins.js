@@ -125,6 +125,14 @@ module.exports = function (api) {
     }
   })
 
+  function sendApplicationSubmitted ({ user, application }) {
+    return this.send({
+      object: STRINGS.APPLICATION_SUBMITTED,
+      user,
+      application
+    })
+  }
+
   const banter = co(function* (data) {
     const { user, object } = data
     yield this.send({
@@ -157,7 +165,8 @@ module.exports = function (api) {
     willRequestForm,
     onFormsCollected: [
       setCompleted,
-      api.issueCertificate
+      sendApplicationSubmitted,
+      // api.issueCertificate
     ]
   }
 

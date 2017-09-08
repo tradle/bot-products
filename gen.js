@@ -28,6 +28,12 @@ function getCertificateModelId ({ productModel }) {
   return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
 }
 
+function getApplicationSubmittedModelId ({ namespace }) {
+  const id = productModel.id || productModel
+  const lastIdx = id.lastIndexOf('.')
+  return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
+}
+
 function genProductListModel ({ id, productModels }) {
   return genEnumModel({
     models: productModels,
@@ -45,11 +51,14 @@ function genApplicationModels ({ namespace, models, products }) {
     productModels
   })
 
+  // const appSubmittedId = getApplicationSubmittedModelId({ namespace })
+  // const appSubmitted = genApplicationSubmittedModel({ namespace })
   const certificates = {}
   const certificateFor = {}
   const productForCertificate = {}
   const additional = {
-    [productListId]: productList
+    [productListId]: productList,
+    // [appSubmittedId]: appSubmitted
   }
 
   productModels.forEach(productModel => {
@@ -76,6 +85,7 @@ function genApplicationModels ({ namespace, models, products }) {
     },
     productList,
     productRequest,
+    // applicationSubmitted,
     certificates,
     certificateFor,
     productForCertificate,
@@ -115,6 +125,37 @@ function genProductRequestModel ({ productList, id, title }) {
   })
 }
 
+// function genApplicationSubmittedModel ({ namespace, id, title }) {
+//   if (!id) {
+//     id = GenId.applicationSubmitted({ namespace })
+//   }
+
+//   return normalize({
+//     type: 'tradle.Model',
+//     id,
+//     title: title || 'Application Submitted',
+//     interfaces: ['tradle.Message'],
+//     properties: {
+//       message: {
+//         type: 'string',
+//         sample: 'lorem.sentence'
+//       },
+//       application: {
+//         type: 'object',
+//         ref: 'tradle.ProductApplication'
+//       },
+//       forms: {
+//         type: 'array',
+//         items: {
+//           type: "object",
+//           ref: "tradle.Form"
+//         }
+//       }
+//     },
+//     required: ['application'],
+//     viewCols: ['application']
+//   })
+// }
 
 function genCertificateModel ({ productModel, id, title }) {
   // com.example.Furniture => com.example.MyFurniture
@@ -160,13 +201,15 @@ function genEnumModel ({ models, id, title }) {
 const GenId = {
   productList: ({ namespace }) => `${namespace}.Product`,
   productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
-  certificate: getCertificateModelId
+  certificate: getCertificateModelId,
+  // applicationSubmitted: genApplicationSubmittedModelId
 }
 
 const GenModel = {
   productList: genProductListModel,
   productRequest: genProductRequestModel,
-  certificate: genCertificateModel
+  certificate: genCertificateModel,
+  // applicationSubmitted: genApplicationSubmittedModel
 }
 
 module.exports = {

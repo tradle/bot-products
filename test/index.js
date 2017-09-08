@@ -198,6 +198,8 @@ test('basic form loop', loudCo(function* (t) {
 
   const productModels = products.map(id => models.all[id])
   let pluginsCalled
+  api.removeDefaultHandler('onFormsCollected')
+
   plugins.use({
     'onmessage:tradle.Form': function ({ type }) {
       pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1

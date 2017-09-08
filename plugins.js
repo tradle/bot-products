@@ -1,5 +1,6 @@
 const assert = require('assert')
 const { co, isPromise, bindAll, debug } = require('./utils')
+const TESTING = process.env.NODE_ENV === 'test'
 
 module.exports = function createPluginManager (defaults) {
   return new PluginManager(defaults)
@@ -63,7 +64,6 @@ PluginManager.prototype.exec = function ({
   returnResult,
   allowExit
 }) {
-  if (!context) debugger
   if (typeof arguments[0] === 'string') {
     method = arguments[0]
     args = Array.prototype.slice.call(arguments, 1)
