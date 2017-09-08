@@ -1,14 +1,21 @@
 const validateResource = require('@tradle/validate-resource')
+const validateModels = require('@tradle/validate-model')
 const { omitVirtual } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
+const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const createLocker = require('promise-locker')
+const Gen = require('./gen')
+const baseModels = require('./base-models')
+const createPrivateModels = require('./private-models')
 const {
   co,
   isPromise,
   bindAll,
   format,
+  uniq,
   omit,
+  pick,
   shallowClone,
   clone,
   deepEqual,
@@ -25,47 +32,72 @@ const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 
-module.exports = function productsStrategyImpl (opts) {
-  return bot => new Strategy(bot, opts)
-}
+exports = module.exports = opts => new Strategy(opts)
 
-function Strategy (bot, opts) {
+function Strategy (opts) {
   bindAll(this)
 
-  const { namespace, models } = opts
-  this.bot = bot
+  const { namespace, models, products } = opts
   this.namespace = namespace
-  this.models = models
+  const privateModels = createPrivateModels(namespace)
+  this.models = {
+    private: privateModels,
+    all: mergeModels()
+      .add(baseModels)
+      .add(privateModels.all)
+      .get()
+  }
 
-  this._stateProps = Object.keys(models.private.customer.properties)
-  this.state = createStateMutater({ models })
+  this._stateProps = Object.keys(privateModels.customer.properties)
   this.plugins = createPlugins()
   this.plugins.setContext(this)
-  this.plugins.use(createDefaultPlugins(this))
-  this.uninstall = bot.onmessage(this._onmessage)
   this.lock = createLocker()
   this._sendQueues = {}
   this._define = createDefiner()
   // be lazy
-  this._define('_modelsArray', () => modelsToArray(models.all))
+  this._define('_modelsArray', () => modelsToArray(this.models.all))
   this._define('_latestModelsHash', () => hashObject(this._modelsArray))
+  Object.defineProperty(this, 'products', {
+    get() {
+      const { biz } = this.models
+      return biz ? biz.products : []
+    }
+  })
+
+  if (products) {
+    this.addProducts({ models, products })
+  }
 }
 
 const proto = Strategy.prototype
 
-proto.addModels = function addModels (models) {
-  this.models.all = mergeModels()
-    .add(this.models.all)
-    .add(models)
-    .get()
+proto.install = function (bot) {
+  this.bot = bot
+  this.uninstall = bot.onmessage(this._onmessage)
+  return this
+}
 
-  this.models.custom = mergeModels()
-    .add(this.models.custom || {})
-    .add(models)
+proto.addProducts = function addProducts ({ models, products }) {
+  this.models.biz = Gen.applicationModels({
+    models: shallowClone(this.models.all, models || {}),
+    products: uniq(products.concat(this.products)),
+    namespace: this.namespace
+  })
+
+  this.models.all = mergeModels()
+      .add(baseModels)
+      .add(this.models.private.all)
+      .add(this.models.biz.all)
+      .get()
+
+  this.state = createStateMutater({ models: this.models })
+  this.plugins.use(createDefaultPlugins(this))
 
   // don't use delete, need to trigger set() to clear the cached value
   this._modelsArray = undefined
   this._latestModelsHash = undefined
+
+  return this
 }
 
 proto._exec = function _exec (method, ...args) {

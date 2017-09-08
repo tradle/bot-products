@@ -27,6 +27,7 @@
     "object.pick": "^1.2.0",
     "promise-locker": "1.0.0",
     "typeforce": "1.11.4",
+    "uniq": "1.0.1",
     "uuid": "^3.0.1",
     "xtend": "^4.0.1"
   },

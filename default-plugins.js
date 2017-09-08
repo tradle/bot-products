@@ -15,15 +15,16 @@ const REMEDIATION = 'tradle.Remediation'
 
 module.exports = function (api) {
   const { models, plugins } = api
+  const bizModels = models.biz
   const handleProductApplication = co(function* (data) {
     const { user, object } = data
     const product = getProductFromEnumValue({
-      bizModels: models.biz,
+      bizModels,
       value: object.requestFor
     })
 
     debug(`received application for "${product}"`)
-    const isOfferedProduct = models.biz.products.find(model => model.id === product)
+    const isOfferedProduct = bizModels.products.includes(product)
     if (!isOfferedProduct) {
       debug(`ignoring application for "${product}" as it's not in specified offering`)
       return

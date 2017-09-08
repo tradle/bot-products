@@ -36,25 +36,21 @@ function genProductListModel ({ id, productModels }) {
 }
 
 function genApplicationModels ({ namespace, models, products }) {
-  const additional = {}
   // const ids = getNamespaceIds(namespace)
 
   const productModels = products.map(id => models[id])
   const productListId = GenId.productList({ namespace })
-
-  let productList
-  if (!(productListId in models)) {
-    productList = GenModel.productList({
-      id: productListId,
-      productModels
-    })
-
-    additional[productListId] = productList
-  }
+  const productList = GenModel.productList({
+    id: productListId,
+    productModels
+  })
 
   const certificates = {}
   const certificateFor = {}
   const productForCertificate = {}
+  const additional = {
+    [productListId]: productList
+  }
 
   productModels.forEach(productModel => {
     const { id } = productModel
@@ -75,7 +71,9 @@ function genApplicationModels ({ namespace, models, products }) {
 
   const all = {}
   const applicationModels = {
-    products: productModels,
+    get products() {
+      return productList.enum.map(val => val.id)
+    },
     productList,
     productRequest,
     certificates,

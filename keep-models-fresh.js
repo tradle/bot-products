@@ -58,7 +58,7 @@ module.exports = function keepModelsFresh ({
 
     user.modelsHash = hash
     const pack = buildResource({
-      models: this.models.all,
+      models: toModelsMap(models),
       model: 'tradle.ModelsPack',
       resource: {
         models: modelsArray
@@ -69,4 +69,15 @@ module.exports = function keepModelsFresh ({
     const maybePromise = send({ user, object: pack })
     if (isPromise(maybePromise)) yield maybePromise
   })
+}
+
+function toModelsMap (models) {
+  if (!Array.isArray(models)) return models
+
+  const obj = {}
+  for (const model of models) {
+    obj[model.id] = model
+  }
+
+  return obj
 }

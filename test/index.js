@@ -11,6 +11,7 @@ const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
 const createDefiner = require('../definer')
+const { pick } = require('../utils')
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const { formLoop, loudCo, toObject, hex32, newSig, fakeBot } = require('./helpers')
@@ -40,6 +41,41 @@ test('definer', function (t) {
   t.equal(obj.blah, 1)
   // cached
   t.equal(obj.blah, 1)
+  t.end()
+})
+
+test('addProducts', function (t) {
+  const namespace = 'test.namespace'
+  const productModels = [TEST_PRODUCT]
+  const productsStrategy = createProductsStrategy({
+    namespace,
+    models: toObject(productModels),
+    products: productModels.map(model => model.id)
+  })
+
+  t.same(productsStrategy.products, [TEST_PRODUCT.id])
+  t.same(
+    productsStrategy.models.biz.productList.enum
+      .sort(compareId),
+    productModels
+      .map(model => pick(model, ['id', 'title']))
+      .sort(compareId)
+  )
+
+  productModels.push(baseModels['tradle.CurrentAccount'])
+  productsStrategy.addProducts({
+    products: productModels.map(model => model.id)
+  })
+
+  t.same(
+    productsStrategy.models.biz.productList.enum
+      .sort(compareId),
+    productModels
+      .map(model => pick(model, ['id', 'title']))
+      .sort(compareId)
+  )
+
+
   t.end()
 })
 
@@ -399,4 +435,8 @@ function createSignedVerification ({ state, user, form }) {
   })
 
   return verification
+}
+
+function compareId (a, b) {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
