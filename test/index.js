@@ -127,7 +127,8 @@ test('state', loudCo(function* (t) {
     identity: identityStub,
     roles: [],
     applications: [],
-    certificates: [],
+    applicationsApproved: [],
+    applicationsDenied: [],
     // forms: [],
     importedVerifications: [],
     issuedVerifications: []
@@ -171,7 +172,8 @@ test('state', loudCo(function* (t) {
   })
 
   t.equal(user.applications.length, 1)
-  t.equal(user.certificates.length, 0)
+  t.equal(user.applicationsApproved.length, 0)
+  t.equal(user.applicationsDenied.length, 0)
   t.ok(user.applications.every(f => f[TYPE] === privateModels.applicationStub.id))
 
   const certificate = state.createCertificate({ application })
@@ -179,12 +181,12 @@ test('state', loudCo(function* (t) {
 
   state.addCertificate({ user, application, certificate })
   t.equal(user.applications.length, 0)
-  t.equal(user.certificates.length, 1)
+  t.equal(user.applicationsApproved.length, 1)
   t.equal(user.issuedVerifications.length, productModel.forms.length)
   t.equal(user.importedVerifications.length, 1)
   // t.equal(user.forms.length, productModel.forms.length)
   // t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
-  t.ok(user.certificates.every(f => f[TYPE] === privateModels.applicationStub.id))
+  t.ok(user.applicationsApproved.every(f => f[TYPE] === privateModels.applicationStub.id))
 
   t.end()
 }))
@@ -218,22 +220,25 @@ test('basic form loop', loudCo(function* (t) {
 
   const productModels = products.map(id => models.all[id])
   let pluginsCalled
-  api.removeDefaultHandler('onFormsCollected')
-
   plugins.use({
     'onmessage:tradle.Form': function ({ type }) {
       pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
-    },
-    onFormsCollected: function ({ application }) {
-      t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
-      pluginsCalled.onFormsCollected[application.requestFor] = true
-    },
-    // validateForm: function ({ application, form }) {
-    //   console.log(application, form)
-    // }
+    }
   })
 
-  const testProduct = co(function* ({ productModel }) {
+  api.removeDefaultHandler('onFormsCollected')
+
+  const testProduct = co(function* ({ productModel, approve }) {
+    api.plugins.clear('onFormsCollected')
+    plugins.use({
+      onFormsCollected: function ({ user, application }) {
+        t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
+        pluginsCalled.onFormsCollected[application.requestFor] = true
+        const action = approve ? api.approveApplication : api.denyApplication
+        return action.call(this, { user, application })
+      }
+    })
+
     pluginsCalled = {
       onForm: {},
       onFormsCollected: {}
@@ -284,17 +289,33 @@ test('basic form loop', loudCo(function* (t) {
       })
 
       yield awaitBotResponse('tradle.Verification')
-      let app = user.applications.find(app => app.requestFor === productModel.id)
-        || user.certificates.find(app => app.requestFor === productModel.id)
+      let done = i === forms.length - 1
+      let app
+      let expectedStatus
+      if (done) {
+        expectedStatus = approve ? 'approved' : 'denied'
+        const applications = approve ? user.applicationsApproved : user.applicationsDenied
+        app = api.state.getApplicationsByType(applications, productModel.id)[0]
+      } else {
+        expectedStatus = 'started'
+        app = api.state.getApplicationsByType(user.applications, productModel.id)[0]
+      }
 
       t.ok(app)
       const appState = yield api.getApplicationByStub(app)
-      t.same(appState.status, i === forms.length - 1 ? 'approved' : 'started')
+      t.same(appState.status, expectedStatus)
       t.ok(api.state.getFormsByType(appState.forms, nextForm).length > 0)
     }
 
     // get product cert
-    t.equal(response.object[TYPE], models.biz.certificateFor[productModel.id].id)
+    if (approve) {
+      t.equal(response.object[TYPE], models.biz.certificateFor[productModel.id].id)
+      t.same(user.applicationsApproved[0].status, 'approved')
+    } else {
+      t.equal(response.object[TYPE], 'tradle.ApplicationDenial')
+      t.same(user.applicationsDenied[0].status, 'denied')
+    }
+
     // t.ok(productModel.id in user.products)
     // t.same(user.applications[productModel.id], [])
     productModel.forms.forEach(form => {
@@ -305,7 +326,6 @@ test('basic form loop', loudCo(function* (t) {
       [productModel.id]: true
     })
 
-    t.same(user.certificates[0].status, 'approved')
     yield receiveFromUser({
       object: fakeResource({
         models: models.all,
@@ -332,7 +352,8 @@ test('basic form loop', loudCo(function* (t) {
   })
 
   for (let productModel of productModels) {
-    yield testProduct({ productModel })
+    yield testProduct({ productModel, approve: true })
+    yield testProduct({ productModel, approve: false })
   }
 
   t.end()

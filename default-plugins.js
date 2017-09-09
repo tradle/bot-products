@@ -38,7 +38,7 @@ module.exports = function (api) {
       return
     }
 
-    const existingProduct = user.certificates.find(application => {
+    const existingProduct = user.applicationsApproved.find(application => {
       return application.requestFor === object.requestFor
     })
 
@@ -171,7 +171,7 @@ module.exports = function (api) {
     onFormsCollected: [
       setCompleted,
       sendApplicationSubmitted,
-      // api.issueCertificate
+      // api.approveApplication
     ]
   }
 

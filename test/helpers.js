@@ -88,10 +88,6 @@ function formLoop ({ models, products }) {
 
   productsAPI.install(bot)
   productsAPI.removeDefaultHandler('onFormsCollected')
-  productsAPI.plugins.use({
-    onFormsCollected: productsAPI.issueCertificate
-  })
-
   const receiveFromUser = co(function* ({
     object,
     context,

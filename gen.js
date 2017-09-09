@@ -28,11 +28,8 @@ function getCertificateModelId ({ productModel }) {
   return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
 }
 
-function getApplicationSubmittedModelId ({ namespace }) {
-  const id = productModel.id || productModel
-  const lastIdx = id.lastIndexOf('.')
-  return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
-}
+// function getApplicationSubmittedModelId ({ namespace }) {
+// }
 
 function genProductListModel ({ id, productModels }) {
   return genEnumModel({

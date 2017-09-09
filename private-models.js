@@ -201,7 +201,15 @@ module.exports = namespace => {
           ref: applicationStub.id
         }
       },
-      certificates: {
+      applicationsApproved: {
+        type: 'array',
+        inlined: true,
+        items: {
+          type: 'object',
+          ref: applicationStub.id
+        }
+      },
+      applicationsDenied: {
         type: 'array',
         inlined: true,
         items: {

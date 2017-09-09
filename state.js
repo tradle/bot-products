@@ -85,7 +85,23 @@ module.exports = function stateMutater ({ models }) {
 
     shallowExtend(application, updated)
     setApplicationStatus({ application, status: 'approved' })
-    user.certificates.push(user.applications[idx])
+    user.applicationsApproved.push(user.applications[idx])
+    user.applications.splice(idx, 1)
+    validateCustomer(user)
+    return application
+  }
+
+  function moveToDenied ({ user, application }) {
+    const idx = getApplicationStubIndex({
+      applications: user.applications,
+      application
+    })
+
+    if (idx === -1) {
+      throw new Error('application not found')
+    }
+
+    user.applicationsDenied.push(user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
     return application
@@ -146,7 +162,8 @@ module.exports = function stateMutater ({ models }) {
   function updateApplicationStub ({ user, application }) {
     const updated = [
       user.applications,
-      user.certificates
+      user.applicationsApproved,
+      user.applicationsDenied
     ].some(applications => {
       const idx = getApplicationStubIndex({ applications, application })
       if (idx !== -1) {
@@ -329,20 +346,20 @@ module.exports = function stateMutater ({ models }) {
     const { user, context, type } = data
     if (type === bizModels.productRequest.id) return
 
-    const { applications=[], certificates=[] } = user
+    const { applications=[], applicationsApproved=[] } = user
     let application
     if (context) {
       application = getApplicationByContext(applications, context) ||
-        getApplicationByContext(certificates, context)
+        getApplicationByContext(applicationsApproved, context)
 
       if (!application) {
         debug(`application ${context} not found`)
       }
     } else {
       application = guessApplicationFromIncomingType(applications, type) ||
-        guessApplicationFromIncomingType(certificates, type)
+        guessApplicationFromIncomingType(applicationsApproved, type)
 
-      if (certificates.some(certState => certState === application)) {
+      if (applicationsApproved.some(appState => appState === application)) {
         data.forCertificate = true
       }
     }
@@ -373,6 +390,7 @@ module.exports = function stateMutater ({ models }) {
     createApplicationStub,
     updateApplicationStub,
     setApplicationStatus,
+    moveToDenied,
     updateApplication,
     addForm,
     validateCustomer,

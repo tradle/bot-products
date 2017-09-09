@@ -37,7 +37,7 @@ const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
-const RESOLVED = Promise.resolve()
+const DENIAL = 'tradle.ApplicationDenial'
 
 exports = module.exports = opts => new Strategy(opts)
 
@@ -77,7 +77,7 @@ function Strategy (opts) {
   }
 
   triggerBeforeAfter(this, [
-    'send', 'sign', 'save'
+    'send', 'sign', 'save', 'approveApplication', 'denyApplication', 'verify'
   ])
 
   // ;['send', 'rawSend', 'sign'].forEach(method => {
@@ -266,8 +266,12 @@ proto.createNewVersionOfApplication = function (application) {
   return this.bot.sign(application)
 }
 
-proto.getApplicationByStub = function ({ statePermalink }) {
-  return this.getApplication(statePermalink)
+proto.getApplicationByStub = function ({ id, statePermalink }) {
+  if (statePermalink) {
+    return this.getApplication(statePermalink)
+  } else {
+    return this.getApplication(parseId(id).permalink)
+  }
 }
 
 proto.getApplication = function (permalink) {
@@ -396,17 +400,33 @@ proto.verify = co(function* ({ user, object, verification={} }) {
   return verification
 })
 
-proto.approve =
-proto.issueCertificate = co(function* ({ user, application }) {
+proto.denyApplication = co(function* ({ user, application }) {
+  const denial = buildResource({
+    models: this.models.all,
+    model: DENIAL,
+  })
+  .set({
+    // warning: this will link to previous version
+    application,
+    message: STRINGS.APPLICATION_DENIED
+  })
+  .toJSON()
+
+  this.state.setApplicationStatus({ application, status: 'denied' })
+  this.state.moveToDenied({ user, application })
+  return this.send({ user, application, object: denial })
+})
+
+proto.approveApplication = co(function* ({ user, application }) {
   const unsigned = this.state.createCertificate({ application })
   const certificate = yield this.send({ user, object: unsigned })
-  const certState = this.state.addCertificate({ user, application, certificate })
+  this.state.addCertificate({ user, application, certificate })
   return certificate
 })
 
 // proto.revokeCertificate = co(function* ({ user, application, certificate }) {
 //   if (!application) {
-//     application = user.certificates.find(app => {
+//     application = user.applicationsApproved.find(app => {
 //       return app.certificate._link === certificate._link
 //     })
 //   }
