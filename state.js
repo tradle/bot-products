@@ -122,8 +122,7 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function createApplication ({ object, message }) {
-    // const request = toItem({ object, message })
+  function createApplication ({ user, object }) {
     const requestFor = getProductFromEnumValue({
       bizModels,
       value: object.requestFor
@@ -131,6 +130,7 @@ module.exports = function stateMutater ({ models }) {
 
     const application = build(privateModels.application)
       .set({
+        applicant: user.identity,
         context: buildResource.permalink(object),
         request: object,
         requestFor,

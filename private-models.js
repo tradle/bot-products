@@ -103,7 +103,7 @@ module.exports = namespace => {
     title: 'Application',
     id: `${namespace}.Application`,
     properties: {
-      identity: {
+      applicant: {
         type: 'object',
         ref: 'tradle.Identity'
       },

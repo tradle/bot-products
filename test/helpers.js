@@ -4,7 +4,9 @@ const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
 const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
+const fakeResource = require('@tradle/build-resource/fake')
 const createProductsStrategy = require('../')
+const baseModels = require('../base-models')
 const FORM_REQ = 'tradle.FormRequest'
 const {
   series
@@ -18,11 +20,16 @@ module.exports = {
   newLink,
   newSig,
   toObject,
-  hex32
+  hex32,
+  createIdentityStub,
+  createStub
 }
 
 function createFakeBot () {
-  const user = { id: 'bill' }
+  const user = {
+    id: 'bill'
+  }
+
   const botId = 'ted'
   const byPermalink = {}
   const byLink = {}
@@ -227,4 +234,21 @@ function toObject (models) {
   const obj = {}
   models.forEach(model => obj[model.id] = model)
   return obj
+}
+
+function createIdentityStub () {
+  return createStub({
+    model: baseModels['tradle.Identity']
+  })
+}
+
+function createStub ({ models=baseModels, model }) {
+  return buildResource.stub({
+    models,
+    resource: fakeResource({
+      models,
+      model,
+      signed: true
+    })
+  })
 }

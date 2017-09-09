@@ -14,7 +14,16 @@ const createDefiner = require('../definer')
 const { pick } = require('../utils')
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
-const { formLoop, loudCo, toObject, hex32, newSig, fakeBot } = require('./helpers')
+const {
+  formLoop,
+  loudCo,
+  toObject,
+  hex32,
+  newSig,
+  fakeBot,
+  createIdentityStub
+} = require('./helpers')
+
 const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
@@ -83,7 +92,12 @@ test('addProducts', function (t) {
 
 test('state', loudCo(function* (t) {
   const namespace = 'test.namespace'
-  const user = { id: 'bob' }
+  const identityStub = createIdentityStub()
+  const user = {
+    id: 'bob',
+    identity: identityStub
+  }
+
   const productModel = TEST_PRODUCT
   const productModels = [productModel]
   const productsStrategy = createProductsStrategy({
@@ -110,6 +124,7 @@ test('state', loudCo(function* (t) {
   state.init(user)
   t.same(user, {
     id: user.id,
+    identity: identityStub,
     roles: [],
     applications: [],
     certificates: [],
@@ -119,6 +134,7 @@ test('state', loudCo(function* (t) {
   })
 
   const application = yield bot.sign(state.createApplication({
+    user,
     object: productRequest
   }))
 

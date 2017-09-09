@@ -58,6 +58,11 @@ module.exports = function (api) {
 
   const handleForm = co(function* (data) {
     const { application, object, type } = data
+    if (!application) {
+      debug('application is unknown, ignoring form')
+      return
+    }
+
     if (type === models.biz.productRequest.id) {
       // handled by handleProductApplication
       return

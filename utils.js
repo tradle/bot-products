@@ -1,4 +1,4 @@
-const debug = require('debug')('tradle:bot:products')
+const debug = require('debug')(require('./package.json').name)
 const co = require('co').wrap
 const bindAll = require('bindall')
 const shallowExtend = require('xtend/mutable')

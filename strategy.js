@@ -114,13 +114,13 @@ proto.addProducts = function addProducts ({ models, products }) {
         this.models[subset] = {}
       }
 
+      const all = shallowClone(
+        this.models[subset].all,
+        models[subset].all
+      )
+
       this.models[subset] = shallowClone(this.models[subset], models[subset])
-      this.models[subset].all = mergeModels()
-        .add(baseModels)
-        .add(this.models[subset].all)
-        .add(models[subset].all)
-        // skip first layer
-        .rest()
+      this.models[subset].all = all
     })
   }
 
@@ -212,11 +212,11 @@ proto._processIncoming = co(function* (data) {
   }
 
   if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
-    yield this._saveNewVersionOfApplication({ user, application: data.application })
+    yield this.saveNewVersionOfApplication({ user, application: data.application })
   }
 })
 
-proto._saveNewVersionOfApplication = co(function* ({ user, application }) {
+proto.saveNewVersionOfApplication = co(function* ({ user, application }) {
   const newVersion = toNewVersion(application)
   yield this._exec('willSaveApplication', { user, application })
 
@@ -232,10 +232,10 @@ proto._saveNewVersionOfApplication = co(function* ({ user, application }) {
 })
 
 proto._getApplicationFromStub = function ({ statePermalink }) {
-  return this._getApplication(statePermalink)
+  return this.getApplication(statePermalink)
 }
 
-proto._getApplication = function (permalink) {
+proto.getApplication = function (permalink) {
   return this.bot.db.latest({
     type: this.models.private.application.id,
     permalink
@@ -264,7 +264,7 @@ proto.removeDefaultHandlers = function () {
 
 proto.rawSend = function ({ user, object, other={} }) {
   const to = user.id || user
-  debug(`sending to ${to}`)
+  debug(`sending ${object[TYPE]} to ${to}`)
   return this.bot.send({ to, object, other })
 }
 
@@ -288,8 +288,8 @@ proto.send = co(function* (opts) {
     other.context = this.state.getApplicationContext(application)
   }
 
-  debug(`queueing send to ${user.id}`)
   if (req) {
+    debug(`queueing send to ${user.id}`)
     req.sendQueue.push(opts)
   } else {
     yield this.rawSend(opts)
@@ -335,7 +335,9 @@ proto.continueApplication = co(function* (data) {
 
 proto.forgetUser = function ({ user }) {
   this._stateProps.forEach(prop => {
-    delete user[prop]
+    if (prop !== 'identity') {
+      delete user[prop]
+    }
   })
 
   this.state.init(user)
