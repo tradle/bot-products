@@ -51,7 +51,7 @@ module.exports = function (api) {
       if (isPromise(maybePromise)) yield maybePromise
     }
 
-    data.application = yield this.signAndSave(this.state.createApplication(data))
+    data.application = yield this.sign(this.state.createApplication(data))
     this.state.addApplication(data)
     yield this.continueApplication(data)
   })

@@ -288,7 +288,7 @@ test('basic form loop', loudCo(function* (t) {
         || user.certificates.find(app => app.requestFor === productModel.id)
 
       t.ok(app)
-      const appState = yield api._getApplicationFromStub(app)
+      const appState = yield api.getApplicationByStub(app)
       t.same(appState.status, buildResource.enumValue({
         model: models.private.applicationStatus,
         value: i === forms.length - 1 ? 'approved' : 'started'

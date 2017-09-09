@@ -196,13 +196,13 @@ proto._processIncoming = co(function* (data) {
   state.deduceCurrentApplication(data)
   this._setRequest(data)
 
-  const { application } = data
-
-  let applicationBefore
+  let applicationPreviousVersion
+  let { application } = data
   if (application) {
     // lookup current application state
-    data.application = yield this._getApplicationFromStub(application)
-    applicationBefore = clone(data.application)
+    data.application = yield this.getApplicationByStub(application);
+    ({ application } = data)
+    applicationPreviousVersion = clone(application)
   }
 
   yield this._exec('onmessage', data)
@@ -211,27 +211,29 @@ proto._processIncoming = co(function* (data) {
     yield this._exec(`onmessage:${model.subClassOf}`, data)
   }
 
-  if (applicationBefore && !deepEqual(data.application, applicationBefore)) {
-    yield this.saveNewVersionOfApplication({ user, application: data.application })
+  ({ application } = data)
+  if (!application || deepEqual(application, applicationPreviousVersion)) {
+    return
   }
+
+  if (applicationPreviousVersion) {
+    application = yield this._createNewVersionOfApplication(application)
+  }
+
+  yield this.saveApplication({ user, application })
 })
 
-proto.saveNewVersionOfApplication = co(function* ({ user, application }) {
-  const newVersion = toNewVersion(application)
-  yield this._exec('willSaveApplication', { user, application })
-
+proto._createNewVersionOfApplication = function (application) {
+  application = toNewVersion(application)
   this.state.updateApplication({
-    application: newVersion,
+    application,
     properties: { dateModified: Date.now() }
   })
 
-  const signed = yield this.bot.sign(newVersion)
-  debug(`saving updated application for ${user.id}`)
-  this.state.updateApplicationStub({ user, application: newVersion })
-  yield this.bot.save(signed)
-})
+  return this.bot.sign(application)
+}
 
-proto._getApplicationFromStub = function ({ statePermalink }) {
+proto.getApplicationByStub = function ({ statePermalink }) {
   return this.getApplication(statePermalink)
 }
 
@@ -312,6 +314,12 @@ proto.sign = co(function* (object) {
 
   return signed
 })
+
+// proxy to facilitate plugin attachment
+proto.saveApplication = function ({ user, application }) {
+  this.state.updateApplicationStub({ user, application })
+  return this.bot.save(application)
+}
 
 proto.save = function (signedObject) {
   return this.bot.save(signedObject)
