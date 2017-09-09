@@ -8,7 +8,8 @@ const {
   getProductFromEnumValue,
   ensureLinks,
   shallowExtend,
-  pick
+  pick,
+  debug
 } = require('./utils')
 
 const baseModels = require('./base-models')
@@ -311,9 +312,9 @@ module.exports = function stateMutater ({ models }) {
     return applications.find(test)
   }
 
-  function getApplicationByPermalink (applications, permalink) {
+  function getApplicationByContext (applications, context) {
     return findApplication(applications, application => {
-      return application.request.permalink === permalink
+      return application.context === context
     })
   }
 
@@ -328,11 +329,11 @@ module.exports = function stateMutater ({ models }) {
     const { applications=[], certificates=[] } = user
     let application
     if (context) {
-      application = getApplicationByPermalink(applications, context) ||
-        getApplicationByPermalink(certificates, context)
+      application = getApplicationByContext(applications, context) ||
+        getApplicationByContext(certificates, context)
 
       if (!application) {
-        throw new Error(`application ${context} not found`)
+        debug(`application ${context} not found`)
       }
     } else {
       application = guessApplicationFromIncomingType(applications, type) ||
@@ -376,7 +377,7 @@ module.exports = function stateMutater ({ models }) {
     setIdentity,
     init,
     getApplicationsByType,
-    getApplicationByPermalink,
+    getApplicationByContext,
     findApplication,
     deduceCurrentApplication,
     guessApplicationFromIncomingType,

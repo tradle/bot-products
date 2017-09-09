@@ -37,6 +37,7 @@ const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
+const RESOLVED = Promise.resolve()
 
 exports = module.exports = opts => new Strategy(opts)
 
@@ -143,11 +144,15 @@ proto.addProducts = function addProducts ({ models, products }) {
 }
 
 proto._exec = function _exec (method, ...args) {
-  if (typeof method === 'object') {
-    return Promise.resolve(this.plugins.exec(...arguments))
-  }
+  const opts = normalizeExecArgs(...arguments)
+  return Promise.resolve(this.plugins.exec(opts))
+}
 
-  return Promise.resolve(this.plugins.exec({ method, args }))
+proto._execBubble = function _execBubble (method, ...args) {
+  const opts = normalizeExecArgs(...arguments)
+  opts.allowExit = true
+  opts.returnResult = true
+  return Promise.resolve(this.plugins.exec(opts))
 }
 
 proto._setRequest = function (data) {
@@ -164,8 +169,10 @@ proto._onmessage = co(function* (data) {
   const unlock = yield this.lock(userId)
   try {
     yield this._processIncoming(data)
+  } catch (err) {
+    debug(`failed to process incoming message from ${userId}`, err)
+    throw err
   } finally {
-    debug(`failed to process incoming message from ${userId}`)
     try {
       const sendQueue = this.getCurrentRequest(userId).sendQueue.slice()
       this._deleteCurrentRequest(data)
@@ -189,7 +196,11 @@ proto._processIncoming = co(function* (data) {
   }
 
   data.models = models
-  const { user, type } = data
+  const { user, type, message } = data
+  if (message.context) {
+    data.context = message.context
+  }
+
   const model = models.all[type]
   // init is non-destructive
   state.init(user)
@@ -205,10 +216,24 @@ proto._processIncoming = co(function* (data) {
     applicationPreviousVersion = clone(application)
   }
 
-  yield this._exec('onmessage', data)
-  yield this._exec(`onmessage:${type}`, data)
+  let keepGoing = yield this._execBubble('onmessage', data)
+  if (keepGoing === false) {
+    debug('early exit after "onmessage"')
+    return
+  }
+
+  keepGoing = yield this._execBubble(`onmessage:${type}`, data)
+  if (keepGoing === false) {
+    debug(`early exit after "onmessage:${type}"`)
+    return
+  }
+
   if (model.subClassOf) {
-    yield this._exec(`onmessage:${model.subClassOf}`, data)
+    keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, data)
+    if (keepGoing === false) {
+      debug(`early exit after "onmessage:${model.subClassOf}"`)
+      return
+    }
   }
 
   ({ application } = data)
@@ -217,13 +242,21 @@ proto._processIncoming = co(function* (data) {
   }
 
   if (applicationPreviousVersion) {
-    application = yield this._createNewVersionOfApplication(application)
+    application = yield this.saveNewVersionOfApplication({ user, application })
+  } else {
+    yield this.saveApplication({ user, application })
   }
-
-  yield this.saveApplication({ user, application })
 })
 
-proto._createNewVersionOfApplication = function (application) {
+/**
+ * update PERMALINK, PREVLINK on application, save new application version
+ */
+proto.saveNewVersionOfApplication = function ({ user, application }) {
+  return this.createNewVersionOfApplication(application)
+    .then(application => this.saveApplication({ user, application }))
+}
+
+proto.createNewVersionOfApplication = function (application) {
   application = toNewVersion(application)
   this.state.updateApplication({
     application,
@@ -476,4 +509,10 @@ function newRequestState (data) {
     application: data.application,
     sendQueue: [],
   }
+}
+
+function normalizeExecArgs (method, ...args) {
+  return typeof method === 'object'
+    ? method
+    : { method, args }
 }
