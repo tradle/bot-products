@@ -1,5 +1,6 @@
 const Gen = require('./gen')
 const { getValues } = require('./utils')
+const baseModels = require('./base-models')
 
 module.exports = namespace => {
   const item = {
@@ -80,79 +81,81 @@ module.exports = namespace => {
     ]
   }
 
-  const applicationStatus = {
-    type: 'tradle.Model',
-    title: 'Application Status',
-    subClassOf: 'tradle.Enum',
-    id: `${namespace}.ApplicationStatus`,
-    properties: {
-      status: {
-        type: 'string'
-      }
-    },
-    enum: [
-      { id: 'started', title: 'Started' },
-      { id: 'completed', title: 'Completed' },
-      { id: 'approved', title: 'Approved' },
-      { id: 'denied', title: 'Denied' },
-    ]
-  }
+  // const applicationStatus = {
+  //   type: 'tradle.Model',
+  //   title: 'Application Status',
+  //   subClassOf: 'tradle.Enum',
+  //   id: `${namespace}.ApplicationStatus`,
+  //   properties: {
+  //     status: {
+  //       type: 'string'
+  //     }
+  //   },
+  //   enum: [
+  //     { id: 'started', title: 'Started' },
+  //     { id: 'completed', title: 'Completed' },
+  //     { id: 'approved', title: 'Approved' },
+  //     { id: 'denied', title: 'Denied' },
+  //   ]
+  // }
 
-  const application = {
-    type: 'tradle.Model',
-    title: 'Application',
-    id: `${namespace}.Application`,
-    properties: {
-      applicant: {
-        type: 'object',
-        ref: 'tradle.Identity'
-      },
-      relationshipManager: {
-        type: 'object',
-        ref: 'tradle.Identity'
-      },
-      status: {
-        type: 'object',
-        ref: applicationStatus.id
-      },
-      dateStarted: {
-        type: 'date',
-      },
-      dateCompleted: {
-        type: 'date',
-      },
-      dateEvaluated: {
-        type: 'date',
-      },
-      dateModified: {
-        type: 'date'
-      },
-      // permalink of ProductRequest
-      context: {
-        type: 'string'
-      },
-      request: {
-        type: 'object',
-        ref: 'tradle.Form'
-      },
-      requestFor: {
-        type: 'string'
-      },
-      forms: {
-        type: 'array',
-        inlined: true,
-        items: {
-          ref: item.id
-        }
-      },
-      // prob better to store stub with state
-      // e.g. permalink, revoked: false,
-      certificate: {
-        type: 'object',
-        ref: 'tradle.MyProduct'
-      }
-    }
-  }
+  // const application = {
+  //   type: 'tradle.Model',
+  //   title: 'Application',
+  //   id: 'tradle.Application',
+  //   properties: {
+  //     applicant: {
+  //       type: 'object',
+  //       ref: 'tradle.Identity'
+  //     },
+  //     relationshipManager: {
+  //       type: 'object',
+  //       ref: 'tradle.Identity'
+  //     },
+  //     status: {
+  //       type: 'string'
+  //     },
+  //     // status: {
+  //     //   type: 'object',
+  //     //   ref: applicationStatus.id
+  //     // },
+  //     dateStarted: {
+  //       type: 'date',
+  //     },
+  //     dateCompleted: {
+  //       type: 'date',
+  //     },
+  //     dateEvaluated: {
+  //       type: 'date',
+  //     },
+  //     dateModified: {
+  //       type: 'date'
+  //     },
+  //     // permalink of ProductRequest
+  //     context: {
+  //       type: 'string'
+  //     },
+  //     request: {
+  //       type: 'object',
+  //       ref: 'tradle.Form'
+  //     },
+  //     requestFor: {
+  //       type: 'string'
+  //     },
+  //     forms: {
+  //       type: 'array',
+  //       items: {
+  //         ref: 'tradle.Form'
+  //       }
+  //     },
+  //     // prob better to store stub with state
+  //     // e.g. permalink, revoked: false,
+  //     certificate: {
+  //       type: 'object',
+  //       ref: 'tradle.MyProduct'
+  //     }
+  //   }
+  // }
 
   const applicationStub = {
     type: 'tradle.Model',
@@ -173,8 +176,7 @@ module.exports = namespace => {
         type: 'string'
       },
       status: {
-        type: 'object',
-        ref: applicationStatus.id
+        type: 'string'
       }
     }
   }
@@ -245,8 +247,8 @@ module.exports = namespace => {
     // profile,
     customer,
     // formState,
-    applicationStatus,
-    application,
+    // applicationStatus,
+    application: baseModels['tradle.Application'],
     applicationStub,
     role,
     item,
