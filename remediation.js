@@ -1,4 +1,4 @@
-
+const { parseStub } = require('@tradle/validate-resource').utils
 const {
   REMEDIATION,
   PRODUCT_APPLICATION,
@@ -87,8 +87,9 @@ module.exports = function remediationHandler ({ bot, api, appModels, db }) {
       // const productType = type.replace('.My', '.') // hack
       const pModel = this.models[productType]
       const reqdForms = utils.getRequiredForms(pModel)
-      const forms = application.forms.filter(f => {
-        return reqdForms.indexOf(f.type) !== -1
+      const forms = application.forms.filter(stub => {
+        const { type } = parseStub(stub)
+        return reqdForms.indexOf(type) !== -1
       })
 
       const fakeApp = newApplicationState(productType, application.permalink)

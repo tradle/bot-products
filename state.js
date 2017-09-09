@@ -262,20 +262,19 @@ module.exports = function stateMutater ({ models }) {
     return verification
   }
 
-  function addForm ({ user, object, message, application, type, link, permalink }) {
-    const time = getTime(object, message)
-    const formItem = toItem({ object, message })
-    addFormItem({ application, formItem })
-    validateCustomer(user)
-    return formItem
-  }
-
-  function addFormItem ({ application, formItem }) {
+  function addForm ({ user, object, application }) {
     if (!application.forms) {
       application.forms = []
     }
 
-    application.forms.push(formItem)
+    const stub = buildResource.stub({
+      models: allModels,
+      resource: object
+    })
+
+    application.forms.push(stub)
+    validateCustomer(user)
+    return stub
   }
 
   function init (user) {
@@ -320,6 +319,10 @@ module.exports = function stateMutater ({ models }) {
 
   function getApplicationsByType (applications, type) {
     return applications.filter(application => application.requestFor === type)
+  }
+
+  function getFormsByType (forms, type) {
+    return forms.filter(stub => parseStub(stub).type === type)
   }
 
   function deduceCurrentApplication (data) {
@@ -376,6 +379,7 @@ module.exports = function stateMutater ({ models }) {
     setProfile,
     setIdentity,
     init,
+    getFormsByType,
     getApplicationsByType,
     getApplicationByContext,
     findApplication,

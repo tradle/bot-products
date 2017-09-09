@@ -294,7 +294,7 @@ test('basic form loop', loudCo(function* (t) {
         value: i === forms.length - 1 ? 'approved' : 'started'
       }))
 
-      t.ok(appState.forms.some(({ type }) => type === nextForm))
+      t.ok(api.state.getFormsByType(appState.forms, nextForm).length > 0)
     }
 
     // get product cert

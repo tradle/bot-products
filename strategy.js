@@ -417,7 +417,7 @@ proto.issueCertificate = co(function* ({ user, application }) {
 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ application }) {
-  const { models } = this
+  const { models, state } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({
     method: 'getRequiredForms',
@@ -426,7 +426,7 @@ proto.getNextRequiredItem = co(function* ({ application }) {
   })
 
   return required.find(form => {
-    return application.forms.every(({ type }) => type !== form)
+    return !state.getFormsByType(application.forms, form).length
   })
 })
 
