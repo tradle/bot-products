@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 const co = require('co').wrap
 const buildResource = require('@tradle/build-resource')
+const baseModels = require('./base-models')
 const { isPromise, stableStringify } = require('./utils')
 
 function hashObject (obj) {
@@ -58,7 +59,7 @@ module.exports = function keepModelsFresh ({
 
     user.modelsHash = hash
     const pack = buildResource({
-      models: toModelsMap(models),
+      models: baseModels,
       model: 'tradle.ModelsPack',
       resource: {
         models: modelsArray
