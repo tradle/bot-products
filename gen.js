@@ -107,7 +107,10 @@ function genProductRequestModel ({ productList, id, title }) {
     id,
     notShareable: true,
     title: title || idToTitle(id),
-    interfaces: ['tradle.Message'],
+    interfaces: [
+      'tradle.Message',
+      'tradle.Context'
+    ],
     subClassOf: 'tradle.Form',
     properties: {
       requestFor: {
