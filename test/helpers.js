@@ -2,6 +2,7 @@ const crypto = require('crypto')
 const { EventEmitter } = require('events')
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
+const sinon = require('sinon')
 const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const fakeResource = require('@tradle/build-resource/fake')
@@ -38,6 +39,16 @@ function createFakeBot () {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
     onusercreate: () => {},
+    seal: function ({ link }) {
+      if (typeof link !== 'string') {
+        return Promise.reject('expected string link')
+      }
+
+      return Promise.resolve()
+    },
+    presignUrls: function (object) {
+      return object
+    },
     sign: co(function* (object) {
       object[SIG] = newSig()
       return object

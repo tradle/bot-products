@@ -113,7 +113,7 @@ module.exports = function stateMutater ({ models }) {
 
   function setProfile ({ user, object }) {
     const { firstName, lastName } = object.profile
-    const oldFirstName = user.firstName
+    // const oldFirstName = user.firstName
     user.firstName = firstName
     if (lastName) {
       user.lastName = lastName

@@ -1,7 +1,6 @@
 const { EventEmitter } = require('events')
 const inherits = require('inherits')
 const validateResource = require('@tradle/validate-resource')
-const validateModels = require('@tradle/validate-model')
 const { omitVirtual } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
@@ -12,14 +11,11 @@ const baseModels = require('./base-models')
 const createPrivateModels = require('./private-models')
 const {
   co,
-  isPromise,
   bindAll,
   format,
   uniq,
   omit,
-  pick,
   shallowClone,
-  shallowExtend,
   clone,
   deepEqual,
   debug,
@@ -27,8 +23,7 @@ const {
   series,
   hashObject,
   modelsToArray,
-  createSimpleMessage,
-  getValues
+  createSimpleMessage
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -77,7 +72,13 @@ function Strategy (opts) {
   }
 
   triggerBeforeAfter(this, [
-    'send', 'sign', 'save', 'approveApplication', 'denyApplication', 'verify'
+    'send',
+    'sign',
+    'seal',
+    'save',
+    'verify',
+    'approveApplication',
+    'denyApplication'
   ])
 
   // ;['send', 'rawSend', 'sign'].forEach(method => {
@@ -167,6 +168,9 @@ proto._deleteCurrentRequest = function ({ user }) {
 proto._onmessage = co(function* (data) {
   const userId = data.user.id
   const unlock = yield this.lock(userId)
+
+  // make a defensive copy
+  data = shallowClone(data)
   try {
     yield this._processIncoming(data)
   } catch (err) {
@@ -185,12 +189,21 @@ proto._onmessage = co(function* (data) {
       unlock()
     }
   }
+
+  const shouldSeal = yield this._exec({
+    method: 'shouldSealReceived',
+    args: [data],
+    returnResult: true,
+    allowExit: true
+  })
+
+  if (shouldSeal) {
+    yield this.seal(data)
+  }
 })
 
 proto._processIncoming = co(function* (data) {
   const { state, models } = this
-  // make a defensive copy
-  data = shallowClone(data)
   if (!data.object && data.payload) {
     data.object = data.payload
   }
@@ -304,7 +317,13 @@ proto.removeDefaultHandlers = function () {
 proto.rawSend = function ({ user, object, other={} }) {
   const to = user.id || user
   debug(`sending ${object[TYPE]} to ${to}`)
+  this.bot.presignUrls(object)
   return this.bot.send({ to, object, other })
+}
+
+proto.seal = function seal (opts) {
+  const { link, object } = opts
+  return this.bot.seal({ link })
 }
 
 proto.send = co(function* (opts) {

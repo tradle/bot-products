@@ -12,6 +12,16 @@ const {
 
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
+const VERIFICATION = 'tradle.Verification'
+const CONFIRMATION = 'tradle.Confirmation'
+const APPROVAL = 'tradle.ApplicationApproval'
+const DENIAL = 'tradle.ApplicationDenial'
+const TO_SEAL = [
+  VERIFICATION.
+  CONFIRMATION,
+  APPROVAL,
+  DENIAL
+]
 
 module.exports = function (api) {
   const { models, plugins } = api
@@ -44,7 +54,7 @@ module.exports = function (api) {
 
     if (existingProduct) {
       const maybePromise = plugins.exec({
-        method: 'onrequestForExistingProduct',
+        method: 'onRequestForExistingProduct',
         args: [data]
       })
 
@@ -164,7 +174,45 @@ module.exports = function (api) {
     this.state.setApplicationStatus({ application, status: 'completed' })
   }
 
+  function shouldSealReceived ({ message, object }) {
+    const type = object[TYPE]
+    const model = models.all[type]
+    if (model && model.subClassOf === 'tradle.Form') {
+      return true
+    }
+  }
+
+  function shouldSealSent ({ message, object }) {
+    const type = object[TYPE]
+    if (TO_SEAL.includes(type)) return true
+
+    const model = models.all[type]
+    if (model && model.subClassOf === 'tradle.MyProduct') {
+      return true
+    }
+  }
+
+  const didSend = co(function* (...args) {
+    const should = yield api._exec({
+      method: 'shouldSealSent',
+      args,
+      allowExit: true,
+      returnResult: true
+    })
+
+    if (!should) return
+
+    const [sendInput] = args
+    const { object } = sendInput
+    const link = buildResource.link(object)
+    const sealOpts = shallowExtend({ link, object }, sendInput)
+    yield api.seal(sealOpts)
+  })
+
   const defaults = {
+    didSend,
+    shouldSealSent,
+    shouldSealReceived,
     getRequiredForms,
     validateForm,
     willRequestForm,

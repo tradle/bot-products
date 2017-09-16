@@ -3,6 +3,7 @@ if (!process.env.NODE_ENV) {
 }
 
 const test = require('tape')
+const sinon = require('sinon')
 const co = require('co').wrap
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
@@ -191,9 +192,10 @@ test('state', loudCo(function* (t) {
   t.end()
 }))
 
-test('basic form loop', loudCo(function* (t) {
+test.only('basic form loop', loudCo(function* (t) {
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
   const {
+    bot,
     api,
     applyForProduct,
     awaitBotResponse,
@@ -222,14 +224,32 @@ test('basic form loop', loudCo(function* (t) {
   let pluginsCalled
   plugins.use({
     'onmessage:tradle.Form': function ({ type }) {
-      pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
+      if (pluginsCalled) {
+        pluginsCalled.onForm[type] = (pluginsCalled.onForm[type] || 0) + 1
+      }
+    },
+    shouldSealReceived: function ({ object }) {
+      const type = object[TYPE]
+      if (pluginsCalled) {
+        pluginsCalled.shouldSealReceived[type] =
+          (pluginsCalled.shouldSealReceived[type] || 0) + 1
+      }
+    },
+    shouldSealSent: function ({ object }) {
+      const type = object[TYPE]
+      if (pluginsCalled) {
+        pluginsCalled.shouldSealSent[type] =
+          (pluginsCalled.shouldSealSent[type] || 0) + 1
+      }
     }
-  })
+  }, true)
 
   api.removeDefaultHandler('onFormsCollected')
 
   const testProduct = co(function* ({ productModel, approve }) {
     api.plugins.clear('onFormsCollected')
+    // api.plugins.clear('shouldSealSent')
+    // api.plugins.clear('shouldSealReceived')
     plugins.use({
       onFormsCollected: function ({ user, application }) {
         t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
@@ -241,6 +261,8 @@ test('basic form loop', loudCo(function* (t) {
 
     pluginsCalled = {
       onForm: {},
+      shouldSealSent: {},
+      shouldSealReceived: {},
       onFormsCollected: {}
     }
 
@@ -308,18 +330,29 @@ test('basic form loop', loudCo(function* (t) {
     }
 
     // get product cert
+    const respType = response.object[TYPE]
     if (approve) {
-      t.equal(response.object[TYPE], models.biz.certificateFor[productModel.id].id)
+      t.equal(respType, models.biz.certificateFor[productModel.id].id)
       t.same(user.applicationsApproved[0].status, 'approved')
     } else {
-      t.equal(response.object[TYPE], 'tradle.ApplicationDenial')
+      t.equal(respType, 'tradle.ApplicationDenial')
       t.same(user.applicationsDenied[0].status, 'denied')
     }
 
+    // yield wait(100)
+
+    // list of product is also a FormRequest
+    t.equal(pluginsCalled.shouldSealSent['tradle.FormRequest'], productModel.forms.length + 1)
+    t.equal(pluginsCalled.shouldSealSent['tradle.FormError'], Object.keys(bad).length)
+    t.equal(pluginsCalled.shouldSealSent['tradle.Verification'], productModel.forms.length)
+    t.equal(pluginsCalled.shouldSealSent[respType], 1)
+
     // t.ok(productModel.id in user.products)
     // t.same(user.applications[productModel.id], [])
+
     productModel.forms.forEach(form => {
       t.equal(pluginsCalled.onForm[form], form in bad ? 2 : 1)
+      t.equal(pluginsCalled.shouldSealReceived[form], form in bad ? 2 : 1)
     })
 
     t.same(pluginsCalled.onFormsCollected, {
