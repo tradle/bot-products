@@ -297,7 +297,7 @@ proto.getApplication = function (permalink) {
 proto._noComprendo = function ({ user, type }) {
   const model = this.models.all[type]
   const title = model ? model.title : type
-  return this.send(user, format(STRINGS.NO_COMPRENDO, title))
+  return this.send(user, createSimpleMessage(format(STRINGS.NO_COMPRENDO, title)))
 }
 
 proto.removeDefaultHandler = function (method) {
@@ -329,8 +329,8 @@ proto.seal = function seal (opts) {
 proto.send = co(function* (opts) {
   opts = shallowClone(opts)
   let { user, object, other={}, application } = opts
-  if (typeof object === 'string') {
-    object = createSimpleMessage(object)
+  if (typeof object !== 'object') {
+    throw new Error('expected object')
   }
 
   if (!object[SIG]) {

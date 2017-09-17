@@ -5,9 +5,11 @@ const {
   isPromise,
   format,
   shallowExtend,
+  shallowClone,
   debug,
   validateRequired,
   getProductFromEnumValue,
+  createSimpleMessage
 } = require('./utils')
 
 const STRINGS = require('./strings')
@@ -135,14 +137,14 @@ module.exports = function (api) {
     if (user.firstName !== firstName) {
       yield this.send({
         user,
-        object: format(STRINGS.HI_JOE, user.firstName)
+        object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
       })
     }
   })
 
   function sendApplicationSubmitted ({ user, application }) {
     return this.send({
-      object: STRINGS.APPLICATION_SUBMITTED,
+      object: createSimpleMessage(STRINGS.APPLICATION_SUBMITTED),
       user,
       application
     })
@@ -152,7 +154,7 @@ module.exports = function (api) {
     const { user, object } = data
     yield this.send({
       user,
-      object: format(STRINGS.TELL_ME_MORE, object.message)
+      object: createSimpleMessage(format(STRINGS.TELL_ME_MORE, object.message))
     })
   })
 
@@ -202,10 +204,10 @@ module.exports = function (api) {
 
     if (!should) return
 
-    const [sendInput] = args
-    const { object } = sendInput
+    const [sendInput, sendOutput] = args
+    const object = sendOutput
     const link = buildResource.link(object)
-    const sealOpts = shallowExtend({ link, object }, sendInput)
+    const sealOpts = shallowClone(sendInput, { link, object })
     yield api.seal(sealOpts)
   })
 
