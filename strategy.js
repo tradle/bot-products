@@ -317,7 +317,7 @@ proto.removeDefaultHandlers = function () {
 proto.rawSend = function ({ user, object, other={} }) {
   const to = user.id || user
   debug(`sending ${object[TYPE]} to ${to}`)
-  this.bot.presignUrls(object)
+  this.bot.presignEmbeddedMediaLinks(object)
   return this.bot.send({ to, object, other })
 }
 

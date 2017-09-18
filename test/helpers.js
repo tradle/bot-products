@@ -46,7 +46,7 @@ function createFakeBot () {
 
       return Promise.resolve()
     },
-    presignUrls: function (object) {
+    presignEmbeddedMediaLinks: function (object) {
       return object
     },
     sign: co(function* (object) {
