@@ -5,7 +5,6 @@ const { omitVirtual } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
-const createLocker = require('promise-locker')
 const Gen = require('./gen')
 const baseModels = require('./base-models')
 const createPrivateModels = require('./private-models')
@@ -54,7 +53,6 @@ function Strategy (opts) {
   this._stateProps = Object.keys(privateModels.customer.properties)
   this.plugins = createPlugins()
   this.plugins.setContext(this)
-  this.lock = createLocker()
   this._requestStates = {}
   this._define = createDefiner()
   // be lazy
@@ -167,7 +165,6 @@ proto._deleteCurrentRequest = function ({ user }) {
 
 proto._onmessage = co(function* (data) {
   const userId = data.user.id
-  const unlock = yield this.lock(userId)
 
   // make a defensive copy
   data = shallowClone(data)
@@ -177,16 +174,12 @@ proto._onmessage = co(function* (data) {
     debug(`failed to process incoming message from ${userId}`, err)
     throw err
   } finally {
-    try {
-      const sendQueue = this.getCurrentRequest(userId).sendQueue.slice()
-      this._deleteCurrentRequest(data)
-      const n = sendQueue.length
-      if (n) {
-        debug(`processing ${n} items in send queue to ${userId}`)
-        yield series(sendQueue, opts => this.rawSend(opts))
-      }
-    } finally {
-      unlock()
+    const sendQueue = this.getCurrentRequest(userId).sendQueue.slice()
+    this._deleteCurrentRequest(data)
+    const n = sendQueue.length
+    if (n) {
+      debug(`processing ${n} items in send queue to ${userId}`)
+      yield series(sendQueue, opts => this.rawSend(opts))
     }
   }
 
