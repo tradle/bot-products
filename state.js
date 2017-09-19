@@ -234,6 +234,7 @@ module.exports = function stateMutater ({ models }) {
    */
   function addApplication ({ user, application }) {
     ensureLinks(application)
+    debug('added application with context: ' + application.context)
     const stub = createApplicationStub({ application })
     user.applications.push(stub)
     validateCustomer(user)
@@ -362,6 +363,10 @@ module.exports = function stateMutater ({ models }) {
       if (applicationsApproved.some(appState => appState === application)) {
         data.forCertificate = true
       }
+    }
+
+    if (application) {
+      debug('deduced current application, context: ' + application.context)
     }
 
     data.application = application
