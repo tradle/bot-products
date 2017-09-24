@@ -282,8 +282,8 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
 
 proto.getApplication = function (permalink) {
   return this.bot.db.latest({
-    type: this.models.private.application.id,
-    permalink
+    [TYPE]: this.models.private.application.id,
+    _permalink: permalink
   })
 }
 
