@@ -192,7 +192,7 @@ test('state', loudCo(function* (t) {
   t.end()
 }))
 
-test.only('basic form loop', loudCo(function* (t) {
+test('basic form loop', loudCo(function* (t) {
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
   const {
     bot,

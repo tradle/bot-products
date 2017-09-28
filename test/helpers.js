@@ -65,7 +65,9 @@ function createFakeBot () {
       return ret
     }),
     db: {
-      latest: co(function* ({ type, permalink }) {
+      latest: co(function* (props) {
+        const type = props[TYPE]
+        const permalink = props._permalink
         const object = byPermalink[permalink]
         if (!object) {
           throw new Error('NotFound')
