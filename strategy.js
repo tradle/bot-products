@@ -159,6 +159,12 @@ proto._setRequest = function (data) {
   this._requestStates[user.id] = newRequestState(data)
 }
 
+// proto._updateRequestState = function (data) {
+//   const { user } = data
+//   const state = this._requestStates[user.id]
+//   shallowExtend(state, data)
+// }
+
 proto._deleteCurrentRequest = function ({ user }) {
   delete this._requestStates[user.id]
 }
@@ -211,7 +217,6 @@ proto._processIncoming = co(function* (data) {
   // init is non-destructive
   state.init(user)
   state.deduceCurrentApplication(data)
-  this._setRequest(data)
 
   let applicationPreviousVersion
   let { application } = data
@@ -221,6 +226,8 @@ proto._processIncoming = co(function* (data) {
     ({ application } = data)
     applicationPreviousVersion = clone(application)
   }
+
+  this._setRequest(data)
 
   let keepGoing = yield this._execBubble('onmessage', data)
   if (keepGoing === false) {
@@ -537,10 +544,9 @@ function toNewVersion (object) {
 }
 
 function newRequestState (data) {
-  return {
-    application: data.application,
-    sendQueue: [],
-  }
+  return shallowClone(data, {
+    sendQueue: []
+  })
 }
 
 function normalizeExecArgs (method, ...args) {
