@@ -20,6 +20,7 @@
     "clone": "2.1.1",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",
+    "debug": "3.1.0",
     "deep-equal": "1.0.1",
     "json-stable-stringify": "1.0.1",
     "object.omit": "2.0.1",
