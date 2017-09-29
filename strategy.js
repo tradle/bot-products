@@ -311,7 +311,6 @@ proto.seal = function seal (opts) {
 proto.send = co(function* ({ req, application, to, object, other={} }) {
   typeforce(types.request, req)
 
-  if (!to) to = req.user.id
   if (to.id) to = to.id
 
   if (!application) {
@@ -407,8 +406,10 @@ proto.verify = co(function* ({ req, object, verification={} }) {
   return verification
 })
 
-proto.denyApplication = co(function* (req) {
-  const { user, application } = req
+proto.denyApplication = co(function* ({ req, user, application }) {
+  if (!user) user = req.user
+  if (!application) application = req.application
+
   const denial = buildResource({
     models: this.models.all,
     model: DENIAL,
@@ -421,15 +422,17 @@ proto.denyApplication = co(function* (req) {
   .toJSON()
 
   this.state.setApplicationStatus({ application, status: 'denied' })
-  this.state.moveToDenied(req)
-  return this.send({ req, object: denial })
+  this.state.moveToDenied({ user, application })
+  return this.send({ req, to: user, object: denial })
 })
 
-proto.approveApplication = co(function* (req) {
-  const { application } = req
+proto.approveApplication = co(function* ({ req, user, application }) {
+  if (!user) user = req.user
+  if (!application) application = req.application
+
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.send({ req, object: unsigned })
-  this.state.addCertificate({ req, certificate })
+  const certificate = yield this.send({ req, to: user, object: unsigned })
+  this.state.addCertificate({ user, application, certificate })
   return certificate
 })
 

@@ -212,7 +212,13 @@ module.exports = function (api) {
     yield api.seal(sealOpts)
   })
 
+  function willSend (opts) {
+    const { req, to } = opts
+    if (!to) opts.to = req.user
+  }
+
   const defaults = {
+    willSend,
     didSend,
     shouldSealSent,
     shouldSealReceived,

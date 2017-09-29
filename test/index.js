@@ -255,11 +255,12 @@ test('basic form loop', loudCo(function* (t) {
     // api.plugins.clear('shouldSealSent')
     // api.plugins.clear('shouldSealReceived')
     plugins.use({
-      onFormsCollected: function ({ user, application }) {
+      onFormsCollected: function (req) {
+        const { user, application } = req
         t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
         pluginsCalled.onFormsCollected[application.requestFor] = true
         const action = approve ? api.approveApplication : api.denyApplication
-        return action.call(this, { user, application })
+        return action.call(this, { req })
       }
     })
 

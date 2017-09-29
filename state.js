@@ -61,8 +61,10 @@ module.exports = function stateMutater ({ models }) {
    * @param {application} options.application
    * @param {Certification}    options.certificate
    */
-  function addCertificate ({ req, certificate }) {
-    const { user, application } = req
+  function addCertificate ({ req, user, application, certificate }) {
+    if (!user) user = req.user
+    if (!application) application = req.application
+
     const idx = getApplicationStubIndex({
       applications: user.applications,
       application
@@ -243,8 +245,9 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  function createVerification ({ req, object, verification={} }) {
-    const { user } = req
+  function createVerification ({ req, user, object, verification={} }) {
+    if (!user) user = req.user
+
     const builder = build(baseModels[VERIFICATION])
       .set(verification)
       .set('document', object)

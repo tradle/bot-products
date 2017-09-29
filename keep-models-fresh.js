@@ -31,7 +31,8 @@ module.exports = function keepModelsFresh ({
   // modelsArray => modelsHash
   const objToArray = new Map()
   const arrToHash = new Map()
-  return co(function* ({ user }) {
+  return co(function* (req) {
+    const { user } = req
     const modelsHash = user[propertyName]
     let models = getModelsForUser(user)
     if (isPromise(models)) {
@@ -67,7 +68,7 @@ module.exports = function keepModelsFresh ({
     })
     .toJSON()
 
-    yield send({ user, object: pack })
+    yield send({ req, object: pack })
   })
 }
 
