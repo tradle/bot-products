@@ -180,7 +180,11 @@ test('state', loudCo(function* (t) {
   const certificate = state.createCertificate({ application })
   certificate[SIG] = newSig()
 
-  state.addCertificate({ user, application, certificate })
+  state.addCertificate({
+    req: state.newRequestState({ user, application }),
+    certificate
+  })
+
   t.equal(user.applications.length, 0)
   t.equal(user.applicationsApproved.length, 1)
   t.equal(user.issuedVerifications.length, productModel.forms.length)
@@ -287,10 +291,14 @@ test('basic form loop', loudCo(function* (t) {
       if (bad[nextForm]) {
         // user corrects form
         api.requestEdit({
-          user,
-          object: result.request.object,
-          message: 'dude, seriously',
-          errors: []
+          req: api.state.newRequestState({
+            user,
+            object: result.request.object,
+          }),
+          details: {
+            message: 'dude, seriously',
+            errors: []
+          }
         })
 
         yield awaitBotResponse('tradle.FormError')
@@ -306,7 +314,9 @@ test('basic form loop', loudCo(function* (t) {
 
       response = result.response
       yield api.verify({
-        user,
+        req: api.state.newRequestState({
+          user
+        }),
         object: result.request.object
       })
 
@@ -494,7 +504,9 @@ test.skip('complex form loop', loudCo(co(function* (t) {
 
 function createSignedVerification ({ state, user, form }) {
   const verification = state.createVerification({
-    user,
+    req: state.newRequestState({
+      user
+    }),
     object: form
   })
 

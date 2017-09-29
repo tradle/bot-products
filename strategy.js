@@ -1,4 +1,5 @@
 const { EventEmitter } = require('events')
+const typeforce = require('typeforce')
 const inherits = require('inherits')
 const validateResource = require('@tradle/validate-resource')
 const { omitVirtual } = validateResource.utils
@@ -32,6 +33,16 @@ const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
 const DENIAL = 'tradle.ApplicationDenial'
+const types = {
+  request: typeforce.compile({
+    user: typeforce.Object,
+    application: typeforce.maybe(typeforce.Object),
+    // inbound object
+    object: typeforce.maybe(typeforce.Object),
+    // inbound message
+    message: typeforce.maybe(typeforce.Object)
+  })
+}
 
 exports = module.exports = opts => new Strategy(opts)
 
@@ -53,7 +64,6 @@ function Strategy (opts) {
   this._stateProps = Object.keys(privateModels.customer.properties)
   this.plugins = createPlugins()
   this.plugins.setContext(this)
-  this._requestStates = {}
   this._define = createDefiner()
   // be lazy
   this._define('_modelsArray', () => modelsToArray(this.models.all))
@@ -87,10 +97,6 @@ function Strategy (opts) {
 
 inherits(Strategy, EventEmitter)
 const proto = Strategy.prototype
-
-proto.getCurrentRequest = function (user) {
-  return this._requestStates[user.id || user]
-}
 
 proto.install = function (bot) {
   this.bot = bot
@@ -154,34 +160,28 @@ proto._execBubble = function _execBubble (method, ...args) {
   return Promise.resolve(this.plugins.exec(opts))
 }
 
-proto._setRequest = function (data) {
-  const { user } = data
-  this._requestStates[user.id] = newRequestState(data)
-}
-
-// proto._updateRequestState = function (data) {
-//   const { user } = data
-//   const state = this._requestStates[user.id]
-//   shallowExtend(state, data)
-// }
-
-proto._deleteCurrentRequest = function ({ user }) {
-  delete this._requestStates[user.id]
-}
-
 proto._onmessage = co(function* (data) {
-  const userId = data.user.id
+  const req = this.state.newRequestState(data)
+  const { user, message, type } = data
+  const { state, models } = this
+  if (!req.object && req.payload) {
+    req.object = req.payload
+  }
+
+  req.models = models
+  if (message.context) {
+    req.context = message.context
+  }
 
   // make a defensive copy
-  data = shallowClone(data)
+  const userId = data.user.id
   try {
-    yield this._processIncoming(data)
+    yield this._processIncoming(req)
   } catch (err) {
     debug(`failed to process incoming message from ${userId}`, err)
     throw err
   } finally {
-    const sendQueue = this.getCurrentRequest(userId).sendQueue.slice()
-    this._deleteCurrentRequest(data)
+    const sendQueue = req.sendQueue.slice()
     const n = sendQueue.length
     if (n) {
       debug(`processing ${n} items in send queue to ${userId}`)
@@ -191,65 +191,54 @@ proto._onmessage = co(function* (data) {
 
   const shouldSeal = yield this._exec({
     method: 'shouldSealReceived',
-    args: [data],
+    args: [req],
     returnResult: true,
     allowExit: true
   })
 
   if (shouldSeal) {
-    yield this.seal(data)
+    yield this.seal(req)
   }
 })
 
-proto._processIncoming = co(function* (data) {
+proto._processIncoming = co(function* (req) {
   const { state, models } = this
-  if (!data.object && data.payload) {
-    data.object = data.payload
-  }
-
-  data.models = models
-  const { user, type, message } = data
-  if (message.context) {
-    data.context = message.context
-  }
-
+  const { user, type } = req
   const model = models.all[type]
   // init is non-destructive
   state.init(user)
-  state.deduceCurrentApplication(data)
+  state.deduceCurrentApplication(req)
 
   let applicationPreviousVersion
-  let { application } = data
+  let { application } = req
   if (application) {
     // lookup current application state
-    data.application = yield this.getApplicationByStub(application);
-    ({ application } = data)
+    req.application = yield this.getApplicationByStub(application);
+    ({ application } = req)
     applicationPreviousVersion = clone(application)
   }
 
-  this._setRequest(data)
-
-  let keepGoing = yield this._execBubble('onmessage', data)
+  let keepGoing = yield this._execBubble('onmessage', req)
   if (keepGoing === false) {
     debug('early exit after "onmessage"')
     return
   }
 
-  keepGoing = yield this._execBubble(`onmessage:${type}`, data)
+  keepGoing = yield this._execBubble(`onmessage:${type}`, req)
   if (keepGoing === false) {
     debug(`early exit after "onmessage:${type}"`)
     return
   }
 
   if (model.subClassOf) {
-    keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, data)
+    keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, req)
     if (keepGoing === false) {
       debug(`early exit after "onmessage:${model.subClassOf}"`)
       return
     }
   }
 
-  ({ application } = data)
+  ({ application } = req)
   if (!application || deepEqual(application, applicationPreviousVersion)) {
     return
   }
@@ -294,12 +283,6 @@ proto.getApplication = function (permalink) {
   })
 }
 
-proto._noComprendo = function ({ user, type }) {
-  const model = this.models.all[type]
-  const title = model ? model.title : type
-  return this.send(user, createSimpleMessage(format(STRINGS.NO_COMPRENDO, title)))
-}
-
 proto.removeDefaultHandler = function (method) {
   if (this._defaultPlugins) {
     const handlers = this._defaultPlugins[method]
@@ -314,7 +297,8 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
-proto.rawSend = function ({ user, object, other={} }) {
+proto.rawSend = function ({ req, object, other={} }) {
+  const { user } = req
   const to = user.id || user
   debug(`sending ${object[TYPE]} to ${to}`)
   this.bot.presignEmbeddedMediaLinks(object)
@@ -327,8 +311,14 @@ proto.seal = function seal (opts) {
 }
 
 proto.send = co(function* (opts) {
+  typeforce({
+    req: typeforce.Object
+  }, opts)
+
   opts = shallowClone(opts)
-  let { user, object, other={}, application } = opts
+  let { req, object, other={} } = opts
+  const { application=req.application } = opts
+  const { user } = req
   if (typeof object !== 'object') {
     throw new Error('expected object')
   }
@@ -337,17 +327,12 @@ proto.send = co(function* (opts) {
     object = opts.object = yield this.sign(object)
   }
 
-  const req = this.getCurrentRequest(user)
-  if (!application && req) {
-    application = req.application
-  }
-
   if (application) {
     other.context = this.state.getApplicationContext(application)
   }
 
-  if (req) {
-    debug(`queueing send to ${user.id}`)
+  debug(`queueing send to ${user.id}`)
+  if (req.message) {
     req.sendQueue.push(opts)
   } else {
     yield this.rawSend(opts)
@@ -387,13 +372,13 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.continueApplication = co(function* (data) {
-  const { application } = data
+proto.continueApplication = co(function* (req) {
+  const { application } = req
   if (!application) return
 
-  const requested = yield this.requestNextRequiredItem(data)
+  const requested = yield this.requestNextRequiredItem(req)
   if (!requested) {
-    yield this._exec('onFormsCollected', data)
+    yield this._exec('onFormsCollected', req)
   }
 })
 
@@ -407,19 +392,23 @@ proto.forgetUser = function ({ user }) {
   this.state.init(user)
 }
 
-proto.verify = co(function* ({ user, object, verification={} }) {
+proto.verify = co(function* ({ req, object, verification={} }) {
+  const { user } = req
+  if (!object) object = req.object
+
   const { bot, state } = this
   if (typeof user === 'string') {
     user = yield bot.users.get(user)
   }
 
-  const unsigned = state.createVerification({ user, object, verification })
-  verification = yield this.send({ user, object: unsigned })
+  const unsigned = state.createVerification({ req, object, verification })
+  verification = yield this.send({ req, object: unsigned })
   state.addVerification({ user, object, verification })
   return verification
 })
 
-proto.denyApplication = co(function* ({ user, application }) {
+proto.denyApplication = co(function* (req) {
+  const { user, application } = req
   const denial = buildResource({
     models: this.models.all,
     model: DENIAL,
@@ -432,14 +421,15 @@ proto.denyApplication = co(function* ({ user, application }) {
   .toJSON()
 
   this.state.setApplicationStatus({ application, status: 'denied' })
-  this.state.moveToDenied({ user, application })
-  return this.send({ user, application, object: denial })
+  this.state.moveToDenied(req)
+  return this.send({ req, object: denial })
 })
 
-proto.approveApplication = co(function* ({ user, application }) {
+proto.approveApplication = co(function* (req) {
+  const { application } = req
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.send({ user, object: unsigned })
-  this.state.addCertificate({ user, application, certificate })
+  const certificate = yield this.send({ req, object: unsigned })
+  this.state.addCertificate({ req, certificate })
   return certificate
 })
 
@@ -455,12 +445,13 @@ proto.approveApplication = co(function* ({ user, application }) {
 // })
 
 // promisified because it might be overridden by an async function
-proto.getNextRequiredItem = co(function* ({ application }) {
+proto.getNextRequiredItem = co(function* (req) {
+  const { application } = req
   const { models, state } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({
     method: 'getRequiredForms',
-    args: [{ application, productModel }],
+    args: [{ req, productModel }],
     returnResult: true
   })
 
@@ -469,27 +460,29 @@ proto.getNextRequiredItem = co(function* ({ application }) {
   })
 })
 
-proto.requestNextRequiredItem = co(function* ({ user, application }) {
-  const next = yield this.getNextRequiredItem({ user, application })
+proto.requestNextRequiredItem = co(function* (req) {
+  const next = yield this.getNextRequiredItem(req)
   if (!next) return false
 
-  yield this.requestItem({ user, application, item: next })
+  yield this.requestItem({ req, item: next })
   return true
 })
 
 // promisified because it might be overridden by an async function
-proto.requestItem = co(function* ({ user, application, item }) {
+proto.requestItem = co(function* ({ req, item }) {
+  const { user, application } = req
   const product = application.requestFor
   const context = parseId(application.request.id).permalink
   debug(`requesting ${item} from user ${user.id} for product ${product}`)
-  const reqItem = yield this.createItemRequest({ user, application, product, item })
-  yield this.send({ user, object: reqItem, other: { context } })
+  const reqItem = yield this.createItemRequest({ req, product, item })
+  yield this.send({ req, object: reqItem, other: { context } })
   return true
 })
 
 // promisified because it might be overridden by an async function
-proto.createItemRequest = co(function* ({ user, application, product, item }) {
-  const req = {
+proto.createItemRequest = co(function* ({ req, product, item }) {
+  const { user, application } = req
+  const itemRequest = {
     [TYPE]: 'tradle.FormRequest',
     form: item
   }
@@ -498,34 +491,38 @@ proto.createItemRequest = co(function* ({ user, application, product, item }) {
     product = application.requestFor
   }
 
-  if (product) req.requestFor = product
+  if (product) itemRequest.requestFor = product
 
   yield this._exec('willRequestForm', {
     application,
     form: item,
-    formRequest: req,
+    formRequest: itemRequest,
     user,
     // compat with tradle/tim-bank
     state: user
   })
 
-  return req
+  return itemRequest
 })
 
-proto.sendProductList = co(function* ({ user }) {
+proto.sendProductList = co(function* (req) {
   const item = this.models.biz.productRequest.id
-  const productChooser = yield this.createItemRequest({ item })
-  return this.send({ user, object: productChooser })
+  const productChooser = yield this.createItemRequest({ req, item })
+  return this.send({ req, object: productChooser })
 })
 
-proto.requestEdit = co(function* ({ user, object, message, errors=[] }) {
+proto.requestEdit = co(function* ({ req, object, details }) {
+  const { user } = req
+  if (!object) object = req.object
+
+  const { message, errors=[] } = details
   if (!message && errors.length) {
     message = errors[0].error
   }
 
   debug(`requesting edit for form ${object[TYPE]}`)
   yield this.send({
-    user,
+    req,
     object: {
       _t: 'tradle.FormError',
       prefill: omit(object, '_s'),
@@ -541,12 +538,6 @@ function toNewVersion (object) {
   newVersion[PREVLINK] = buildResource.link(object)
   newVersion[PERMALINK] = buildResource.permalink(object)
   return omitVirtual(newVersion, ['_link'])
-}
-
-function newRequestState (data) {
-  return shallowClone(data, {
-    sendQueue: []
-  })
 }
 
 function normalizeExecArgs (method, ...args) {

@@ -8,6 +8,7 @@ const {
   getProductFromEnumValue,
   ensureLinks,
   shallowExtend,
+  shallowClone,
   pick,
   debug
 } = require('./utils')
@@ -60,7 +61,8 @@ module.exports = function stateMutater ({ models }) {
    * @param {application} options.application
    * @param {Certification}    options.certificate
    */
-  function addCertificate ({ user, application, certificate }) {
+  function addCertificate ({ req, certificate }) {
+    const { user, application } = req
     const idx = getApplicationStubIndex({
       applications: user.applications,
       application
@@ -241,7 +243,8 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  function createVerification ({ user, object, verification={} }) {
+  function createVerification ({ req, object, verification={} }) {
+    const { user } = req
     const builder = build(baseModels[VERIFICATION])
       .set(verification)
       .set('document', object)
@@ -408,7 +411,8 @@ module.exports = function stateMutater ({ models }) {
     findApplication,
     deduceCurrentApplication,
     guessApplicationFromIncomingType,
-    getApplicationContext
+    getApplicationContext,
+    newRequestState
   }
 }
 
@@ -422,4 +426,10 @@ function getInfo (objOrId) {
     permalink: objOrId._permalink,
     type: objOrId[TYPE],
   }
+}
+
+function newRequestState (data) {
+  return shallowClone(data, {
+    sendQueue: []
+  })
 }

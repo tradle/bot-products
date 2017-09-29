@@ -28,8 +28,8 @@ const TO_SEAL = [
 module.exports = function (api) {
   const { models, plugins } = api
   const bizModels = models.biz
-  const handleProductApplication = co(function* (data) {
-    const { user, object } = data
+  const handleProductApplication = co(function* (req) {
+    const { user, object } = req
     const product = getProductFromEnumValue({
       bizModels,
       value: object.requestFor
@@ -42,11 +42,11 @@ module.exports = function (api) {
       return
     }
 
-    if (data.application) {
+    if (req.application) {
       // ignore and continue existing
       //
       // delegate this decision to the outside?
-      yield this.continueApplication(data)
+      yield this.continueApplication(req)
       return
     }
 
@@ -57,19 +57,19 @@ module.exports = function (api) {
     if (existingProduct) {
       const maybePromise = plugins.exec({
         method: 'onRequestForExistingProduct',
-        args: [data]
+        args: [req]
       })
 
       if (isPromise(maybePromise)) yield maybePromise
     }
 
-    data.application = yield this.sign(this.state.createApplication(data))
-    this.state.addApplication(data)
-    yield this.continueApplication(data)
+    req.application = yield this.sign(this.state.createApplication(req))
+    this.state.addApplication(req)
+    yield this.continueApplication(req)
   })
 
-  const handleForm = co(function* (data) {
-    const { application, object, type } = data
+  const handleForm = co(function* (req) {
+    const { application, object, type } = req
     if (!application) {
       debug('application is unknown, ignoring form')
       return
@@ -94,12 +94,12 @@ module.exports = function (api) {
     if (isPromise(err)) err = yield err
 
     if (err) {
-      yield this.requestEdit(shallowExtend(data, err))
+      yield this.requestEdit({ req, details: err })
       return
     }
 
-    this.state.addForm(data)
-    yield this.continueApplication(data)
+    this.state.addForm(req)
+    yield this.continueApplication(req)
   })
 
   function validateForm ({ application, form }) {
@@ -120,40 +120,41 @@ module.exports = function (api) {
     return err
   }
 
-  const handleVerification = co(function* (data) {
-    this.state.importVerification(data)
-    yield this.continueApplication(data)
+  const handleVerification = co(function* (req) {
+    this.state.importVerification(req)
+    yield this.continueApplication(req)
   })
 
   function saveIdentity ({ user, object }) {
     this.state.setIdentity({ user, identity: object.identity })
   }
 
-  const saveName = co(function* ({ user, object }) {
+  const saveName = co(function* (req) {
+    const { user, object } = req
     if (!object.profile) return
 
     const { firstName } = user
     this.state.setProfile({ user, object })
     if (user.firstName !== firstName) {
       yield this.send({
-        user,
+        req,
         object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
       })
     }
   })
 
-  function sendApplicationSubmitted ({ user, application }) {
+  function sendApplicationSubmitted (req) {
+    const { user, application } = req
     return this.send({
-      object: createSimpleMessage(STRINGS.APPLICATION_SUBMITTED),
-      user,
-      application
+      req,
+      object: createSimpleMessage(STRINGS.APPLICATION_SUBMITTED)
     })
   }
 
-  const banter = co(function* (data) {
-    const { user, object } = data
+  const banter = co(function* (req) {
+    const { object } = req
     yield this.send({
-      user,
+      req,
       object: createSimpleMessage(format(STRINGS.TELL_ME_MORE, object.message))
     })
   })
@@ -258,6 +259,6 @@ function prependKeysWith (prefix, obj) {
 }
 
 // promisified because it might be overridden by an async function
-function getRequiredForms ({ application, productModel }) {
+function getRequiredForms ({ req, productModel }) {
   return productModel.forms.slice()
 }
