@@ -297,9 +297,7 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
-proto.rawSend = function ({ req, object, other={} }) {
-  const { user } = req
-  const to = user.id || user
+proto.rawSend = function ({ req, to, object, other={} }) {
   debug(`sending ${object[TYPE]} to ${to}`)
   this.bot.presignEmbeddedMediaLinks(object)
   return this.bot.send({ to, object, other })
@@ -310,28 +308,30 @@ proto.seal = function seal (opts) {
   return this.bot.seal({ link })
 }
 
-proto.send = co(function* (opts) {
-  typeforce({
-    req: typeforce.Object
-  }, opts)
+proto.send = co(function* ({ req, application, to, object, other={} }) {
+  typeforce(types.request, req)
 
-  opts = shallowClone(opts)
-  let { req, object, other={} } = opts
-  const { application=req.application } = opts
-  const { user } = req
+  if (!to) to = req.user.id
+  if (to.id) to = to.id
+
+  if (!application) {
+    application = req.application
+  }
+
   if (typeof object !== 'object') {
     throw new Error('expected object')
   }
 
   if (!object[SIG]) {
-    object = opts.object = yield this.sign(object)
+    object = yield this.sign(object)
   }
 
   if (application) {
     other.context = this.state.getApplicationContext(application)
   }
 
-  debug(`queueing send to ${user.id}`)
+  debug(`queueing send to ${to}`)
+  const opts = { req, to, object, other }
   if (req.message) {
     req.sendQueue.push(opts)
   } else {
