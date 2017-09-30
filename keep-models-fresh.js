@@ -3,6 +3,11 @@ const co = require('co').wrap
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
 const { isPromise, stableStringify } = require('./utils')
+const defaultPropertyName = 'modelsHash'
+
+function defaultGetIdentifier (req) {
+  return req => req.user.id
+}
 
 function hashObject (obj) {
   return hashString('sha256', stableStringify(obj))
@@ -24,7 +29,11 @@ function compareAlphabetical (a, b) {
 
 module.exports = function keepModelsFresh ({
   getModelsForUser,
-  propertyName='modelsHash',
+  propertyName=defaultPropertyName,
+  // unique identifier for counterparty
+  // which will be used to track freshness.
+  // defaults to user.id
+  getIdentifier=defaultGetIdentifier,
   send
 }) {
   // modelsObject => modelsArray
@@ -32,8 +41,13 @@ module.exports = function keepModelsFresh ({
   const objToArray = new Map()
   const arrToHash = new Map()
   return co(function* (req) {
+    const identifier = getIdentifier(req)
     const { user } = req
-    const modelsHash = user[propertyName]
+    if (!user[propertyName] || typeof user[propertyName] !== 'object') {
+      user[propertyName] = {}
+    }
+
+    const modelsHash = user[propertyName][identifier]
     let models = getModelsForUser(user)
     if (isPromise(models)) {
       models = yield models
@@ -58,7 +72,7 @@ module.exports = function keepModelsFresh ({
 
     if (hash === modelsHash) return
 
-    user.modelsHash = hash
+    user[propertyName][identifier] = hash
     const pack = buildResource({
       models: baseModels,
       model: 'tradle.ModelsPack',
