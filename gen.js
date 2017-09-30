@@ -118,6 +118,9 @@ function genProductRequestModel ({ productList, id, title }) {
         type: 'object',
         displayName: true,
         ref: productList.id
+      },
+      contextId: {
+        type: 'string'
       }
     },
     required: ['requestFor'],
