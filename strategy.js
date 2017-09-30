@@ -506,6 +506,7 @@ proto.createItemRequest = co(function* ({ req, product, item }) {
   if (product) itemRequest.requestFor = product
 
   yield this._exec('willRequestForm', {
+    req,
     application,
     form: item,
     formRequest: itemRequest,

@@ -165,7 +165,7 @@ module.exports = function (api) {
     if (model.id === models.biz.productRequest.id) {
       message = STRINGS.PRODUCT_LIST_MESSAGE
     } else if (model.subClassOf === 'tradle.Form') {
-      message = STRINGS.PLEASE_FILL_FIRM
+      message = format(STRINGS.PLEASE_FILL_FORM, model.title)
     } else {
       message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
     }
