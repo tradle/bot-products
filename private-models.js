@@ -246,7 +246,8 @@ module.exports = namespace => {
         }
       },
       modelsHash: {
-        type: 'string'
+        type: 'object',
+        range: 'json'
       }
     }
   }
