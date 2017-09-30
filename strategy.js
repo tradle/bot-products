@@ -164,6 +164,15 @@ proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
   const { user, message, type } = data
   const { state, models } = this
+  if (!user.identity) {
+    try {
+      const identity = yield this.bot.addressBook.byPermalink(user.id)
+      state.setIdentity({ user, identity })
+    } catch (err) {
+      debug(`don't have user's identity!`)
+    }
+  }
+
   if (!req.object && req.payload) {
     req.object = req.payload
   }
