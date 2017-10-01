@@ -120,7 +120,9 @@ function genProductRequestModel ({ productList, id, title }) {
         ref: productList.id
       },
       contextId: {
-        type: 'string'
+        type: 'string',
+        readOnly: true,
+        immutable: true
       }
     },
     required: [
