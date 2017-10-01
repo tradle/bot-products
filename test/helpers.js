@@ -147,7 +147,10 @@ function formLoop ({ models, products }) {
           models: productsAPI.models.all,
           model: productsAPI.models.biz.productRequest,
         })
-        .set('requestFor', productModel.id)
+        .set({
+          requestFor: productModel.id,
+          contextId: 'abcdefgh'
+        })
         .toJSON(),
       context,
       link: context,

@@ -109,6 +109,10 @@ function createSimpleMessage (message) {
     .toJSON()
 }
 
+function getContext ({ model, resource }) {
+  return resource.contextId
+}
+
 module.exports = {
   co,
   isPromise,
@@ -131,5 +135,6 @@ module.exports = {
   getProductFromEnumValue,
   ensureLinks,
   stableStringify,
-  createSimpleMessage
+  createSimpleMessage,
+  getContext
 }

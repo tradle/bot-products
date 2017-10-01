@@ -10,7 +10,8 @@ const {
   shallowExtend,
   shallowClone,
   pick,
-  debug
+  debug,
+  getContext
 } = require('./utils')
 
 const baseModels = require('./base-models')
@@ -152,7 +153,9 @@ module.exports = function stateMutater ({ models }) {
     const application = build(privateModels.application)
       .set({
         applicant: user.identity,
-        context: buildResource.permalink(object),
+        context: getContext({
+          resource: object
+        }),
         request: object,
         requestFor,
         forms: []

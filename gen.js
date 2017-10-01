@@ -123,7 +123,10 @@ function genProductRequestModel ({ productList, id, title }) {
         type: 'string'
       }
     },
-    required: ['requestFor'],
+    required: [
+      'requestFor',
+      'contextId'
+    ],
     viewCols: ['requestFor']
   })
 }
