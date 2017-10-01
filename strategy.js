@@ -215,6 +215,8 @@ proto._processIncoming = co(function* (req) {
   const { user, type } = req
   const model = models.all[type]
   // init is non-destructive
+  debug(`processing incoming ${type}, context: ${req.context}`)
+
   state.init(user)
   state.deduceCurrentApplication(req)
 

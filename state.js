@@ -376,6 +376,8 @@ module.exports = function stateMutater ({ models }) {
 
     if (application) {
       debug('deduced current application, context: ' + application.context)
+    } else {
+      debug(`could not deduce current application`)
     }
 
     data.application = application
