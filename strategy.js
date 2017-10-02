@@ -224,8 +224,7 @@ proto._processIncoming = co(function* (req) {
   let { application } = req
   if (application) {
     // lookup current application state
-    req.application = yield this.getApplicationByStub(application);
-    ({ application } = req)
+    application = req.application = yield this.getApplicationByStub(application);
     applicationPreviousVersion = clone(application)
   }
 
@@ -314,8 +313,8 @@ proto.rawSend = function ({ req, to, object, other={} }) {
   return this.bot.send({ to, object, other })
 }
 
-proto.seal = function seal (opts) {
-  const { link, object } = opts
+proto.seal = function seal (req) {
+  const { link, object } = req
   return this.bot.seal({ link })
 }
 
