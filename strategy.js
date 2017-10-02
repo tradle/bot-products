@@ -441,6 +441,7 @@ proto.approveApplication = co(function* ({ req, user, application }) {
   if (!user) user = req.user
   if (!application) application = req.application
 
+  debug(`approving application for ${application.requestFor}, for user: ${user.id}`)
   const unsigned = this.state.createCertificate({ application })
   const certificate = yield this.send({ req, to: user, object: unsigned })
   this.state.addCertificate({ user, application, certificate })

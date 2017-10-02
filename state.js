@@ -72,7 +72,16 @@ module.exports = function stateMutater ({ models }) {
     })
 
     if (idx === -1) {
-      throw new Error('application not found')
+      const certIdx = getApplicationStubIndex({
+        applications: user.applicationsApproved,
+        application
+      })
+
+      if (certIdx === -1) {
+        throw new Error('application not found')
+      }
+
+      throw new Error('application was already approved')
     }
 
     // lookup, modify stored version
@@ -190,6 +199,10 @@ module.exports = function stateMutater ({ models }) {
     })
   }
 
+  function hasApplication ({ applications, application }) {
+    return getApplicationStubIndex({ applications, application }) !== -1
+  }
+
   function createApplicationStub ({ application }) {
     const copy = Object.keys(privateModels.applicationStub.properties)
       .filter(propertyName => propertyName in privateModels.application.properties)
@@ -251,7 +264,6 @@ module.exports = function stateMutater ({ models }) {
   function createVerification ({ req, user, object, verification={} }) {
     if (!user) user = req.user
 
-    const objInfo = getInfo(object)
     const builder = build(baseModels[VERIFICATION])
       .set(verification)
       .set('document', object)
@@ -264,7 +276,7 @@ module.exports = function stateMutater ({ models }) {
       const sources = user.importedVerifications.map(v => {
         const { id } = v.verifiedItem
         const { link } = parseId(id)
-        if (link === objInfo.link) {
+        if (link === object._link) {
           return id
         }
       })
@@ -415,6 +427,7 @@ module.exports = function stateMutater ({ models }) {
     setIdentity,
     init,
     getFormsByType,
+    hasApplication,
     getApplicationsByType,
     getApplicationByContext,
     findApplication,
@@ -430,15 +443,11 @@ function getInfo (objOrId) {
     return parseId(objOrId)
   }
 
-  if (objOrId[TYPE]) {
-    return {
-      type: objOrId[TYPE],
-      link: objOrId._link,
-      permalink: objOrId._permalink
-    }
+  return {
+    link: objOrId._link,
+    permalink: objOrId._permalink,
+    type: objOrId[TYPE],
   }
-
-  return parseStub(objOrId)
 }
 
 function newRequestState (data) {
