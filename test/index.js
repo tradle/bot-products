@@ -370,13 +370,16 @@ test('basic form loop', loudCo(function* (t) {
       [productModel.id]: true
     })
 
-    yield receiveFromUser({
+    const forgotYou = yield receiveFromUser({
       object: fakeResource({
         models: models.all,
         model: models.all['tradle.ForgetMe']
       }),
-      awaitResponse: false
+      awaitResponse: true
     })
+
+    t.equal(forgotYou.response.object[TYPE], 'tradle.ForgotYou')
+    // t.same(Object.keys(user), ['id', 'identity'])
 
     // productModel.forms.forEach(form => {
     //   const idx = user.forms.findIndex(formState => {

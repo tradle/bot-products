@@ -33,6 +33,7 @@ const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
 const DENIAL = 'tradle.ApplicationDenial'
+const FORGOT_YOU = 'tradle.ForgotYou'
 const types = {
   request: typeforce.compile({
     user: typeforce.Object,
@@ -62,6 +63,10 @@ function Strategy (opts) {
   }
 
   this._stateProps = Object.keys(privateModels.customer.properties)
+  this._forgettableProps = this._stateProps.filter(prop => {
+    return prop !== 'identity' && prop !== 'id' && prop !== TYPE
+  })
+
   this.plugins = createPlugins()
   this.plugins.setContext(this)
   this._define = createDefiner()
@@ -391,14 +396,23 @@ proto.continueApplication = co(function* (req) {
   }
 })
 
-proto.forgetUser = function ({ user }) {
-  this._stateProps.forEach(prop => {
-    if (prop !== 'identity') {
-      delete user[prop]
-    }
+proto.forgetUser = function (req) {
+  const { user } = req
+  debug(`clearing user state: ${this._forgettableProps.join(', ')}`)
+  this._forgettableProps.forEach(prop => {
+    delete user[prop]
   })
 
   this.state.init(user)
+  return this.send({
+    req,
+    object: buildResource({
+        models: this.models.all,
+        model: FORGOT_YOU
+      })
+      .set('message', STRINGS.SORRY_TO_FORGET_YOU)
+      .toJSON()
+  })
 }
 
 proto.verify = co(function* ({ req, user, object, verification={} }) {
@@ -410,6 +424,7 @@ proto.verify = co(function* ({ req, user, object, verification={} }) {
     user = yield bot.users.get(user)
   }
 
+  debug(`verifying ${object[TYPE]} of user ${user.id}`)
   const unsigned = state.createVerification({ req, object, verification })
   verification = yield this.send({ req, object: unsigned })
   state.addVerification({ user, object, verification })
