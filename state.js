@@ -251,6 +251,7 @@ module.exports = function stateMutater ({ models }) {
   function createVerification ({ req, user, object, verification={} }) {
     if (!user) user = req.user
 
+    const objInfo = getInfo(object)
     const builder = build(baseModels[VERIFICATION])
       .set(verification)
       .set('document', object)
@@ -263,7 +264,7 @@ module.exports = function stateMutater ({ models }) {
       const sources = user.importedVerifications.map(v => {
         const { id } = v.verifiedItem
         const { link } = parseId(id)
-        if (link === object._link) {
+        if (link === objInfo.link) {
           return id
         }
       })
@@ -429,11 +430,15 @@ function getInfo (objOrId) {
     return parseId(objOrId)
   }
 
-  return {
-    link: objOrId._link,
-    permalink: objOrId._permalink,
-    type: objOrId[TYPE],
+  if (objOrId[TYPE]) {
+    return {
+      type: objOrId[TYPE],
+      link: objOrId._link,
+      permalink: objOrId._permalink
+    }
   }
+
+  return parseStub(objOrId)
 }
 
 function newRequestState (data) {

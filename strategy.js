@@ -402,8 +402,8 @@ proto.forgetUser = function ({ user }) {
   this.state.init(user)
 }
 
-proto.verify = co(function* ({ req, object, verification={} }) {
-  const { user } = req
+proto.verify = co(function* ({ req, user, object, verification={} }) {
+  if (!user) user = req.user
   if (!object) object = req.object
 
   const { bot, state } = this
