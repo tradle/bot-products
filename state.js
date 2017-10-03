@@ -269,7 +269,7 @@ module.exports = function stateMutater ({ models }) {
       .set('document', object)
 
     if (!verification.dateVerified) {
-      builder.set('dateVerified', new Date().toISOString())
+      builder.set('dateVerified', new Date().getTime())
     }
 
     if (!verification.sources) {
