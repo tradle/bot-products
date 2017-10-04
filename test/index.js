@@ -13,6 +13,7 @@ const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
 const createDefiner = require('../definer')
 const { pick } = require('../utils')
+const messageInterface = require('../message-interface')
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const {
@@ -29,7 +30,7 @@ const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
   title: 'Test Product',
-  interfaces: ['tradle.Message'],
+  interfaces: [messageInterface],
   subClassOf: 'tradle.FinancialProduct',
   forms: [
     'tradle.ORV',

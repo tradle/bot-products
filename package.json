@@ -13,7 +13,7 @@
     "@tradle/build-resource": "^2.7.0",
     "@tradle/constants": "^2.1.0",
     "@tradle/merge-models": "^2.0.0",
-    "@tradle/validate-model": "2.3.0",
+    "@tradle/validate-model": ">=2.3 <4",
     "@tradle/validate-resource": "^2.8.0",
     "bindall": "^2.0.1",
     "clone": "2.1.1",
@@ -39,6 +39,7 @@
     "@tradle/engine": "^4.10.0",
     "@tradle/models": "github:tradle/models",
     "@tradle/models-corporate-onboarding": "github:tradle/models-corporate-onboarding",
+    "@tradle/validate-model": "2.3.0",
     "eslint": "^3.15.0",
     "sinon": "3.2.1",
     "tape": "^4.6.3"

@@ -1,4 +1,4 @@
-
+const messageInterface = require('./message-interface')
 const {
   pick,
   splitCamelCase,
@@ -109,7 +109,7 @@ function genProductRequestModel ({ productList, id, title }) {
     notEditable: true,
     title: title || idToTitle(id),
     interfaces: [
-      'tradle.Message',
+      messageInterface,
       'tradle.Context'
     ],
     subClassOf: 'tradle.Form',
@@ -143,7 +143,7 @@ function genProductRequestModel ({ productList, id, title }) {
 //     type: 'tradle.Model',
 //     id,
 //     title: title || 'Application Submitted',
-//     interfaces: ['tradle.Message'],
+//     interfaces: [messageInterface],
 //     properties: {
 //       message: {
 //         type: 'string',
@@ -177,7 +177,7 @@ function genCertificateModel ({ productModel, id, title }) {
     id,
     subClassOf: 'tradle.MyProduct',
     title: title || `My ${productModel.title}`,
-    interfaces: ['tradle.Message'],
+    interfaces: [messageInterface],
     properties: {
       myProductId: {
         type: 'string'
