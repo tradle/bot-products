@@ -486,8 +486,9 @@ proto.getNextRequiredItem = co(function* (req) {
     returnResult: true
   })
 
-  return application.forms && required.find(form => {
-    return !state.getFormsByType(application.forms, form).length
+  const { forms=[] } = application
+  return required.find(form => {
+    return !state.getFormsByType(forms, form).length
   })
 })
 

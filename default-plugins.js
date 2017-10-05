@@ -79,7 +79,7 @@ module.exports = function (api) {
   const onPendingApplicationCollision = co(function* ({ req, pending }) {
     req.application = yield this.getApplicationByStub(pending[0])
     req.context = req.application.context
-    debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending`)
+    debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending: ${req.application._permalink}`)
     yield this.continueApplication(req)
   })
 
