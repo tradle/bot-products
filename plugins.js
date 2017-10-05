@@ -1,6 +1,6 @@
 const assert = require('assert')
-const { co, isPromise, bindAll, debug } = require('./utils')
-const TESTING = process.env.NODE_ENV === 'test'
+const { isPromise, bindAll, debug } = require('./utils')
+// const TESTING = process.env.NODE_ENV === 'test'
 
 module.exports = function createPluginManager (defaults) {
   return new PluginManager(defaults)

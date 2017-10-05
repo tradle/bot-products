@@ -1,9 +1,10 @@
+/* eslint-disable func-names */
+
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test'
 }
 
 const test = require('tape')
-const sinon = require('sinon')
 const co = require('co').wrap
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
@@ -273,7 +274,10 @@ test('basic form loop', loudCo(function* (t) {
     }
 
     let { request, response } = yield applyForProduct({ productModel })
-    const { context } = request
+    const context = request._context
+    const reapply = yield applyForProduct({ productModel })
+    t.equal(reapply.response.context, context, 'disallowed two applications for same product')
+
     const forms = productModel.forms.slice()
     const bad = {
       [forms[0]]: true
@@ -353,8 +357,9 @@ test('basic form loop', loudCo(function* (t) {
 
     // yield wait(100)
 
-    // list of product is also a FormRequest
-    t.equal(pluginsCalled.shouldSealSent['tradle.FormRequest'], productModel.forms.length + 1)
+    // +1 for list of products, which is also a FormRequest
+    // +1 for reapply
+    t.equal(pluginsCalled.shouldSealSent['tradle.FormRequest'], productModel.forms.length + 2)
     t.equal(pluginsCalled.shouldSealSent['tradle.FormError'], Object.keys(bad).length)
     t.equal(pluginsCalled.shouldSealSent['tradle.Verification'], productModel.forms.length)
     t.equal(pluginsCalled.shouldSealSent[respType], 1)

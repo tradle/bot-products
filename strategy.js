@@ -12,7 +12,6 @@ const createPrivateModels = require('./private-models')
 const {
   co,
   bindAll,
-  format,
   uniq,
   omit,
   shallowClone,
@@ -23,7 +22,8 @@ const {
   series,
   hashObject,
   modelsToArray,
-  createSimpleMessage
+  createSimpleMessage,
+  getRequestContext
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -74,7 +74,7 @@ function Strategy (opts) {
   this._define('_modelsArray', () => modelsToArray(this.models.all))
   this._define('_latestModelsHash', () => hashObject(this._modelsArray))
   Object.defineProperty(this, 'products', {
-    get() {
+    get () {
       const { biz } = this.models
       return biz ? biz.products : []
     }
@@ -118,7 +118,7 @@ proto.addProducts = function addProducts ({ models, products }) {
   })
 
   if (models) {
-    ;['private', 'biz'].forEach(subset => {
+    ['private', 'biz'].forEach(subset => {
       if (!models[subset] || !models[subset].all) return
 
       if (!this.models[subset]) {
@@ -167,7 +167,7 @@ proto._execBubble = function _execBubble (method, ...args) {
 
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
-  const { user, message, type } = data
+  const { user } = data
   const { state, models } = this
   if (!user.identity) {
     try {
@@ -178,14 +178,8 @@ proto._onmessage = co(function* (data) {
     }
   }
 
-  if (!req.object && req.payload) {
-    req.object = req.payload
-  }
-
   req.models = models
-  if (message.context) {
-    req.context = message.context
-  }
+  req.context = getRequestContext({ req, models: models.all })
 
   // make a defensive copy
   const userId = data.user.id
@@ -229,7 +223,7 @@ proto._processIncoming = co(function* (req) {
   let { application } = req
   if (application) {
     // lookup current application state
-    application = req.application = yield this.getApplicationByStub(application);
+    application = req.application = yield this.getApplicationByStub(application)
     applicationPreviousVersion = clone(application)
   }
 
@@ -286,9 +280,9 @@ proto.createNewVersionOfApplication = function (application) {
 proto.getApplicationByStub = function ({ id, statePermalink }) {
   if (statePermalink) {
     return this.getApplication(statePermalink)
-  } else {
-    return this.getApplication(parseId(id).permalink)
   }
+
+  return this.getApplication(parseId(id).permalink)
 }
 
 proto.getApplication = function (permalink) {
@@ -319,7 +313,7 @@ proto.rawSend = function ({ req, to, object, other={} }) {
 }
 
 proto.seal = function seal (req) {
-  const { link, object } = req
+  const { link } = req
   return this.bot.seal({ link })
 }
 
@@ -340,13 +334,15 @@ proto.send = co(function* ({ req, application, to, object, other={} }) {
     object = yield this.sign(object)
   }
 
-  if (application) {
+  if (!other.context && application) {
     other.context = this.state.getApplicationContext(application)
   }
 
   debug(`queueing send to ${to}`)
   const opts = { req, to, object, other }
   if (req.message) {
+    // this request is based on an incoming message
+    // so we can try to batch the sends at the end (maybe)
     req.sendQueue.push(opts)
   } else {
     yield this.rawSend(opts)
@@ -368,6 +364,12 @@ proto.sign = co(function* (object) {
   })
 
   return signed
+})
+
+proto.addApplication = co(function* ({ req }) {
+  req.application = yield this.sign(this.state.createApplication(req))
+  this.state.addApplication(req)
+  yield this.continueApplication(req)
 })
 
 // proxy to facilitate plugin attachment
@@ -500,27 +502,27 @@ proto.requestNextRequiredItem = co(function* (req) {
 // promisified because it might be overridden by an async function
 proto.requestItem = co(function* ({ req, item }) {
   const { user, application } = req
-  const product = application.requestFor
-  const context = parseId(application.request.id).permalink
-  debug(`requesting ${item} from user ${user.id} for product ${product}`)
-  const reqItem = yield this.createItemRequest({ req, product, item })
+  const { context, requestFor } = application
+  // const context = parseId(application.request.id).permalink
+  debug(`requesting ${item} from user ${user.id} for ${requestFor}`)
+  const reqItem = yield this.createItemRequest({ req, requestFor, item })
   yield this.send({ req, object: reqItem, other: { context } })
   return true
 })
 
 // promisified because it might be overridden by an async function
-proto.createItemRequest = co(function* ({ req, product, item }) {
+proto.createItemRequest = co(function* ({ req, requestFor, item }) {
   const { user, application } = req
   const itemRequest = {
     [TYPE]: 'tradle.FormRequest',
     form: item
   }
 
-  if (!product && application) {
-    product = application.requestFor
+  if (!requestFor && application) {
+    requestFor = application.requestFor
   }
 
-  if (product) itemRequest.requestFor = product
+  if (requestFor) itemRequest.requestFor = requestFor
 
   yield this._exec('willRequestForm', {
     req,
@@ -541,8 +543,8 @@ proto.sendProductList = co(function* (req) {
   return this.send({ req, object: productChooser })
 })
 
-proto.requestEdit = co(function* ({ req, object, details }) {
-  const { user } = req
+proto.requestEdit = co(function* ({ req, user, object, details }) {
+  if (!user) user = req.user
   if (!object) object = req.object
 
   const { message, errors=[] } = details

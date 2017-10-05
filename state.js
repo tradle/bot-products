@@ -163,6 +163,7 @@ module.exports = function stateMutater ({ models }) {
       .set({
         applicant: user.identity,
         context: getContext({
+          model: allModels[object[TYPE]],
           resource: object
         }),
         request: object,
@@ -452,6 +453,8 @@ function getInfo (objOrId) {
 
 function newRequestState (data) {
   return shallowClone(data, {
-    sendQueue: []
+    sendQueue: [],
+    object: data.payload || data.object,
+    payload: data.payload || data.object
   })
 }

@@ -13,6 +13,8 @@ const {
   series
 } = require('../utils')
 
+let contextCounter = 0
+
 module.exports = {
   formLoop,
   fakeBot: createFakeBot,
@@ -57,10 +59,10 @@ function createFakeBot () {
       byPermalink[buildResource.permalink(object)] = object
       byLink[buildResource.link(object)] = object
     }),
-    send: co(function* ({ to, object }) {
+    send: co(function* ({ to, object, other }) {
       object = yield bot.sign(object)
       yield bot.save(object)
-      const ret = fakeMessage({ from: botId, to: user.id, object })
+      const ret = fakeMessage({ from: botId, to: user.id, object, other })
       process.nextTick(() => bot.emit('sent', ret))
       return ret
     }),
@@ -141,20 +143,22 @@ function formLoop ({ models, products }) {
   })
 
   const applyForProduct = ({ productModel }) => {
-    const context = hex32()
+    const req = buildResource({
+        models: productsAPI.models.all,
+        model: productsAPI.models.biz.productRequest,
+      })
+      .set({
+        requestFor: productModel.id,
+        contextId: 'abcdefgh' + (contextCounter++)
+      })
+      .toJSON()
+
+    const link = newLink()
     return receiveFromUser({
-      object: buildResource({
-          models: productsAPI.models.all,
-          model: productsAPI.models.biz.productRequest,
-        })
-        .set({
-          requestFor: productModel.id,
-          contextId: 'abcdefgh'
-        })
-        .toJSON(),
-      context,
-      link: context,
-      permalink: context
+      object: req,
+      context: req.contextId,
+      link,
+      permalink: link
     })
   }
 
@@ -192,7 +196,7 @@ function formLoop ({ models, products }) {
   }
 }
 
-function fakeMessage ({ from, to, object }) {
+function fakeMessage ({ from, to, object, other={} }) {
   const msgLink = newLink()
   const objLink = newLink()
   object = shallowExtend({
@@ -203,7 +207,7 @@ function fakeMessage ({ from, to, object }) {
     _virtual: ['_author', '_link', '_permalink']
   }, object)
 
-  return {
+  return shallowExtend({
     _author: from,
     _recipient: to,
     _link: msgLink,
@@ -212,7 +216,7 @@ function fakeMessage ({ from, to, object }) {
     [SIG]: newSig(),
     _virtual: ['_author', '_recipient', '_link', '_permalink'],
     object
-  }
+  }, other)
 }
 
 function newLink () {

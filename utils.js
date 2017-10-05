@@ -110,7 +110,21 @@ function createSimpleMessage (message) {
 }
 
 function getContext ({ model, resource }) {
-  return resource.contextId
+  const interfaces = model.interfaces
+  if (interfaces && interfaces.includes('tradle.Context')) {
+    return resource.contextId
+  }
+}
+
+function getRequestContext ({ req, models }) {
+  if (req.message.context) {
+    return req.message.context
+  }
+
+  return getContext({
+    model: models[req.type],
+    resource: req.payload
+  })
 }
 
 module.exports = {
@@ -136,5 +150,6 @@ module.exports = {
   ensureLinks,
   stableStringify,
   createSimpleMessage,
-  getContext
+  getContext,
+  getRequestContext
 }

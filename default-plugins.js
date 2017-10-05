@@ -15,7 +15,6 @@ const {
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
 const VERIFICATION = 'tradle.Verification'
-const CONFIRMATION = 'tradle.Confirmation'
 const APPROVAL = 'tradle.ApplicationApproval'
 const DENIAL = 'tradle.ApplicationDenial'
 const TO_SEAL = [
@@ -26,9 +25,9 @@ const TO_SEAL = [
 ]
 
 module.exports = function (api) {
-  const { models, plugins } = api
+  const { models, plugins, state } = api
   const bizModels = models.biz
-  const handleProductApplication = co(function* (req) {
+  const handleApplication = co(function* (req) {
     const { user, object } = req
     const product = getProductFromEnumValue({
       bizModels,
@@ -42,8 +41,18 @@ module.exports = function (api) {
       return
     }
 
+    const pending = state.getApplicationsByType(user.applications, product)
+    if (pending.length) {
+      yield plugins.exec({
+        method: 'onPendingApplicationCollision',
+        args: [{ req, pending }]
+      })
+
+      return
+    }
+
     if (req.application) {
-      // ignore and continue existing
+      // ignore and continue existing application
       //
       // delegate this decision to the outside?
       yield this.continueApplication(req)
@@ -61,10 +70,16 @@ module.exports = function (api) {
       })
 
       if (isPromise(maybePromise)) yield maybePromise
+      return
     }
 
-    req.application = yield this.sign(this.state.createApplication(req))
-    this.state.addApplication(req)
+    yield api.addApplication({ req })
+  })
+
+  const onPendingApplicationCollision = co(function* ({ req, pending }) {
+    req.application = yield this.getApplicationByStub(pending[0])
+    req.context = req.application.context
+    debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending`)
     yield this.continueApplication(req)
   })
 
@@ -76,7 +91,7 @@ module.exports = function (api) {
     }
 
     if (type === models.biz.productRequest.id) {
-      // handled by handleProductApplication
+      // handled by handleApplication
       return
     }
 
@@ -225,6 +240,7 @@ module.exports = function (api) {
     getRequiredForms,
     validateForm,
     willRequestForm,
+    onPendingApplicationCollision,
     onFormsCollected: [
       setCompleted,
       sendApplicationSubmitted,
@@ -245,7 +261,7 @@ module.exports = function (api) {
     ],
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
-    [models.biz.productRequest.id]: handleProductApplication,
+    [models.biz.productRequest.id]: handleApplication,
     'tradle.SimpleMessage': banter,
     'tradle.CustomerWaiting': api.sendProductList,
     'tradle.ForgetMe': api.forgetUser,
