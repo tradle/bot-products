@@ -31,22 +31,22 @@ function getCertificateModelId ({ productModel }) {
 // function getApplicationSubmittedModelId ({ namespace }) {
 // }
 
-// function genProductListModel ({ id, productModels }) {
-//   return genEnumModel({
-//     models: productModels,
-//     id
-//   })
-// }
+function genProductListModel ({ id, productModels }) {
+  return genEnumModel({
+    models: productModels,
+    id
+  })
+}
 
 function genApplicationModels ({ namespace, models, products }) {
   // const ids = getNamespaceIds(namespace)
 
   const productModels = products.map(id => models[id])
-  // const productListId = GenId.productList({ namespace })
-  // const productList = GenModel.productList({
-  //   id: productListId,
-  //   productModels
-  // })
+  const productListId = GenId.productList({ namespace })
+  const productList = GenModel.productList({
+    id: productListId,
+    productModels
+  })
 
   // const appSubmittedId = getApplicationSubmittedModelId({ namespace })
   // const appSubmitted = genApplicationSubmittedModel({ namespace })
@@ -54,7 +54,7 @@ function genApplicationModels ({ namespace, models, products }) {
   const certificateFor = {}
   const productForCertificate = {}
   const additional = {
-    // [productListId]: productList,
+    [productListId]: productList,
     // [appSubmittedId]: appSubmitted
   }
 
@@ -70,19 +70,18 @@ function genApplicationModels ({ namespace, models, products }) {
     }
   })
 
-  // const productRequest = GenModel.productRequest({
-  //   productList,
-  //   id: GenId.productRequest({ namespace })
-  // })
+  const productRequest = GenModel.productRequest({
+    productList,
+    id: GenId.productRequest({ namespace })
+  })
 
   const all = {}
   const applicationModels = {
     get products() {
-      return productModels.map(model => model.id)
-      // return productList.enum.map(val => val.id)
+      return productList.enum.map(val => val.id)
     },
-    // productList,
-    // productRequest,
+    productList,
+    productRequest,
     // applicationSubmitted,
     certificates,
     certificateFor,
@@ -91,8 +90,8 @@ function genApplicationModels ({ namespace, models, products }) {
     all
   }
 
-  // additional[productRequest.id] = productRequest
-  // additional[productList.id] = productList
+  additional[productRequest.id] = productRequest
+  additional[productList.id] = productList
 
   getValues(models)
     .concat(productModels)
@@ -209,15 +208,15 @@ function genEnumModel ({ models, id, title }) {
 }
 
 const GenId = {
-  // productList: ({ namespace }) => `${namespace}.Product`,
-  // productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
+  productList: ({ namespace }) => `${namespace}.Product`,
+  productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
   certificate: getCertificateModelId,
   // applicationSubmitted: genApplicationSubmittedModelId
 }
 
 const GenModel = {
-  // productList: genProductListModel,
-  // productRequest: genProductRequestModel,
+  productList: genProductListModel,
+  productRequest: genProductRequestModel,
   certificate: genCertificateModel,
   // applicationSubmitted: genApplicationSubmittedModel
 }
