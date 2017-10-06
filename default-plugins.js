@@ -232,7 +232,40 @@ module.exports = function (api) {
     if (!to) opts.to = req.user
   }
 
+  function deduceApplication (data) {
+    const { user, context, type } = data
+    if (type === bizModels.productRequest.id) return
+
+    const { applications=[], applicationsApproved=[] } = user
+    let application
+    if (context) {
+      application = state.getApplicationByContext(applications, context) ||
+        state.getApplicationByContext(applicationsApproved, context)
+
+      if (!application) {
+        debug(`application with context ${context} not found`)
+      }
+    } else {
+      application = state.guessApplicationFromIncomingType(applications, type) ||
+        state.guessApplicationFromIncomingType(applicationsApproved, type)
+
+      if (applicationsApproved.some(appState => appState === application)) {
+        // nasty side effect
+        data.forCertificate = true
+      }
+    }
+
+    if (application) {
+      debug('deduced current application, context: ' + application.context)
+    } else {
+      debug(`could not deduce current application`)
+    }
+
+    return application
+  }
+
   const defaults = {
+    deduceApplication,
     willSend,
     didSend,
     shouldSealSent,

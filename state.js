@@ -366,38 +366,6 @@ module.exports = function stateMutater ({ models }) {
     return forms.filter(stub => parseStub(stub).type === type)
   }
 
-  function deduceCurrentApplication (data) {
-    const { user, context, type } = data
-    if (type === bizModels.productRequest.id) return
-
-    const { applications=[], applicationsApproved=[] } = user
-    let application
-    if (context) {
-      application = getApplicationByContext(applications, context) ||
-        getApplicationByContext(applicationsApproved, context)
-
-      if (!application) {
-        debug(`application ${context} not found`)
-      }
-    } else {
-      application = guessApplicationFromIncomingType(applications, type) ||
-        guessApplicationFromIncomingType(applicationsApproved, type)
-
-      if (applicationsApproved.some(appState => appState === application)) {
-        data.forCertificate = true
-      }
-    }
-
-    if (application) {
-      debug('deduced current application, context: ' + application.context)
-    } else {
-      debug(`could not deduce current application`)
-    }
-
-    data.application = application
-    return application
-  }
-
   function guessApplicationFromIncomingType (applications, type) {
     return findApplication(applications, app => {
       const productModel = models.all[app.requestFor]
@@ -432,7 +400,6 @@ module.exports = function stateMutater ({ models }) {
     getApplicationsByType,
     getApplicationByContext,
     findApplication,
-    deduceCurrentApplication,
     guessApplicationFromIncomingType,
     getApplicationContext,
     newRequestState

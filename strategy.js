@@ -217,7 +217,7 @@ proto._processIncoming = co(function* (req) {
   debug(`processing incoming ${type}, context: ${req.context}`)
 
   state.init(user)
-  state.deduceCurrentApplication(req)
+  req.application = yield this._execBubble('deduceApplication', req)
 
   let applicationPreviousVersion
   let { application } = req
