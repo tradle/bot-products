@@ -14,7 +14,7 @@
     "@tradle/constants": "^2.1.0",
     "@tradle/merge-models": "^2.0.0",
     "@tradle/validate-model": ">=2.3 <4",
-    "@tradle/validate-resource": "^2.8.0",
+    "@tradle/validate-resource": "^2.10.1",
     "bindall": "^2.0.1",
     "clone": "2.1.1",
     "co": "^4.6.0",
