@@ -75,13 +75,13 @@ const series = co(function* (arr, fn) {
   }
 })
 
-function getProductFromEnumValue ({ bizModels, value }) {
-  if (value.id.indexOf(bizModels.productList.id) === 0) {
-    return value.id.slice(bizModels.productList.id.length + 1)
-  }
+// function getProductFromEnumValue ({ bizModels, value }) {
+//   if (value.id.indexOf(bizModels.productList.id) === 0) {
+//     return value.id.slice(bizModels.productList.id.length + 1)
+//   }
 
-  return value.id
-}
+//   return value.id
+// }
 
 function ensureLinks (object) {
   if (!object._link) {
@@ -146,7 +146,7 @@ module.exports = {
   getValues,
   debug,
   validateRequired,
-  getProductFromEnumValue,
+  // getProductFromEnumValue,
   ensureLinks,
   stableStringify,
   createSimpleMessage,

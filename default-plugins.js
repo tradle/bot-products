@@ -8,7 +8,6 @@ const {
   shallowClone,
   debug,
   validateRequired,
-  getProductFromEnumValue,
   createSimpleMessage
 } = require('./utils')
 

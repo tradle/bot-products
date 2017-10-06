@@ -5,7 +5,6 @@ const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
 const { parseStub, parseId } = validateResource.utils
 const {
-  getProductFromEnumValue,
   ensureLinks,
   shallowExtend,
   shallowClone,
