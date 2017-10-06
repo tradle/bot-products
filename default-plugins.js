@@ -17,6 +17,7 @@ const REMEDIATION = 'tradle.Remediation'
 const VERIFICATION = 'tradle.Verification'
 const APPROVAL = 'tradle.ApplicationApproval'
 const DENIAL = 'tradle.ApplicationDenial'
+const PRODUCT_REQUEST = 'tradle.ProductRequest'
 const TO_SEAL = [
   VERIFICATION.
   CONFIRMATION,
@@ -29,19 +30,16 @@ module.exports = function (api) {
   const bizModels = models.biz
   const handleApplication = co(function* (req) {
     const { user, object } = req
-    const product = getProductFromEnumValue({
-      bizModels,
-      value: object.requestFor
-    })
+    const { requestFor } = object
 
-    debug(`received application for "${product}"`)
-    const isOfferedProduct = bizModels.products.includes(product)
+    debug(`received application for "${requestFor}"`)
+    const isOfferedProduct = bizModels.products.includes(requestFor)
     if (!isOfferedProduct) {
-      debug(`ignoring application for "${product}" as it's not in specified offering`)
+      debug(`ignoring application for "${requestFor}" as it's not in specified offering`)
       return
     }
 
-    const pending = state.getApplicationsByType(user.applications, product)
+    const pending = state.getApplicationsByType(user.applications, requestFor)
     if (pending.length) {
       yield plugins.exec({
         method: 'onPendingApplicationCollision',
@@ -90,7 +88,7 @@ module.exports = function (api) {
       return
     }
 
-    if (type === models.biz.productRequest.id) {
+    if (type === PRODUCT_REQUEST) {
       // handled by handleApplication
       return
     }
@@ -177,7 +175,7 @@ module.exports = function (api) {
   function willRequestForm ({ formRequest }) {
     const model = models.all[formRequest.form]
     let message
-    if (model.id === models.biz.productRequest.id) {
+    if (model.id === PRODUCT_REQUEST) {
       message = STRINGS.PRODUCT_LIST_MESSAGE
     } else if (model.subClassOf === 'tradle.Form') {
       message = format(STRINGS.PLEASE_FILL_FORM, model.title)
@@ -234,7 +232,7 @@ module.exports = function (api) {
 
   function deduceApplication (data) {
     const { user, context, type } = data
-    if (type === bizModels.productRequest.id) return
+    if (type === PRODUCT_REQUEST) return
 
     const { applications=[], applicationsApproved=[] } = user
     let application
@@ -294,7 +292,7 @@ module.exports = function (api) {
     ],
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
-    [models.biz.productRequest.id]: handleApplication,
+    'tradle.ProductRequest': handleApplication,
     'tradle.SimpleMessage': banter,
     'tradle.CustomerWaiting': api.sendProductList,
     'tradle.ForgetMe': api.forgetUser,

@@ -154,11 +154,7 @@ module.exports = function stateMutater ({ models }) {
   }
 
   function createApplication ({ user, object }) {
-    const requestFor = getProductFromEnumValue({
-      bizModels,
-      value: object.requestFor
-    })
-
+    const { requestFor } = object
     const application = build(privateModels.application)
       .set({
         applicant: user.identity,

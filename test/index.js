@@ -69,11 +69,11 @@ test('addProducts', function (t) {
 
   t.same(productsStrategy.products, [TEST_PRODUCT.id])
   t.same(
-    productsStrategy.models.biz.productList.enum
-      .sort(compareId),
+    productsStrategy.models.biz.products.slice()
+      .sort(),
     productModels
-      .map(model => pick(model, ['id', 'title']))
-      .sort(compareId)
+      .map(model => model.id)
+      .sort()
   )
 
   productModels.push(baseModels['tradle.CurrentAccount'])
@@ -82,13 +82,12 @@ test('addProducts', function (t) {
   })
 
   t.same(
-    productsStrategy.models.biz.productList.enum
-      .sort(compareId),
+    productsStrategy.models.biz.products.slice()
+      .sort(),
     productModels
-      .map(model => pick(model, ['id', 'title']))
-      .sort(compareId)
+      .map(model => model.id)
+      .sort()
   )
-
 
   t.end()
 })
@@ -120,9 +119,11 @@ test('state', loudCo(function* (t) {
   const privateModels = models.private
   const productRequest = fakeResource({
     models: models.all,
-    model: models.biz.productRequest,
+    model: models.all['tradle.ProductRequest'],
     signed: true
   })
+
+  productRequest.requestFor = TEST_PRODUCT.id
 
   state.init(user)
   t.same(user, {
@@ -402,6 +403,13 @@ test('basic form loop', loudCo(function* (t) {
       model: models.all[SELF_INTRODUCTION]
     }),
     awaitResponse: true
+  })
+
+  const offering = selfIntroResp.response.object
+  t.equal(offering.form, 'tradle.ProductRequest')
+  t.same(offering.chooser, {
+    property: 'requestFor',
+    oneOf: products
   })
 
   for (let productModel of productModels) {

@@ -34,6 +34,8 @@ const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
 const DENIAL = 'tradle.ApplicationDenial'
 const FORGOT_YOU = 'tradle.ForgotYou'
+const FORM_REQUEST = 'tradle.FormRequest'
+const PRODUCT_REQUEST = 'tradle.ProductRequest'
 const types = {
   request: typeforce.compile({
     user: typeforce.Object,
@@ -515,10 +517,10 @@ proto.requestItem = co(function* ({ req, item }) {
 })
 
 // promisified because it might be overridden by an async function
-proto.createItemRequest = co(function* ({ req, requestFor, item }) {
+proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
   const { user, application } = req
   const itemRequest = {
-    [TYPE]: 'tradle.FormRequest',
+    [TYPE]: FORM_REQUEST,
     form: item
   }
 
@@ -527,6 +529,7 @@ proto.createItemRequest = co(function* ({ req, requestFor, item }) {
   }
 
   if (requestFor) itemRequest.requestFor = requestFor
+  if (chooser) itemRequest.chooser = chooser
 
   yield this._exec('willRequestForm', {
     req,
@@ -542,9 +545,19 @@ proto.createItemRequest = co(function* ({ req, requestFor, item }) {
 })
 
 proto.sendProductList = co(function* (req) {
-  const item = this.models.biz.productRequest.id
-  const productChooser = yield this.createItemRequest({ req, item })
-  return this.send({ req, object: productChooser })
+  const productChooser = yield this.createItemRequest({
+    req,
+    item: PRODUCT_REQUEST,
+    chooser: {
+      property: 'requestFor',
+      oneOf: this.models.biz.products.slice()
+    }
+  })
+
+  return this.send({
+    req,
+    object: productChooser
+  })
 })
 
 proto.requestEdit = co(function* ({ req, user, object, details }) {

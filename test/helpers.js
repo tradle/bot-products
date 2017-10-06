@@ -145,7 +145,7 @@ function formLoop ({ models, products }) {
   const applyForProduct = ({ productModel }) => {
     const req = buildResource({
         models: productsAPI.models.all,
-        model: productsAPI.models.biz.productRequest,
+        model: 'tradle.ProductRequest',
       })
       .set({
         requestFor: productModel.id,
