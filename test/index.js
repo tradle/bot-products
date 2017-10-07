@@ -377,6 +377,10 @@ test('basic form loop', loudCo(function* (t) {
       [productModel.id]: true
     })
 
+    bot.db.deleteAllVersions = co(function* ({ type, permalink }) {
+      console.log(type, permalink)
+    })
+
     const forgotYou = yield receiveFromUser({
       object: fakeResource({
         models: models.all,

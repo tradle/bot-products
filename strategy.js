@@ -2,7 +2,7 @@ const { EventEmitter } = require('events')
 const typeforce = require('typeforce')
 const inherits = require('inherits')
 const validateResource = require('@tradle/validate-resource')
-const { omitVirtual } = validateResource.utils
+const { omitVirtual, getRef } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
@@ -19,11 +19,16 @@ const {
   deepEqual,
   debug,
   parseId,
+  parseStub,
   series,
   hashObject,
   modelsToArray,
   createSimpleMessage,
-  getRequestContext
+  getRequestContext,
+  isPromise,
+  deleteAllVersions,
+  getApplicationPermalinks,
+  getVerificationPermalinks
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -33,6 +38,8 @@ const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
 const DENIAL = 'tradle.ApplicationDenial'
+const APPLICATION = 'tradle.Application'
+const VERIFICATION = 'tradle.Verification'
 const FORGOT_YOU = 'tradle.ForgotYou'
 const FORM_REQUEST = 'tradle.FormRequest'
 const PRODUCT_REQUEST = 'tradle.ProductRequest'
@@ -394,6 +401,7 @@ proto.signAndSave = co(function* (object) {
 })
 
 proto.continueApplication = co(function* (req) {
+  debug('continueApplication')
   const { application } = req
   if (!application) return
 
@@ -403,11 +411,57 @@ proto.continueApplication = co(function* (req) {
   }
 })
 
-proto.forgetUser = function (req) {
+proto.forgetUser = co(function* (req) {
   const { user } = req
   debug(`clearing user state: ${this._forgettableProps.join(', ')}`)
-  this._forgettableProps.forEach(prop => {
-    delete user[prop]
+
+  const { bot, models } = this
+  const { db } = bot
+  const applicationPermalinks = getApplicationPermalinks({ user, models })
+  const verifications = getVerificationPermalinks({ user, models })
+
+  // verifications aren't versioned at the moment
+  // so _link === _permalink
+  const deleteVerifications = Promise.all(verifications.map(_link => {
+    return db.del({
+      [TYPE]: VERIFICATION,
+      _link
+    })
+  }))
+
+  const applications = yield applicationPermalinks.map(_permalink => {
+    return db.latest({
+      [TYPE]: APPLICATION,
+      _permalink
+    })
+  })
+
+  const forms = applications.reduce((all, application) => {
+    const { forms=[] } = application
+    return all.concat(forms.map(parseStub))
+  }, [])
+
+  const deleteForms = Promise.all(forms.map(({ type, link }) => {
+    return db.del({
+      [TYPE]: type,
+      _link: link
+    })
+  }))
+
+  // don't delete the applications themselves
+  const markForgottenApplications = yield applications.map(application => {
+    application.forgotten = true
+    return this.saveNewVersionOfApplication({ user, application })
+  })
+
+  yield [
+    deleteForms,
+    deleteVerifications,
+    markForgottenApplications
+  ]
+
+  this._forgettableProps.forEach(propertyName => {
+    delete user[propertyName]
   })
 
   this.state.init(user)
@@ -420,7 +474,7 @@ proto.forgetUser = function (req) {
       .set('message', STRINGS.SORRY_TO_FORGET_YOU)
       .toJSON()
   })
-}
+})
 
 proto.verify = co(function* ({ req, user, object, verification={} }) {
   if (!user) user = req.user
@@ -498,6 +552,7 @@ proto.getNextRequiredItem = co(function* (req) {
 })
 
 proto.requestNextRequiredItem = co(function* (req) {
+  debug('requestNextRequiredItem')
   const next = yield this.getNextRequiredItem(req)
   if (!next) return false
 
@@ -507,6 +562,7 @@ proto.requestNextRequiredItem = co(function* (req) {
 
 // promisified because it might be overridden by an async function
 proto.requestItem = co(function* ({ req, item }) {
+  debug('requestItem', item)
   const { user, application } = req
   const { context, requestFor } = application
   // const context = parseId(application.request.id).permalink
@@ -518,6 +574,7 @@ proto.requestItem = co(function* ({ req, item }) {
 
 // promisified because it might be overridden by an async function
 proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
+  debug('createItemRequest', item)
   const { user, application } = req
   const itemRequest = {
     [TYPE]: FORM_REQUEST,

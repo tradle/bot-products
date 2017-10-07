@@ -67,6 +67,13 @@ function createFakeBot () {
       return ret
     }),
     db: {
+      del: co(function* (primaryKeys) {
+        delete byPermalink[primaryKeys._link]
+      }),
+      deleteAllVersions: co(function* ({ type, permalink }) {
+        assert(typeof type === 'string', 'expected string, "type"')
+        assert(typeof permalink === 'string', 'expected string, "permalink"')
+      }),
       latest: co(function* (props) {
         const type = props[TYPE]
         const permalink = props._permalink
@@ -267,4 +274,8 @@ function createStub ({ models=baseModels, model }) {
       signed: true
     })
   })
+}
+
+function assert (statement, errMsg) {
+  if (!statement) throw new Error(errMsg)
 }

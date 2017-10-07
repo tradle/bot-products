@@ -12,7 +12,9 @@ const stableStringify = require('json-stable-stringify')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
-const { getPropertyTitle } = validateResource.utils
+const { getPropertyTitle, parseId, parseStub, getRef } = validateResource.utils
+const VERIFICATION = 'tradle.Verification'
+const APPLICATION = 'tradle.Application'
 
 function isPromise (obj) {
   return obj && typeof obj.then === 'function'
@@ -127,13 +129,61 @@ function getRequestContext ({ req, models }) {
   })
 }
 
+function getApplicationPermalinks ({ user, models } ) {
+  const model = models.private.customer
+  return Object.keys(model.properties)
+    .reduce((applications, propertyName) => {
+      let val = user[propertyName]
+      if (!val) return applications
+
+      // coerce to array
+      val = [].concat(val)
+
+      const property = model.properties[propertyName]
+      const ref = getRef(property)
+      if (ref === APPLICATION) {
+        return applications.concat(val.map(stub => parseStub(stub).permalink))
+      }
+
+      if (ref === models.private.applicationStub.id) {
+        return applications.concat(val.map(({ statePermalink }) => statePermalink))
+      }
+
+      return applications
+    }, [])
+}
+
+function getVerificationPermalinks ({ user, models }) {
+  const model = models.private.customer
+  return Object.keys(model.properties)
+    .reduce((verifications, propertyName) => {
+      let val = user[propertyName]
+      if (!val) return verifications
+
+      // coerce to array
+      val = [].concat(val)
+
+      const ref = getRef(model.properties[propertyName])
+      if (ref === models.private.verifiedItem.id) {
+        return verifications.concat(val.map(({ permalink }) => permalink))
+      }
+
+      if (ref === VERIFICATION) {
+        return verifications.concat(val.map(stub => parseStub(stub).permalink))
+      }
+
+      return verifications
+    }, [])
+}
+
 module.exports = {
   co,
   isPromise,
   series,
   format,
   splitCamelCase,
-  parseId: validateResource.utils.parseId,
+  parseId,
+  parseStub,
   wait,
   uniq,
   omit,
@@ -151,5 +201,7 @@ module.exports = {
   stableStringify,
   createSimpleMessage,
   getContext,
-  getRequestContext
+  getRequestContext,
+  getApplicationPermalinks,
+  getVerificationPermalinks
 }

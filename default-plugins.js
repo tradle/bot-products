@@ -81,6 +81,7 @@ module.exports = function (api) {
   })
 
   const handleForm = co(function* (req) {
+    debug('handleForm start')
     const { application, object, type } = req
     if (!application) {
       debug('application is unknown, ignoring form')
@@ -88,12 +89,14 @@ module.exports = function (api) {
     }
 
     if (type === PRODUCT_REQUEST) {
+      debug('handleForm', `ignoring ${type} as it's handled by handleApplication`)
       // handled by handleApplication
       return
     }
 
     if (application && application.requestFor === REMEDIATION) return
 
+    debug('handleForm:validateForm')
     let err = plugins.exec({
       method: 'validateForm',
       args: [{
@@ -106,10 +109,12 @@ module.exports = function (api) {
     if (isPromise(err)) err = yield err
 
     if (err) {
+      debug('handleForm:requestEdit')
       yield this.requestEdit({ req, details: err })
       return
     }
 
+    debug('handleForm: addForm, continueApplication')
     this.state.addForm(req)
     yield this.continueApplication(req)
   })
