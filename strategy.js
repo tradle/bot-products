@@ -387,7 +387,10 @@ proto.addApplication = co(function* ({ req }) {
 // proxy to facilitate plugin attachment
 proto.saveApplication = function ({ user, application }) {
   this.state.updateApplicationStub({ user, application })
-  return this.bot.save(application)
+  return Promise.all([
+    this.bot.objects.put(application),
+    this.bot.save(application)
+  ])
 }
 
 proto.save = function (signedObject) {
@@ -449,10 +452,10 @@ proto.forgetUser = co(function* (req) {
   }))
 
   // don't delete the applications themselves
-  const markForgottenApplications = yield applications.map(application => {
+  const markForgottenApplications = Promise.all(applications.map(application => {
     application.forgotten = true
     return this.saveNewVersionOfApplication({ user, application })
-  })
+  }))
 
   yield [
     deleteForms,

@@ -37,6 +37,7 @@ function createFakeBot () {
   const byPermalink = {}
   const byLink = {}
   const handlers = []
+  const objects = {}
   const bot = shallowExtend(new EventEmitter(), {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
@@ -66,6 +67,16 @@ function createFakeBot () {
       process.nextTick(() => bot.emit('sent', ret))
       return ret
     }),
+    objects: {
+      get: co(function* (link) {
+        if (!objects[link]) {
+          throw new Error('NotFound')
+        }
+      }),
+      put: co(function* (item) {
+        objects[item._link] = item
+      })
+    },
     db: {
       del: co(function* (primaryKeys) {
         delete byPermalink[primaryKeys._link]
