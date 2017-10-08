@@ -11,6 +11,7 @@ const {
   createSimpleMessage
 } = require('./utils')
 
+const Commander = require('./commander')
 const STRINGS = require('./strings')
 const REMEDIATION = 'tradle.Remediation'
 const VERIFICATION = 'tradle.Verification'
@@ -27,6 +28,7 @@ const TO_SEAL = [
 module.exports = function (api) {
   const { models, plugins, state } = api
   const bizModels = models.biz
+  const commands = new Commander(api)
   const handleApplication = co(function* (req) {
     const { user, object } = req
     const { requestFor } = object
@@ -184,11 +186,24 @@ module.exports = function (api) {
     })
   }
 
+  const handleSimpleMessage = co(function* (req) {
+    const message = req.mesage.object.message.trim().toLowerCase()
+    if (message[0] === '/') {
+      return plugins.exec({
+        method: 'onCommand',
+        args: [{ req, command: message }]
+      })
+    }
+
+    return banter(req)
+  })
+
   const banter = co(function* (req) {
     const { object } = req
+    const tellMeMore = format(STRINGS.TELL_ME_MORE, object.message)
     yield this.send({
       req,
-      object: createSimpleMessage(format(STRINGS.TELL_ME_MORE, object.message))
+      object: createSimpleMessage(STRINGS.DONT_UNDERSTAND)
     })
   })
 
@@ -286,6 +301,7 @@ module.exports = function (api) {
   }
 
   const defaults = {
+    onCommand: commands.exec.bind(commands),
     deduceApplication,
     willSend,
     didSend,
@@ -317,7 +333,7 @@ module.exports = function (api) {
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,
-    'tradle.SimpleMessage': banter,
+    'tradle.SimpleMessage': handleSimpleMessage,
     'tradle.CustomerWaiting': api.sendProductList,
     'tradle.ForgetMe': api.forgetUser,
     // onUnhandledMessage: noComprendo
