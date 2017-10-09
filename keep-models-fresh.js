@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const co = require('co').wrap
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
-const { isPromise, stableStringify } = require('./utils')
+const { isPromise, stableStringify, shallowClone } = require('./utils')
 const defaultPropertyName = 'modelsHash'
 
 function defaultGetIdentifier (req) {
@@ -82,7 +82,33 @@ module.exports = function keepModelsFresh ({
     })
     .toJSON()
 
-    yield send({ req, object: pack })
+    const split = splitPack(pack)
+    yield split.map(subPack => send({ req, object: subPack }))
+  })
+}
+
+function splitPack (pack) {
+  const { models } = pack
+  let batch = []
+  let batchLength = 0
+  const batches = [batch]
+  for (const model of models) {
+    // keep under 128KB
+    // leave some breathing room
+    if (batchLength > 126000) {
+      batch = []
+      batchLength = 0
+      batches.push(batch)
+    }
+
+    batch.push(model)
+    batchLength += byteLength(model)
+  }
+
+  return batches.map(batch => {
+    return shallowClone(pack, {
+      models: batch
+    })
   })
 }
 
@@ -95,4 +121,8 @@ function toModelsMap (models) {
   }
 
   return obj
+}
+
+function byteLength (obj) {
+  return Buffer.byteLength(JSON.stringify(obj))
 }
