@@ -318,10 +318,9 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
-proto.rawSend = function ({ req, to, object, other={} }) {
+proto.rawSend = function ({ req, to, link, object, other={} }) {
   debug(`sending ${object[TYPE]} to ${to}`)
-  this.bot.presignEmbeddedMediaLinks(object)
-  return this.bot.send({ to, object, other })
+  return this.bot.send({ to, link, object, other })
 }
 
 proto.seal = function seal (req) {
@@ -329,7 +328,7 @@ proto.seal = function seal (req) {
   return this.bot.seal({ link })
 }
 
-proto.send = co(function* ({ req, application, to, object, other={} }) {
+proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   typeforce(types.request, req)
 
   if (to.id) to = to.id
@@ -338,12 +337,12 @@ proto.send = co(function* ({ req, application, to, object, other={} }) {
     application = req.application
   }
 
-  if (typeof object !== 'object') {
-    throw new Error('expected object')
-  }
-
-  if (!object[SIG]) {
-    object = yield this.sign(object)
+  if (object) {
+    if (!object[SIG]) {
+      object = yield this.sign(object)
+    }
+  } else if (!link) {
+    throw new Error('expected "link" or "object"')
   }
 
   if (!other.context && application) {
@@ -351,7 +350,7 @@ proto.send = co(function* ({ req, application, to, object, other={} }) {
   }
 
   debug(`queueing send to ${to}`)
-  const opts = { req, to, object, other }
+  const opts = { req, to, link, object, other }
   if (req.message) {
     // this request is based on an incoming message
     // so we can try to batch the sends at the end (maybe)
