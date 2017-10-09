@@ -319,7 +319,7 @@ proto.removeDefaultHandlers = function () {
 }
 
 proto.rawSend = function ({ req, to, link, object, other={} }) {
-  debug(`sending ${object[TYPE]} to ${to}`)
+  debug(`sending ${object ? object[TYPE] : link} to ${to}`)
   return this.bot.send({ to, link, object, other })
 }
 

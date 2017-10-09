@@ -112,7 +112,7 @@ function createSimpleMessage (message) {
 }
 
 function getContext ({ model, resource }) {
-  const interfaces = model.interfaces
+  const { interfaces } = model
   if (interfaces && interfaces.includes('tradle.Context')) {
     return resource.contextId
   }

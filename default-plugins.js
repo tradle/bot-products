@@ -229,10 +229,13 @@ module.exports = function (api) {
     yield api.seal(sealOpts)
   })
 
-  function willSend (opts) {
-    const { req, to } = opts
+  const willSend = co(function* (opts) {
+    const { req, to, link, object } = opts
     if (!to) opts.to = req.user
-  }
+    if (link && !object) {
+      opts.object = yield this.bot.objects.get(link)
+    }
+  })
 
   function deduceApplication (data) {
     const { user, context, type } = data
