@@ -268,6 +268,8 @@ module.exports = function stateMutater ({ models }) {
       builder.set('dateVerified', new Date().getTime())
     }
 
+    builder.set('time', builder.get('dateVerified'))
+
     if (!verification.sources) {
       const sources = user.importedVerifications.map(v => {
         const { id } = v.verifiedItem
