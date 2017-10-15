@@ -424,10 +424,10 @@ proto.forgetUser = co(function* (req) {
 
   // verifications aren't versioned at the moment
   // so _link === _permalink
-  const deleteVerifications = Promise.all(verifications.map(_link => {
+  const deleteVerifications = Promise.all(verifications.map(_permalink => {
     return db.del({
       [TYPE]: VERIFICATION,
-      _link
+      _permalink
     })
   }))
 
@@ -443,10 +443,10 @@ proto.forgetUser = co(function* (req) {
     return all.concat(forms.map(parseStub))
   }, [])
 
-  const deleteForms = Promise.all(forms.map(({ type, link }) => {
+  const deleteForms = Promise.all(forms.map(({ type, permalink }) => {
     return db.del({
       [TYPE]: type,
-      _link: link
+      _permalink: permalink
     })
   }))
 
