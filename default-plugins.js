@@ -161,10 +161,14 @@ module.exports = function (api) {
   })
 
   function sendApplicationSubmitted (req) {
-    const { user, application } = req
+    const { application } = req
+    const message = application.dateCompleted
+      ? STRINGS.APPLICATION_UPDATED
+      : STRINGS.APPLICATION_SUBMITTED
+
     return this.send({
       req,
-      object: createSimpleMessage(STRINGS.APPLICATION_SUBMITTED)
+      object: createSimpleMessage(message)
     })
   }
 
@@ -280,8 +284,8 @@ module.exports = function (api) {
     willRequestForm,
     onPendingApplicationCollision,
     onFormsCollected: [
-      setCompleted,
       sendApplicationSubmitted,
+      setCompleted,
       // api.approveApplication
     ]
   }

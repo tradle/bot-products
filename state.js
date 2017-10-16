@@ -211,7 +211,11 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function updateApplication ({ application, properties }) {
+  function updateApplication ({ application, properties={} }) {
+    if (!properties.dateModified) {
+      properties.dateModified = Date.now()
+    }
+
     buildResource.set({
       models: models.all,
       model: models.private.application,
@@ -223,6 +227,8 @@ module.exports = function stateMutater ({ models }) {
   }
 
   function setApplicationStatus ({ application, status }) {
+    if (status === application.status) return
+
     const now = Date.now()
     const properties = { status, dateModified: now }
     switch (status) {
