@@ -176,6 +176,8 @@ proto._execBubble = function _execBubble (method, ...args) {
 
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
+  req.productsAPI = this
+
   const { user } = data
   const { state, models } = this
   if (!user.identity) {
