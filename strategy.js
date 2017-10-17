@@ -591,6 +591,7 @@ proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
 
   if (requestFor) itemRequest.requestFor = requestFor
   if (chooser) itemRequest.chooser = chooser
+  if (req.context) itemRequest.context = req.context
 
   yield this._exec('willRequestForm', {
     req,
@@ -631,14 +632,24 @@ proto.requestEdit = co(function* ({ req, user, object, details }) {
   }
 
   debug(`requesting edit for form ${object[TYPE]}`)
-  yield this.send({
-    req,
-    object: {
-      _t: 'tradle.FormError',
+  const formError = buildResource({
+    models: this.models.all,
+    model: 'tradle.FormError',
+    resource: {
       prefill: omit(object, '_s'),
       message,
       errors
     }
+  })
+  .toJSON()
+
+  if (req.context) {
+    formError.context = req.context
+  }
+
+  yield this.send({
+    req,
+    object: formError
   })
 })
 
