@@ -1,9 +1,4 @@
 
-const HELP_MENU = `
-**/help** - see this menu
-**/products** - see the list of products
-`
-
 module.exports = {
   PLEASE_FILL_FORM: 'Please fill out the form **{0}**',
   PLEASE_GET_THIS_PREREQUISITE_PRODUCT: 'Looks like you\'ll need to get one of these first...somewhere else',
@@ -24,6 +19,5 @@ module.exports = {
   ANOTHER: 'Another {0}? Whooah!!',
   PRODUCT_LIST_MESSAGE: 'See a list of products',
   PRODUCT_APPLICATION: 'Product Application',
-  AGE_VERIFICATION: 'Age Verification',
-  HELP_MENU
+  AGE_VERIFICATION: 'Age Verification'
 }

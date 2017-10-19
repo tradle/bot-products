@@ -187,7 +187,7 @@ module.exports = function (api) {
   }
 
   const handleSimpleMessage = co(function* (req) {
-    const message = req.mesage.object.message.trim().toLowerCase()
+    const message = req.message.object.message.trim().toLowerCase()
     if (message[0] === '/') {
       return plugins.exec({
         method: 'onCommand',
@@ -195,17 +195,17 @@ module.exports = function (api) {
       })
     }
 
-    return banter(req)
+    // return banter(req)
   })
 
-  const banter = co(function* (req) {
-    const { object } = req
-    const tellMeMore = format(STRINGS.TELL_ME_MORE, object.message)
-    yield this.send({
-      req,
-      object: createSimpleMessage(STRINGS.DONT_UNDERSTAND)
-    })
-  })
+  // const banter = co(function* (req) {
+  //   const { object } = req
+  //   const tellMeMore = format(STRINGS.TELL_ME_MORE, object.message)
+  //   yield this.send({
+  //     req,
+  //     object: createSimpleMessage(STRINGS.DONT_UNDERSTAND)
+  //   })
+  // })
 
   function willRequestForm ({ formRequest }) {
     const model = models.all[formRequest.form]

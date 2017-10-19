@@ -5,6 +5,10 @@ const {
 } = require('./utils')
 
 const STRINGS = require('./strings')
+const HELP_MENU = `**/help** - see this menu
+**/products** - see the list of products
+**/forgetme** - exercise your right to be forgotten
+`
 
 module.exports = Commander
 
@@ -17,7 +21,7 @@ proto.exec = co(function* ({ req, command }) {
   let resp
   switch (command) {
   case '/help':
-    resp = STRINGS.HELP_MENU
+    resp = HELP_MENU
     break
   case '/products':
     return this.api.sendProductList(req)
