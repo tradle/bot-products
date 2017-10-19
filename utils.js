@@ -9,6 +9,7 @@ const pick = require('object.pick')
 const omit = require('object.omit')
 const uniq = require('uniq')
 const stableStringify = require('json-stable-stringify')
+const { TYPE } = require('@tradle/constants')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
@@ -176,6 +177,32 @@ function getVerificationPermalinks ({ user, models }) {
     }, [])
 }
 
+function getNameFromForm (form) {
+  switch (form[TYPE]) {
+  case 'tradle.SelfIntroduction':
+  case 'tradle.Introduction':
+  case 'tradle.IdentityPublishRequest':
+    let { name, profile } = form
+    if (!name && profile) {
+      name = profile.name
+    }
+
+    let normalized = normalizeNameProps(name || profile)
+    return normalized.firstName || normalized.lastName
+      ? normalized
+      : null
+  case 'tradle.Name'
+    return normalizeNameProps(form)
+  }
+}
+
+function normalizeNameProps (props) {
+  return {
+    firstName: props.firstName || props.givenName,
+    lastName: props.lastName || props.surname
+  }
+}
+
 module.exports = {
   co,
   isPromise,
@@ -203,5 +230,6 @@ module.exports = {
   getContext,
   getRequestContext,
   getApplicationPermalinks,
-  getVerificationPermalinks
+  getVerificationPermalinks,
+  getNameFromForm
 }

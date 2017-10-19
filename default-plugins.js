@@ -161,7 +161,7 @@ module.exports = function (api) {
   }
 
   const saveName = co(function* (req) {
-    const { user, object } = req
+    const { user, object, application } = req
     if (!object.profile) return
 
     const { firstName } = user
@@ -172,6 +172,14 @@ module.exports = function (api) {
         object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
       })
     }
+
+    // if (user.firstName) {
+    //   application.firstName = user.firstName
+    // }
+
+    // if (user.lastName) {
+    //   application.lastName = user.lastName
+    // }
   })
 
   function sendApplicationSubmitted (req) {
@@ -330,6 +338,7 @@ module.exports = function (api) {
       saveName,
       api.sendProductList
     ],
+    // 'tradle.Name': saveName,
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,

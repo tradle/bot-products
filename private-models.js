@@ -186,6 +186,9 @@ module.exports = namespace => {
     title: 'Customer',
     id: `${namespace}.Customer`,
     properties: {
+      firstName: {
+        type: 'string'
+      },
       lastName: {
         type: 'string'
       },
@@ -232,12 +235,6 @@ module.exports = namespace => {
           type: 'object',
           ref: verifiedItem.id
         }
-      },
-      givenName: {
-        type: 'string'
-      },
-      surname: {
-        type: 'string'
       },
       roles: {
         type: 'array',
