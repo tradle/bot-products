@@ -80,6 +80,18 @@ module.exports = function (api) {
     yield this.continueApplication(req)
   })
 
+  const onRequestForExistingProduct = co(function* (req) {
+    // to allow the 2nd application, uncomment:
+    // yield api.addApplication({ req })
+
+    const type = req.object.requestFor
+    const model = models.all[type]
+    yield api.send({
+      req,
+      object: format(STRINGS.ALREADY_HAVE_PRODUCT, model.title)
+    })
+  })
+
   const handleForm = co(function* (req) {
     debug('handleForm start')
     const { application, object, type } = req
@@ -283,6 +295,7 @@ module.exports = function (api) {
     validateForm,
     willRequestForm,
     onPendingApplicationCollision,
+    onRequestForExistingProduct,
     onFormsCollected: [
       sendApplicationSubmitted,
       setCompleted,

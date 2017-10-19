@@ -5,6 +5,7 @@ module.exports = {
   NO_COMPRENDO: 'Huh? What\'s a "{0}"? I only understand simple messages. One day, when I\'m a real boy...',
   // HOT_NAME: '{0}, eh? Hot name!',
   GOT_PRODUCT: 'Yes! You got a {0}. You know, we don\'t give those out to just anybody',
+  ALREADY_HAVE_PRODUCT: 'You already have a {0}!',
   APPLICATION_NOT_FOUND: 'Hm, application not found. Please re-apply, but be happy about it!',
   APPLICATION_SUBMITTED: 'Application submitted!',
   APPLICATION_UPDATED: 'Application updated!',
