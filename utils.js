@@ -191,7 +191,7 @@ function getNameFromForm (form) {
     return normalized.firstName || normalized.lastName
       ? normalized
       : null
-  case 'tradle.Name'
+  case 'tradle.Name':
     return normalizeNameProps(form)
   }
 }

@@ -95,7 +95,8 @@ function splitPack (pack) {
   for (const model of models) {
     // keep under 128KB
     // leave some breathing room
-    if (batchLength > 126000) {
+    // as this might be wrapped in another message
+    if (batchLength > 100000) {
       batch = []
       batchLength = 0
       batches.push(batch)
