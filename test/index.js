@@ -15,6 +15,8 @@ const createProductsStrategy = require('../')
 const createDefiner = require('../definer')
 const { pick } = require('../utils')
 const messageInterface = require('../message-interface')
+const botIdentity = require('./fixtures/bot-identity')
+const userIdentity = require('./fixtures/user-identity')
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
 const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const {
@@ -24,7 +26,7 @@ const {
   hex32,
   newSig,
   fakeBot,
-  createIdentityStub
+  // createIdentityStub
 } = require('./helpers')
 
 const TEST_PRODUCT = {
@@ -94,7 +96,12 @@ test('addProducts', function (t) {
 
 test('state', loudCo(function* (t) {
   const namespace = 'test.namespace'
-  const identityStub = createIdentityStub()
+  const identityStub = buildResource.stub({
+    model: 'tradle.Identity',
+    models: baseModels,
+    resource: userIdentity
+  })
+
   const user = {
     id: 'bob',
     identity: identityStub
@@ -110,7 +117,7 @@ test('state', loudCo(function* (t) {
     products: productModels.map(model => model.id)
   })
 
-  const { bot } = fakeBot({ user })
+  const { bot } = fakeBot()
   const {
     state,
     models,
@@ -203,6 +210,8 @@ test('basic form loop', loudCo(function* (t) {
   const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
   const {
     bot,
+    botIdentity,
+    userIdentity,
     api,
     applyForProduct,
     awaitBotResponse,
@@ -402,10 +411,10 @@ test('basic form loop', loudCo(function* (t) {
   })
 
   const selfIntroResp = yield receiveFromUser({
-    object: fakeResource({
-      models: models.all,
-      model: models.all[SELF_INTRODUCTION]
-    }),
+    object: {
+      [TYPE]: SELF_INTRODUCTION,
+      identity: userIdentity
+    },
     awaitResponse: true
   })
 

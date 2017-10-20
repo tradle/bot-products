@@ -7,6 +7,8 @@ const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const fakeResource = require('@tradle/build-resource/fake')
 const createProductsStrategy = require('../')
+const botIdentity = require('./fixtures/bot-identity')
+const userIdentity = require('./fixtures/user-identity')
 const baseModels = require('../base-models')
 const FORM_REQ = 'tradle.FormRequest'
 const {
@@ -24,16 +26,19 @@ module.exports = {
   newSig,
   toObject,
   hex32,
-  createIdentityStub,
+  // createIdentityStub,
   createStub
 }
 
-function createFakeBot () {
+function createFakeBot (opts={
+  botIdentity,
+  userIdentity
+}) {
   const user = {
-    id: 'bill'
+    id: userIdentity._permalink
   }
 
-  const botId = 'ted'
+  const botId = botIdentity._permalink
   const byPermalink = {}
   const byLink = {}
   const handlers = []
@@ -104,8 +109,8 @@ function createFakeBot () {
 function formLoop ({ models, products }) {
   let linkCounter = 0
   const productModels = products.map(id => models[id])
-  const from = 'bill'
-  const to = 'ted'
+  const from = botIdentity._permalink
+  const to = userIdentity._permalink
   const user = {
     id: to
   }
@@ -203,6 +208,8 @@ function formLoop ({ models, products }) {
 
   return {
     bot,
+    botIdentity,
+    userIdentity,
     api: productsAPI,
     plugins: productsAPI.plugins,
     models: productsAPI.models,

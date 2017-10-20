@@ -157,7 +157,14 @@ module.exports = function (api) {
   })
 
   function saveIdentity ({ user, object }) {
-    this.state.setIdentity({ user, identity: object.identity })
+    const { identity } = object
+    if (buildResource.permalink(identity) === user.id) {
+      debug(`saving user ${user.id} identity`)
+      // relies on validation of proper versioning elsewhere in the stack
+      this.state.setIdentity({ user, identity })
+    } else {
+      debug(`not saving user ${user.id} identity`)
+    }
   }
 
   const saveName = co(function* (req) {
