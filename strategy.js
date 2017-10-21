@@ -348,10 +348,12 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   }
 
   if (!other.context && application) {
-    other.context = this.state.getApplicationContext(application)
+    const context = this.state.getApplicationContext(application)
+    debug(`send: setting context ${context} from application ${application._permalink} for ${application.requestFor}`)
+    other.context = context
   }
 
-  debug(`queueing send to ${to}`)
+  debug(`send: queueing to ${to}, context: ${other.context}`)
   const opts = { req, to, link, object, other }
   if (req.message) {
     // this request is based on an incoming message
@@ -612,6 +614,7 @@ proto.sendProductList = co(function* (req) {
     item: PRODUCT_REQUEST,
     chooser: {
       property: 'requestFor',
+      // TODO: prefill each choice with "context" property
       oneOf: this.models.biz.products.slice()
     }
   })
