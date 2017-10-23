@@ -419,7 +419,7 @@ proto.continueApplication = co(function* (req) {
 
 proto.forgetUser = co(function* (req) {
   const { user } = req
-  debug(`clearing user state: ${this._forgettableProps.join(', ')}`)
+  debug(`forgetUser: clearing user state: ${this._forgettableProps.join(', ')}`)
 
   const { bot, models } = this
   const { db } = bot
@@ -429,6 +429,7 @@ proto.forgetUser = co(function* (req) {
   // verifications aren't versioned at the moment
   // so _link === _permalink
   const deleteVerifications = Promise.all(verifications.map(_permalink => {
+    debug(`forgetUser: deleting verification: ${_permalink}`)
     return db.del({
       [TYPE]: VERIFICATION,
       _permalink
@@ -448,6 +449,7 @@ proto.forgetUser = co(function* (req) {
   }, [])
 
   const deleteForms = Promise.all(forms.map(({ type, permalink }) => {
+    debug(`forgetUser: deleting form ${type}: ${permalink}`)
     return db.del({
       [TYPE]: type,
       _permalink: permalink
@@ -456,6 +458,7 @@ proto.forgetUser = co(function* (req) {
 
   // don't delete the applications themselves
   const markForgottenApplications = Promise.all(applications.map(application => {
+    debug(`forgetUser: archiving application for ${application.requestFor}: ${application._permalink} `)
     application.forgotten = true
     return this.saveNewVersionOfApplication({ user, application })
   }))
