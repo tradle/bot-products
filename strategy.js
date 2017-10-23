@@ -419,7 +419,7 @@ proto.continueApplication = co(function* (req) {
 
 proto.forgetUser = co(function* (req) {
   const { user } = req
-  debug(`forgetUser: clearing user state: ${this._forgettableProps.join(', ')}`)
+  debug(`forgetUser: clearing user state for ${user.id}: ${this._forgettableProps.join(', ')}`)
 
   const { bot, models } = this
   const { db } = bot
@@ -459,7 +459,7 @@ proto.forgetUser = co(function* (req) {
   // don't delete the applications themselves
   const markForgottenApplications = Promise.all(applications.map(application => {
     debug(`forgetUser: archiving application for ${application.requestFor}: ${application._permalink} `)
-    application.forgotten = true
+    application.archived = true
     return this.saveNewVersionOfApplication({ user, application })
   }))
 
