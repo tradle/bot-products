@@ -120,8 +120,20 @@ proto.install = function (bot) {
 }
 
 proto.addProducts = function addProducts ({ models, products }) {
+  const newAllModels = shallowClone(this.models.all, models ? models.all : {})
+  products.forEach(id => {
+    const model = newAllModels[id]
+    if (!model) {
+      throw new Error(`missing model for product ${id}`)
+    }
+
+    if (model.subClassOf !== 'tradle.FinancialProduct') {
+      throw new Error(`${id} is not a product!`)
+    }
+  })
+
   this.models.biz = Gen.applicationModels({
-    models: shallowClone(this.models.all, models ? models.all : {}),
+    models: newAllModels,
     products: uniq(products.concat(this.products)),
     namespace: this.namespace
   })
