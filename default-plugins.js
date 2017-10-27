@@ -202,7 +202,7 @@ module.exports = function (api) {
   }
 
   const handleSimpleMessage = co(function* (req) {
-    const message = req.message.object.message.trim().toLowerCase()
+    const { message } = req.message.object
     if (message[0] === '/') {
       return plugins.exec({
         method: 'onCommand',
