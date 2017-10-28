@@ -21,28 +21,28 @@ module.exports = namespace => {
     }
   }
 
-  const verifiedItem = {
-    type: 'tradle.Model',
-    title: 'Verified Item',
-    id: `${namespace}.VerifiedItem`,
-    inlined: true,
-    properties: {
-      time: {
-        type: 'number',
-      },
-      link: {
-        type: 'string'
-      },
-      permalink: {
-        type: 'string'
-      },
-      verifiedItem: {
-        type: 'object',
-        inlined: true,
-        ref: item.id
-      }
-    }
-  }
+  // const verifiedItem = {
+  //   type: 'tradle.Model',
+  //   title: 'Verified Item',
+  //   id: `${namespace}.VerifiedItem`,
+  //   inlined: true,
+  //   properties: {
+  //     time: {
+  //       type: 'number',
+  //     },
+  //     link: {
+  //       type: 'string'
+  //     },
+  //     permalink: {
+  //       type: 'string'
+  //     },
+  //     verifiedItem: {
+  //       type: 'object',
+  //       inlined: true,
+  //       ref: item.id
+  //     }
+  //   }
+  // }
 
   // const formState = {
   //   type: 'tradle.Model',
@@ -220,22 +220,6 @@ module.exports = namespace => {
           ref: applicationStub.id
         }
       },
-      issuedVerifications: {
-        type: 'array',
-        inlined: true,
-        items: {
-          type: 'object',
-          ref: verifiedItem.id
-        }
-      },
-      importedVerifications: {
-        type: 'array',
-        inlined: true,
-        items: {
-          type: 'object',
-          ref: verifiedItem.id
-        }
-      },
       roles: {
         type: 'array',
         items: {
@@ -258,7 +242,7 @@ module.exports = namespace => {
     applicationStub,
     role,
     item,
-    verifiedItem
+    // verifiedItem
   }
 
   const all = {}

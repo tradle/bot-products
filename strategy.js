@@ -212,6 +212,12 @@ proto._onmessage = co(function* (data) {
     debug(`failed to process incoming message from ${userId}`, err)
     throw err
   } finally {
+    try {
+      yield this._exec('didReceive', req)
+    } catch (err) {
+      debug('didReceive failed', err.stack)
+    }
+
     const sendQueue = req.sendQueue.slice()
     const n = sendQueue.length
     if (n) {
@@ -418,6 +424,10 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
+proto.importVerification = co(function* (req) {
+  this.state.importVerification(req)
+})
+
 proto.continueApplication = co(function* (req) {
   debug('continueApplication')
   const { application } = req
@@ -436,18 +446,6 @@ proto.forgetUser = co(function* (req) {
   const { bot, models } = this
   const { db } = bot
   const applicationPermalinks = getApplicationPermalinks({ user, models })
-  const verifications = getVerificationPermalinks({ user, models })
-
-  // verifications aren't versioned at the moment
-  // so _link === _permalink
-  const deleteVerifications = Promise.all(verifications.map(_permalink => {
-    debug(`forgetUser: deleting verification: ${_permalink}`)
-    return db.del({
-      [TYPE]: VERIFICATION,
-      _permalink
-    })
-  }))
-
   const applications = yield applicationPermalinks.map(_permalink => {
     return db.latest({
       [TYPE]: APPLICATION,
@@ -455,12 +453,17 @@ proto.forgetUser = co(function* (req) {
     })
   })
 
-  const forms = applications.reduce((all, application) => {
-    const { forms=[] } = application
-    return all.concat(forms.map(parseStub))
+  const formsAndVerifications = applications.reduce((all, application) => {
+    const { forms=[], verificationsIssued=[], verificationsImported=[] } = application
+    const verifications = verificationsIssued
+      .concat(verificationsImported)
+      .map(({ item }) => item)
+
+    const stubs = forms.concat(verifications)
+    return all.concat(stubs.map(parseStub))
   }, [])
 
-  const deleteForms = Promise.all(forms.map(({ type, permalink }) => {
+  const deleteFormsAndVerifications = Promise.all(formsAndVerifications.map(({ type, permalink }) => {
     debug(`forgetUser: deleting form ${type}: ${permalink}`)
     return db.del({
       [TYPE]: type,
@@ -476,8 +479,7 @@ proto.forgetUser = co(function* (req) {
   }))
 
   yield [
-    deleteForms,
-    deleteVerifications,
+    deleteFormsAndVerifications,
     markForgottenApplications
   ]
 
@@ -497,19 +499,32 @@ proto.forgetUser = co(function* (req) {
   })
 })
 
-proto.verify = co(function* ({ req, user, object, verification={} }) {
+proto.verify = co(function* ({ req, user, application, object, verification={}, send }) {
   if (!user) user = req.user
   if (!object) object = req.object
+  if (!application) application = req.application
+
+  if (!(user && object && application)) {
+    throw new Error('expected "user", "object", and "application"')
+  }
 
   const { bot, state } = this
   if (typeof user === 'string') {
     user = yield bot.users.get(user)
   }
 
-  debug(`verifying ${object[TYPE]} of user ${user.id}`)
-  const unsigned = state.createVerification({ req, object, verification })
-  verification = yield this.send({ req, object: unsigned })
-  state.addVerification({ user, object, verification })
+  debug(`verifying ${object[TYPE]} of user ${user.id} for application ${application._permalink}`)
+  debug(`sending verification to user right away: ${!!send}`)
+
+  const unsigned = state.createVerification({ req, application, object, verification })
+  if (send) {
+    verification = yield this.send({ req, object: unsigned })
+  } else {
+    verification = yield this.sign(unsigned)
+    yield bot.save(verification)
+  }
+
+  state.addVerification({ user, application, object, verification })
   return verification
 })
 
@@ -531,6 +546,13 @@ proto.denyApplication = co(function* ({ req, user, application }) {
   this.state.setApplicationStatus({ application, status: 'denied' })
   this.state.moveToDenied({ user, application })
   return this.send({ req, to: user, object: denial })
+})
+
+proto.sendVerifications = co(function* ({ req, to, application }) {
+  const { verificationsIssued=[] } = application
+  yield Promise.all(verificationsIssued.map(({ link }) => {
+    return this.send({ req, to, link })
+  }))
 })
 
 proto.approveApplication = co(function* ({ req, user, application }) {

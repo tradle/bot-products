@@ -15,6 +15,7 @@ const {
 
 const baseModels = require('./base-models')
 const VERIFICATION = 'tradle.Verification'
+const VERIFIED_ITEM = 'tradle.VerifiedItem'
 
 module.exports = function stateMutater ({ models }) {
 
@@ -137,17 +138,15 @@ module.exports = function stateMutater ({ models }) {
     return obj._time || obj.time || (message && message.time) || Date.now()
   }
 
-  function importVerification ({ user, object }) {
-    addVerification({ user, verification: object, imported: true })
+  function importVerification ({ user, application, object }) {
+    addVerification({ user, application, verification: object, imported: true })
   }
 
   function createVerifiedItem ({ verification }) {
-    return build(privateModels.verifiedItem)
+    return build(allModels[VERIFIED_ITEM])
       .set({
-        time: getTime(verification),
-        link: verification._link,
-        permalink: verification._permalink,
-        verifiedItem: verification.document
+        verification,
+        item: verification.document
       })
       .toJSON()
   }
@@ -263,7 +262,7 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  function createVerification ({ req, user, object, verification={} }) {
+  function createVerification ({ req, user, application, object, verification={} }) {
     if (!user) user = req.user
 
     const builder = build(baseModels[VERIFICATION])
@@ -276,9 +275,10 @@ module.exports = function stateMutater ({ models }) {
 
     builder.set('time', builder.get('dateVerified'))
 
-    if (!verification.sources) {
-      const sources = user.importedVerifications.map(v => {
-        const { id } = v.verifiedItem
+    if (!verification.sources && application) {
+      const { verificationsImported=[] } = application
+      const sources = verificationsImported.map(verifiedItem => {
+        const { id } = verifiedItem.item
         const { link } = parseId(id)
         if (link === object._link) {
           return id
@@ -294,12 +294,24 @@ module.exports = function stateMutater ({ models }) {
     return builder.toJSON()
   }
 
-  function addVerification ({ user, verification, imported }) {
+  function addVerification ({ user, application, verification, imported }) {
+    if (!application) {
+      throw new Error('expected "application"')
+    }
+
     const vItem = createVerifiedItem({ verification })
     if (imported) {
-      user.importedVerifications.push(vItem)
+      if (!application.verificationsImported) {
+        application.verificationsImported = []
+      }
+
+      application.verificationsImported.push(vItem)
     } else {
-      user.issuedVerifications.push(vItem)
+      if (!application.verificationsIssued) {
+        application.verificationsIssued = []
+      }
+
+      application.verificationsIssued.push(vItem)
     }
 
     validateCustomer(user)

@@ -151,10 +151,7 @@ module.exports = function (api) {
     return err
   }
 
-  const handleVerification = co(function* (req) {
-    this.state.importVerification(req)
-    // yield this.continueApplication(req)
-  })
+  const handleVerification = api.importVerification.bind(api)
 
   function saveIdentity ({ user, object }) {
     const { identity } = object

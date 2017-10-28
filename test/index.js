@@ -141,8 +141,6 @@ test('state', loudCo(function* (t) {
     applicationsApproved: [],
     applicationsDenied: [],
     // forms: [],
-    importedVerifications: [],
-    issuedVerifications: []
   })
 
   const application = yield bot.sign(state.createApplication({
@@ -172,12 +170,14 @@ test('state', loudCo(function* (t) {
     if (i === 0) {
       state.importVerification({
         user,
+        application,
         object: createSignedVerification({ user, state, form: signedForm })
       })
     }
 
     state.addVerification({
       user,
+      application,
       verification: createSignedVerification({ user, state, form: signedForm })
     })
   })
@@ -197,8 +197,8 @@ test('state', loudCo(function* (t) {
 
   t.equal(user.applications.length, 0)
   t.equal(user.applicationsApproved.length, 1)
-  t.equal(user.issuedVerifications.length, productModel.forms.length)
-  t.equal(user.importedVerifications.length, 1)
+  t.equal(application.verificationsIssued.length, productModel.forms.length)
+  t.equal(application.verificationsImported.length, 1)
   // t.equal(user.forms.length, productModel.forms.length)
   // t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
   t.ok(user.applicationsApproved.every(f => f[TYPE] === privateModels.applicationStub.id))
@@ -331,9 +331,13 @@ test('basic form loop', loudCo(function* (t) {
       response = result.response
       yield api.verify({
         req: api.state.newRequestState({
-          user
+          user,
+          application: yield api.getApplicationByStub(user.applications[0] ||
+            user.applicationsApproved[0] ||
+            user.applicationsDenied[0])
         }),
-        object: result.request.object
+        object: result.request.object,
+        send: true
       })
 
       yield awaitBotResponse('tradle.Verification')
@@ -541,6 +545,7 @@ function createSignedVerification ({ state, user, form }) {
     object: form
   })
 
+  verification[SIG] = newSig()
   const vLink = hex32()
   buildResource.setVirtual(verification, {
     _link: vLink,
