@@ -407,6 +407,7 @@ proto.addApplication = co(function* ({ req }) {
 
 // proxy to facilitate plugin attachment
 proto.saveApplication = function ({ user, application }) {
+  application._time = application.dateModified
   this.state.updateApplicationStub({ user, application })
   return Promise.all([
     this.bot.objects.put(application),
