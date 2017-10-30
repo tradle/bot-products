@@ -140,6 +140,7 @@ test('state', loudCo(function* (t) {
     applications: [],
     applicationsApproved: [],
     applicationsDenied: [],
+    historySummary: []
     // forms: [],
   })
 
@@ -171,7 +172,7 @@ test('state', loudCo(function* (t) {
       state.importVerification({
         user,
         application,
-        object: createSignedVerification({ user, state, form: signedForm })
+        verification: createSignedVerification({ user, state, form: signedForm })
       })
     }
 

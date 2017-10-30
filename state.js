@@ -138,8 +138,8 @@ module.exports = function stateMutater ({ models }) {
     return obj._time || obj.time || (message && message.time) || Date.now()
   }
 
-  function importVerification ({ user, application, object }) {
-    addVerification({ user, application, verification: object, imported: true })
+  function importVerification ({ user, application, verification }) {
+    addVerification({ user, application, verification, imported: true })
   }
 
   function createVerifiedItem ({ verification }) {

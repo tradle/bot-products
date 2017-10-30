@@ -19,5 +19,6 @@ module.exports = {
   ANOTHER: 'Another {0}? Whooah!!',
   PRODUCT_LIST_MESSAGE: 'See a list of products',
   PRODUCT_APPLICATION: 'Product Application',
-  AGE_VERIFICATION: 'Age Verification'
+  AGE_VERIFICATION: 'Age Verification',
+  PRODUCT_LIST_LABEL: 'pl'
 }

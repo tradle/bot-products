@@ -43,6 +43,12 @@ const VERIFICATION = 'tradle.Verification'
 const FORGOT_YOU = 'tradle.ForgotYou'
 const FORM_REQUEST = 'tradle.FormRequest'
 const PRODUCT_REQUEST = 'tradle.ProductRequest'
+const HISTORY_OPTS = {
+  inbound: 3,
+  outbound: 3,
+  max: 10
+}
+
 const types = {
   request: typeforce.compile({
     user: typeforce.Object,
@@ -186,6 +192,35 @@ proto._execBubble = function _execBubble (method, ...args) {
   return Promise.resolve(this.plugins.exec(opts))
 }
 
+proto._updateHistorySummary = function _updateHistorySummary ({
+  user,
+  object,
+  inbound,
+  label
+}) {
+  if (!label) {
+    label = this.plugins.exec({
+      method: 'getMessageLabel',
+      args: [{ user, object, inbound }],
+      returnResult: true
+    })
+  }
+
+  const type = object[TYPE]
+  const { historySummary=[] } = user
+  const item = { type }
+  if (inbound) item.inbound = inbound
+  if (label) item.label = label
+
+  historySummary.push(item)
+
+  while (historySummary.length > HISTORY_OPTS.length) {
+    historySummary.shift()
+  }
+
+  user.historySummary = historySummary
+}
+
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
   req.productsAPI = this
@@ -203,6 +238,11 @@ proto._onmessage = co(function* (data) {
 
   req.models = models
   req.context = getRequestContext({ req, models: models.all })
+  this._updateHistorySummary({
+    user,
+    object: req.object,
+    inbound: true
+  })
 
   // make a defensive copy
   const userId = data.user.id
@@ -372,6 +412,12 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   }
 
   debug(`send: queueing to ${to}, context: ${other.context}`)
+  this._updateHistorySummary({
+    user: req.user,
+    object: object,
+    inbound: false
+  })
+
   const opts = { req, to, link, object, other }
   if (req.message) {
     // this request is based on an incoming message
@@ -425,8 +471,11 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.importVerification = co(function* (req) {
-  this.state.importVerification(req)
+proto.importVerification = co(function* ({ req, user, application, verification }) {
+  if (!user) user = req.user
+  if (!application) application = req.application
+  if (!verification) verification = req.object
+  this.state.importVerification({ user, application, verification })
 })
 
 proto.continueApplication = co(function* (req) {

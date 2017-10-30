@@ -21,6 +21,25 @@ module.exports = namespace => {
     }
   }
 
+  const historyItem = {
+    type: 'tradle.Model',
+    title: 'History Item',
+    id: `${namespace}.HistoryItem`,
+    inlined: true,
+    properties: {
+      type: {
+        type: 'string'
+      },
+      label: {
+        type: 'string'
+      },
+      inbound: {
+        type: 'boolean'
+      }
+    },
+    required: ['type']
+  }
+
   // const verifiedItem = {
   //   type: 'tradle.Model',
   //   title: 'Verified Item',
@@ -229,6 +248,12 @@ module.exports = namespace => {
       modelsHash: {
         type: 'object',
         range: 'json'
+      },
+      historySummary: {
+        type: 'array',
+        items: {
+          ref: historyItem.id
+        }
       }
     }
   }
@@ -242,6 +267,7 @@ module.exports = namespace => {
     applicationStub,
     role,
     item,
+    historyItem
     // verifiedItem
   }
 

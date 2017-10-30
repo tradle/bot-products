@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const debug = require('debug')(require('./package.json').name)
 const co = require('co').wrap
 const bindAll = require('bindall')
@@ -203,6 +204,22 @@ function normalizeNameProps (props) {
   }
 }
 
+function sha256 (data) {
+  return hashObject('sha256', data)
+}
+
+function hashObject (obj) {
+  const data = typeof obj === 'string' || Buffer.isBuffer(obj)
+    ? obj
+    : stableStringify(obj)
+
+  return calcHash('sha256', data)
+}
+
+function calcHash (algorithm, data) {
+  return crypto.createHash(algorithm).update(data).digest('hex')
+}
+
 module.exports = {
   co,
   isPromise,
@@ -231,5 +248,6 @@ module.exports = {
   getRequestContext,
   getApplicationPermalinks,
   getVerificationPermalinks,
-  getNameFromForm
+  getNameFromForm,
+  hashObject
 }

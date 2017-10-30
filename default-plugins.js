@@ -8,7 +8,8 @@ const {
   shallowClone,
   debug,
   validateRequired,
-  createSimpleMessage
+  createSimpleMessage,
+  hashObject
 } = require('./utils')
 
 const Commander = require('./commander')
@@ -17,6 +18,7 @@ const REMEDIATION = 'tradle.Remediation'
 const VERIFICATION = 'tradle.Verification'
 const APPROVAL = 'tradle.ApplicationApproval'
 const DENIAL = 'tradle.ApplicationDenial'
+const FORM_REQUEST = 'tradle.FormRequest'
 const PRODUCT_REQUEST = 'tradle.ProductRequest'
 const TO_SEAL = [
   VERIFICATION.
@@ -151,7 +153,10 @@ module.exports = function (api) {
     return err
   }
 
-  const handleVerification = api.importVerification.bind(api)
+  const handleVerification = function handleVerification (req) {
+    const { user, application, object } = req
+    return api.importVerification({ user, application, verification: object })
+  }
 
   function saveIdentity ({ user, object }) {
     const { identity } = object
@@ -312,7 +317,34 @@ module.exports = function (api) {
     return application
   }
 
+  const maybeSendProductList = co(function* (req) {
+    const { historySummary=[] } = req.user
+    const plLabel = getProductListLabel()
+    const productList = historySummary.find(({ label, inbound }) => {
+      return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
+    })
+
+    if (!(productList && productList.label === plLabel)) {
+      return api.sendProductList(req)
+    }
+
+    debug('not sending product list as I sent it recently')
+  })
+
+  const getProductListLabel = () => {
+    return STRINGS.PRODUCT_LIST_LABEL + hashObject(api.products).slice(0, 6)
+  }
+
+  const getMessageLabel = ({ user, object, inbound }) => {
+    const isProductList = !inbound &&
+      object[TYPE] === FORM_REQUEST &&
+      object.form === PRODUCT_REQUEST
+
+    if (isProductList) return getProductListLabel()
+  }
+
   const defaults = {
+    getMessageLabel,
     onCommand: commands.exec.bind(commands),
     deduceApplication,
     willSend,
@@ -335,19 +367,19 @@ module.exports = function (api) {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,
-      api.sendProductList
+      maybeSendProductList
     ],
     'tradle.IdentityPublishRequest': [
       saveIdentity,
       saveName,
-      api.sendProductList
+      maybeSendProductList
     ],
     // 'tradle.Name': saveName,
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,
     'tradle.SimpleMessage': handleSimpleMessage,
-    'tradle.CustomerWaiting': api.sendProductList,
+    'tradle.CustomerWaiting': maybeSendProductList,
     'tradle.ForgetMe': api.forgetUser,
     // onUnhandledMessage: noComprendo
   }))
