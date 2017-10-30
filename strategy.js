@@ -46,7 +46,7 @@ const PRODUCT_REQUEST = 'tradle.ProductRequest'
 const HISTORY_OPTS = {
   inbound: 3,
   outbound: 3,
-  max: 10
+  maxLength: 10
 }
 
 const types = {
@@ -214,7 +214,7 @@ proto._updateHistorySummary = function _updateHistorySummary ({
 
   historySummary.push(item)
 
-  while (historySummary.length > HISTORY_OPTS.length) {
+  while (historySummary.length > HISTORY_OPTS.maxLength) {
     historySummary.shift()
   }
 
