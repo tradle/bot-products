@@ -205,18 +205,18 @@ function normalizeNameProps (props) {
 }
 
 function sha256 (data) {
-  return hashObject('sha256', data)
+  return hashObject(data, 'sha256')
 }
 
-function hashObject (obj) {
+function hashObject (obj, algorithm) {
   const data = typeof obj === 'string' || Buffer.isBuffer(obj)
     ? obj
     : stableStringify(obj)
 
-  return calcHash('sha256', data)
+  return calcHash(data, algorithm)
 }
 
-function calcHash (algorithm, data) {
+function calcHash (data, algorithm) {
   return crypto.createHash(algorithm).update(data).digest('hex')
 }
 
@@ -249,5 +249,6 @@ module.exports = {
   getApplicationPermalinks,
   getVerificationPermalinks,
   getNameFromForm,
-  hashObject
+  hashObject,
+  sha256
 }

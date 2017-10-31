@@ -192,18 +192,24 @@ proto._execBubble = function _execBubble (method, ...args) {
   return Promise.resolve(this.plugins.exec(opts))
 }
 
-proto._updateHistorySummary = function _updateHistorySummary ({
+proto._updateHistorySummary = co(function* ({
+  req,
   user,
+  message,
   object,
   inbound,
   label
 }) {
+  if (!user) user = req.user
+  if (!object) object = req.object
   if (!label) {
     label = this.plugins.exec({
       method: 'getMessageLabel',
-      args: [{ user, object, inbound }],
+      args: [{ user, object, message, inbound }],
       returnResult: true
     })
+
+    if (isPromise(label)) label = yield label
   }
 
   const type = object[TYPE]
@@ -219,7 +225,7 @@ proto._updateHistorySummary = function _updateHistorySummary ({
   }
 
   user.historySummary = historySummary
-}
+})
 
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
@@ -238,11 +244,7 @@ proto._onmessage = co(function* (data) {
 
   req.models = models
   req.context = getRequestContext({ req, models: models.all })
-  this._updateHistorySummary({
-    user,
-    object: req.object,
-    inbound: true
-  })
+  this._updateHistorySummary({ req, inbound: true })
 
   // make a defensive copy
   const userId = data.user.id
@@ -413,8 +415,8 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
 
   debug(`send: queueing to ${to}, context: ${other.context}`)
   this._updateHistorySummary({
-    user: req.user,
-    object: object,
+    req,
+    object,
     inbound: false
   })
 

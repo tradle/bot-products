@@ -3,13 +3,14 @@ const buildResource = require('@tradle/build-resource')
 const {
   co,
   isPromise,
+  pick,
   format,
   shallowExtend,
   shallowClone,
   debug,
   validateRequired,
   createSimpleMessage,
-  hashObject
+  sha256
 } = require('./utils')
 
 const Commander = require('./commander')
@@ -331,20 +332,27 @@ module.exports = function (api) {
     debug('not sending product list as I sent it recently')
   })
 
-  const getProductListLabel = () => {
-    return STRINGS.PRODUCT_LIST_LABEL + hashObject(api.products).slice(0, 6)
+  const getProductListLabel = (other={}) => {
+    const hash = sha256({
+      products: api.products,
+      other
+    }).slice(0, 6)
+
+    return STRINGS.PRODUCT_LIST_LABEL + hash
   }
 
-  const getMessageLabel = ({ user, object, inbound }) => {
+  const getMessageLabel = ({ user, message, object, inbound }) => {
     const isProductList = !inbound &&
       object[TYPE] === FORM_REQUEST &&
       object.form === PRODUCT_REQUEST
 
-    if (isProductList) return getProductListLabel()
+    if (isProductList) {
+      return getProductListLabel(pick(message, ['originalSender']))
+    }
   }
 
   const defaults = {
-    getMessageLabel,
+    // getMessageLabel,
     onCommand: commands.exec.bind(commands),
     deduceApplication,
     willSend,
