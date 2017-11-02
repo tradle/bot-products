@@ -434,9 +434,11 @@ function getInfo (objOrId) {
 }
 
 function newRequestState (data) {
+  const payload = data.payload || data.object
   return shallowClone(data, {
     sendQueue: [],
-    object: data.payload || data.object,
-    payload: data.payload || data.object
+    object: payload,
+    payload,
+    type: data.type || (payload && payload[TYPE])
   })
 }

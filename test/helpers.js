@@ -7,8 +7,8 @@ const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const fakeResource = require('@tradle/build-resource/fake')
 const createProductsStrategy = require('../')
-const botIdentity = require('./fixtures/bot-identity')
-const userIdentity = require('./fixtures/user-identity')
+const defaultBotIdentity = require('./fixtures/bot-identity')
+const defaultUserIdentity = require('./fixtures/user-identity')
 const baseModels = require('../base-models')
 const FORM_REQ = 'tradle.FormRequest'
 const {
@@ -26,17 +26,15 @@ module.exports = {
   newSig,
   toObject,
   hex32,
-  // createIdentityStub,
-  createStub
+  // fakeIdentityStub,
+  fakeStub
 }
 
-function createFakeBot (opts={
-  botIdentity,
-  userIdentity
-}) {
-  const user = {
-    id: userIdentity._permalink
-  }
+function createFakeBot (opts={}) {
+  const {
+    user,
+    botIdentity=defaultBotIdentity
+  } = opts
 
   const botId = botIdentity._permalink
   const byPermalink = {}
@@ -106,16 +104,27 @@ function createFakeBot (opts={
   return { bot, handlers }
 }
 
-function formLoop ({ models, products }) {
+function formLoop ({
+  models,
+  products,
+  userIdentity=defaultUserIdentity,
+  botIdentity=defaultBotIdentity,
+  introduced
+}) {
   let linkCounter = 0
   const productModels = products.map(id => models[id])
   const from = botIdentity._permalink
   const to = userIdentity._permalink
   const user = {
-    id: to
+    id: userIdentity._permalink,
+    identity: introduced ? buildResource.stub({
+      models: baseModels,
+      model: 'tradle.Identity',
+      resource: userIdentity
+    }) : null
   }
 
-  const { bot, handlers } = createFakeBot()
+  const { bot, handlers } = createFakeBot({ user })
   const productsAPI = createProductsStrategy({
     namespace: 'test.namespace',
     models: {
@@ -143,11 +152,12 @@ function formLoop ({ models, products }) {
       object
     })
 
-    const payload = message.object
     if (context) {
+      message.context = context
       buildResource.setVirtual(message, { _context: context })
     }
 
+    const payload = message.object
     const type = payload[TYPE]
     const wait = awaitResponse ? awaitBotResponse() : Promise.resolve()
     yield series(handlers, fn => fn({
@@ -277,13 +287,13 @@ function toObject (models) {
   return obj
 }
 
-function createIdentityStub () {
-  return createStub({
+function fakeIdentityStub () {
+  return fakeStub({
     model: baseModels['tradle.Identity']
   })
 }
 
-function createStub ({ models=baseModels, model }) {
+function fakeStub ({ models=baseModels, model }) {
   return buildResource.stub({
     models,
     resource: fakeResource({

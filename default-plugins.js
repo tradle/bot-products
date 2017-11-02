@@ -10,6 +10,7 @@ const {
   debug,
   validateRequired,
   createSimpleMessage,
+  parseStub,
   sha256
 } = require('./utils')
 
@@ -111,7 +112,19 @@ module.exports = function (api) {
       return
     }
 
-    if (application && application.requestFor === REMEDIATION) return
+    const { requestFor, skip=[] } = application
+    if (requestFor === REMEDIATION) {
+      debug(`don't know how to handle ${REMEDIATION} product yet`)
+      return
+    }
+
+    const skipIdx = skip.indexOf(type)
+    if (skipIdx !== -1) {
+      // unmark as skipped
+      // receipt of next tradle.NextFormRequest will re-mark it if needed
+      debug(`un-marking ${type} as skippable (for multi-entry)`)
+      skip.splice(skipIdx, 1)
+    }
 
     debug('handleForm:validateForm')
     let err = plugins.exec({
@@ -225,18 +238,32 @@ module.exports = function (api) {
   //   })
   // })
 
-  function willRequestForm ({ formRequest }) {
-    const model = models.all[formRequest.form]
-    let message
-    if (model.id === PRODUCT_REQUEST) {
-      message = STRINGS.PRODUCT_LIST_MESSAGE
-    } else if (model.subClassOf === 'tradle.Form') {
-      message = format(STRINGS.PLEASE_FILL_FORM, model.title)
-    } else {
-      message = STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
+  function willRequestForm (opts) {
+    opts.formRequest.message = getFormRequestMessage(opts)
+  }
+
+  function getFormRequestMessage ({ application, formRequest }) {
+    const { form } = formRequest
+    const model = models.all[form]
+    if (form === PRODUCT_REQUEST) {
+      return STRINGS.PRODUCT_LIST_MESSAGE
     }
 
-    formRequest.message = message
+    const { forms=[], requestFor } = application
+    const { multiEntryForms=[] } = models.all[requestFor]
+    if (model.subClassOf === 'tradle.Form') {
+      if (multiEntryForms.includes(form)) {
+        const hasOne = forms.find(stub => parseStub(stub).type === form)
+        return hasOne
+          ? `To add another **${model.title}**, tap Add, otherwise tap Next"`
+          : 'Please fill out '
+      }
+
+      return format(STRINGS.PLEASE_FILL_FORM, model.title)
+    }
+
+
+    return STRINGS.PLEASE_GET_THIS_PREREQUISITE_PRODUCT
   }
 
   function setCompleted ({ application }) {
@@ -351,6 +378,45 @@ module.exports = function (api) {
     }
   }
 
+  const getNextRequiredItem = ({ req, productModel, required }) => {
+    const { forms=[], skip=[] } = req.application
+    const { multiEntryForms=[] } = productModel
+    return required.find(form => {
+      if (multiEntryForms.includes(form)) {
+        const idx = skip.indexOf(form)
+        if (idx === -1) {
+          return form
+        }
+      }
+
+      return !state.getFormsByType(forms, form).length
+    })
+  }
+
+  const breakOutOfMultiEntry = co(function* (req) {
+    const { application, payload, type } = req
+    if (!application) {
+      throw new Error(`application not found, cannot process ${type}`)
+    }
+
+    const { requestFor, skip=[] } = application
+    const productModel = models.all[requestFor]
+    const { multiEntryForms=[] } = productModel
+    const { after } = payload
+    if (multiEntryForms.includes(after)) {
+      if (!skip.includes(after)) {
+        debug(`marking ${after} as skippable (for multi-entry)`)
+        skip.push(after)
+        // in case it was null
+        application.skip = skip
+      }
+    } else {
+      debug(`product ${requestFor}, form ${after} is not listed in multiEntryForms, ignoring ${type}`)
+    }
+
+    return api.continueApplication(req)
+  })
+
   const defaults = {
     // getMessageLabel,
     onCommand: commands.exec.bind(commands),
@@ -360,8 +426,10 @@ module.exports = function (api) {
     shouldSealSent,
     shouldSealReceived,
     getRequiredForms,
+    getNextRequiredItem,
     validateForm,
     willRequestForm,
+    getFormRequestMessage,
     onPendingApplicationCollision,
     onRequestForExistingProduct,
     onFormsCollected: [
@@ -389,6 +457,7 @@ module.exports = function (api) {
     'tradle.SimpleMessage': handleSimpleMessage,
     'tradle.CustomerWaiting': maybeSendProductList,
     'tradle.ForgetMe': api.forgetUser,
+    'tradle.NextFormRequest': breakOutOfMultiEntry
     // onUnhandledMessage: noComprendo
   }))
 

@@ -478,6 +478,89 @@ test('plugins', loudCo(function* (t) {
   t.end()
 }))
 
+test('multi entry', loudCo(co(function* (t) {
+  const productModel = {
+    type: 'tradle.Model',
+    id: 'tradle.TestProduct1',
+    title: 'Test Product1',
+    interfaces: [messageInterface],
+    subClassOf: 'tradle.FinancialProduct',
+    forms: [
+      'tradle.ORV',
+      'tradle.AboutYou'
+    ],
+    multiEntryForms: [
+      'tradle.ORV'
+    ],
+    properties: {}
+  }
+
+  const products = [productModel.id]
+  const {
+    bot,
+    botIdentity,
+    userIdentity,
+    api,
+    applyForProduct,
+    awaitBotResponse,
+    receiveFromUser,
+    plugins,
+    models,
+    user
+  } = formLoop({
+    products,
+    models: mergeModels()
+      .add(baseModels)
+      .add([productModel])
+      .get(),
+    introduced: true // skip SelfIntro
+  })
+
+  const testProduct = co(function* ({ productModel, approve }) {
+    let { request, response } = yield applyForProduct({ productModel })
+    const context = request._context
+    let result = yield receiveFromUser({
+      object: fakeResource({
+        models: models.all,
+        model: models.all['tradle.ORV']
+      }),
+      context
+    })
+
+    // multi-entry
+    t.equal(result.response.object.form, 'tradle.ORV', 'multi-entry')
+    let requestSkip = fakeResource({
+      models: models.all,
+      model: models.all['tradle.NextFormRequest']
+    })
+
+    requestSkip.after = 'tradle.ORV'
+    result = yield receiveFromUser({
+      object: requestSkip,
+      context
+    })
+
+    t.equal(result.response.object.form, 'tradle.AboutYou')
+    let application = yield api.getApplicationByStub(user.applications[0])
+    t.same(application.skip, ['tradle.ORV'], 'broke out of multi-entry')
+
+    result = yield receiveFromUser({
+      object: fakeResource({
+        models: models.all,
+        model: models.all['tradle.ORV']
+      }),
+      context
+    })
+
+    application = yield api.getApplicationByStub(user.applications[0])
+    t.equal(result.response.object.form, 'tradle.ORV')
+    t.same(application.skip, [], 'revisited multi-entry')
+  })
+
+  yield testProduct({ productModel })
+  t.end()
+})))
+
 test.skip('complex form loop', loudCo(co(function* (t) {
   const bizPlugins = require('@tradle/biz-plugins')
   const corpModels = require('@tradle/models-corporate-onboarding')
@@ -510,7 +593,6 @@ test.skip('complex form loop', loudCo(co(function* (t) {
     const { context } = request
     let nextForm
     while (nextForm = response.object.form) {
-      console.log(nextForm)
       // t.equal(response.object.form, nextForm)
       let result = yield receiveFromUser({
         object: fakeResource({
