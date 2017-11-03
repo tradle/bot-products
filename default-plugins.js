@@ -345,38 +345,38 @@ module.exports = function (api) {
     return application
   }
 
-  const maybeSendProductList = co(function* (req) {
-    const { historySummary=[] } = req.user
-    const plLabel = getProductListLabel()
-    const productList = historySummary.find(({ label, inbound }) => {
-      return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
-    })
+  // const maybeSendProductList = co(function* (req) {
+  //   const { historySummary=[] } = req.user
+  //   const plLabel = getProductListLabel()
+  //   const productList = historySummary.find(({ label, inbound }) => {
+  //     return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
+  //   })
 
-    if (!(productList && productList.label === plLabel)) {
-      return api.sendProductList(req)
-    }
+  //   if (!(productList && productList.label === plLabel)) {
+  //     return api.sendProductList(req)
+  //   }
 
-    debug('not sending product list as I sent it recently')
-  })
+  //   debug('not sending product list as I sent it recently')
+  // })
 
-  const getProductListLabel = (other={}) => {
-    const hash = sha256({
-      products: api.products,
-      other
-    }).slice(0, 6)
+  // const getProductListLabel = (other={}) => {
+  //   const hash = sha256({
+  //     products: api.products,
+  //     other
+  //   }).slice(0, 6)
 
-    return STRINGS.PRODUCT_LIST_LABEL + hash
-  }
+  //   return STRINGS.PRODUCT_LIST_LABEL + hash
+  // }
 
-  const getMessageLabel = ({ user, message, object, inbound }) => {
-    const isProductList = !inbound &&
-      object[TYPE] === FORM_REQUEST &&
-      object.form === PRODUCT_REQUEST
+  // const getMessageLabel = ({ user, message, object, inbound }) => {
+  //   const isProductList = !inbound &&
+  //     object[TYPE] === FORM_REQUEST &&
+  //     object.form === PRODUCT_REQUEST
 
-    if (isProductList) {
-      return getProductListLabel(pick(message, ['originalSender']))
-    }
-  }
+  //   if (isProductList) {
+  //     return getProductListLabel(pick(message, ['originalSender']))
+  //   }
+  // }
 
   const getNextRequiredItem = ({ req, productModel, required }) => {
     const { forms=[], skip=[] } = req.application
@@ -443,19 +443,19 @@ module.exports = function (api) {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,
-      maybeSendProductList
+      api.sendProductList
     ],
     'tradle.IdentityPublishRequest': [
       saveIdentity,
       saveName,
-      maybeSendProductList
+      api.sendProductList
     ],
     // 'tradle.Name': saveName,
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,
     'tradle.SimpleMessage': handleSimpleMessage,
-    'tradle.CustomerWaiting': maybeSendProductList,
+    'tradle.CustomerWaiting': api.sendProductList,
     'tradle.ForgetMe': api.forgetUser,
     'tradle.NextFormRequest': breakOutOfMultiEntry
     // onUnhandledMessage: noComprendo
