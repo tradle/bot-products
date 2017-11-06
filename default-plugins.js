@@ -255,8 +255,8 @@ module.exports = function (api) {
       if (multiEntryForms.includes(form)) {
         const hasOne = forms.find(stub => parseStub(stub).type === form)
         return hasOne
-          ? `To add another **${model.title}**, tap Add, otherwise tap Next"`
-          : 'Please fill out '
+          ? format(STRINGS.MULTI_ENTRY_PROMPT, model.title)
+          : format(STRINGS.PLEASE_FILL_FORM, model.title)
       }
 
       return format(STRINGS.PLEASE_FILL_FORM, model.title)

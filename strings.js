@@ -1,6 +1,7 @@
 
 module.exports = {
   PLEASE_FILL_FORM: 'Please fill out the form **{0}**',
+  MULTI_ENTRY_PROMPT: 'To add another **{0}**, tap Add, otherwise tap Next',
   PLEASE_GET_THIS_PREREQUISITE_PRODUCT: 'Looks like you\'ll need to get one of these first...somewhere else',
   TELL_ME_MORE: 'tell me more about this "{0}," it sounds interesting',
   DONT_UNDERSTAND: `sorry, I don't understand. To see the list of supported commands, type: /help`,
