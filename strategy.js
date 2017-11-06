@@ -681,7 +681,7 @@ proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
     requestFor = application.requestFor
   }
 
-  if (requestFor) itemRequest.requestFor = requestFor
+  if (requestFor) itemRequest.product = requestFor
   if (chooser) itemRequest.chooser = chooser
   if (req.context) itemRequest.context = req.context
 
