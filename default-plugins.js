@@ -189,12 +189,12 @@ module.exports = function (api) {
 
     const { firstName } = user
     this.state.setProfile({ user, object })
-    if (user.firstName !== firstName) {
-      yield this.send({
-        req,
-        object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
-      })
-    }
+    // if (user.firstName !== firstName) {
+    //   yield this.send({
+    //     req,
+    //     object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
+    //   })
+    // }
 
     // if (user.firstName) {
     //   application.firstName = user.firstName
