@@ -674,7 +674,8 @@ proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
   const { user, application } = req
   const itemRequest = {
     [TYPE]: FORM_REQUEST,
-    form: item
+    form: item,
+    time: Date.now()
   }
 
   if (!requestFor && application) {
