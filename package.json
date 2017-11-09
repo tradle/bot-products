@@ -30,8 +30,8 @@
     "xtend": "^4.0.1"
   },
   "peerDependencies": {
-    "@tradle/custom-models": "github:tradle/custom-models",
-    "@tradle/models": "github:tradle/models"
+    "@tradle/custom-models": "*",
+    "@tradle/models": "*"
   },
   "devDependencies": {
     "@tradle/biz-plugins": "github:tradle/biz-plugins",
