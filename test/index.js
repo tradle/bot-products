@@ -33,7 +33,7 @@ const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
   title: 'Test Product',
-  interfaces: [messageInterface],
+  interfaces: messageInterface ? [messageInterface] : [],
   subClassOf: 'tradle.FinancialProduct',
   forms: [
     'tradle.ORV',
@@ -483,7 +483,7 @@ test('multi entry', loudCo(co(function* (t) {
     type: 'tradle.Model',
     id: 'tradle.TestProduct1',
     title: 'Test Product1',
-    interfaces: [messageInterface],
+    interfaces: messageInterface ? [messageInterface] : [],
     subClassOf: 'tradle.FinancialProduct',
     forms: [
       'tradle.ORV',
