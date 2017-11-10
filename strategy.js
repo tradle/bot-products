@@ -83,7 +83,6 @@ function Strategy (opts) {
   })
 
   this.plugins = createPlugins()
-  this.plugins.setContext(this)
   this._define = createDefiner()
   // be lazy
   this._define('_modelsArray', () => modelsToArray(this.models.all))
@@ -229,8 +228,6 @@ proto._updateHistorySummary = co(function* ({
 
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
-  req.productsAPI = this
-
   const { user } = data
   const { state, models } = this
   if (!user.identity) {
@@ -333,6 +330,10 @@ proto._processIncoming = co(function* (req) {
   }
 })
 
+proto.versionAndSave = function (resource) {
+  return this.bot.versionAndSave(resource)
+}
+
 /**
  * update PERMALINK, PREVLINK on application, save new application version
  */
@@ -342,7 +343,7 @@ proto.saveNewVersionOfApplication = function ({ user, application }) {
 }
 
 proto.createNewVersionOfApplication = function (application) {
-  application = toNewVersion(application)
+  application = buildResource.version(application)
   this.state.updateApplication({
     application,
     properties: { dateModified: Date.now() }
@@ -454,13 +455,22 @@ proto.addApplication = co(function* ({ req }) {
 })
 
 // proxy to facilitate plugin attachment
-proto.saveApplication = function ({ user, application }) {
+proto.saveApplication = co(function* ({ user, application }) {
   application._time = application.dateModified
+  if (!user) {
+    const { permalink } = parseStub(application.applicant)
+    user = yield this.bot.users.get(permalink)
+  }
+
   this.state.updateApplicationStub({ user, application })
-  return Promise.all([
+  return yield Promise.all([
     this.bot.objects.put(application),
     this.bot.save(application)
   ])
+})
+
+proto.version = function (object) {
+  return this.bot.version(object)
 }
 
 proto.save = function (signedObject) {
@@ -473,12 +483,12 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.importVerification = co(function* ({ req, user, application, verification }) {
+proto.importVerification = function ({ req, user, application, verification }) {
   if (!user) user = req.user
   if (!application) application = req.application
   if (!verification) verification = req.object
   this.state.importVerification({ user, application, verification })
-})
+}
 
 proto.continueApplication = co(function* (req) {
   debug('continueApplication')
@@ -746,14 +756,6 @@ proto.requestEdit = co(function* ({ req, user, object, details }) {
     object: formError
   })
 })
-
-function toNewVersion (object) {
-  const newVersion = clone(object)
-  delete newVersion[SIG]
-  newVersion[PREVLINK] = buildResource.link(object)
-  newVersion[PERMALINK] = buildResource.permalink(object)
-  return omitVirtual(newVersion, ['_link'])
-}
 
 function normalizeExecArgs (method, ...args) {
   return typeof method === 'object'

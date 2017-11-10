@@ -10,7 +10,7 @@
   "license": "MIT",
   "author": "Mark Vayngrib <mark@tradle.io> (http://github.com/mvayngrib)",
   "dependencies": {
-    "@tradle/build-resource": "^2.7.0",
+    "@tradle/build-resource": "^2.11.0",
     "@tradle/constants": "^2.1.0",
     "@tradle/merge-models": "^2.0.0",
     "@tradle/validate-model": ">=2.3 <5",

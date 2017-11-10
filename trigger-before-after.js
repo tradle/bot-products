@@ -20,7 +20,7 @@ function addTriggers (strategy, methods) {
     strategy[method] = co(function* (...args) {
       const beforeMethod = 'will' + upperFirst(method)
       debug(`triggering ${beforeMethod}`)
-      const before = this._exec(beforeMethod, ...args)
+      const before = strategy._exec(beforeMethod, ...args)
       if (isPromise(before)) yield before
 
       let result = orig.call(this, ...args)
@@ -29,7 +29,7 @@ function addTriggers (strategy, methods) {
       const afterArgs = args.concat(result)
       const afterMethod = 'did' + upperFirst(method)
       debug(`triggering ${afterMethod}`)
-      const after = this._exec(afterMethod, ...afterArgs)
+      const after = strategy._exec(afterMethod, ...afterArgs)
       if (isPromise(after)) yield after
 
       return result

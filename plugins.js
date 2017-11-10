@@ -36,7 +36,12 @@ PluginManager.prototype.unregister = function unregister (method, handlers) {
 
 PluginManager.prototype.use = function use (plugin, unshift) {
   for (let method in plugin) {
-    this.register(method, plugin[method], unshift)
+    let val = plugin[method]
+    if (typeof val === 'function') {
+      this.register(method, val.bind(plugin), unshift)
+    } else if (Array.isArray(val) && val.every(sub => typeof sub === 'function')) {
+      this.register(method, val, unshift)
+    }
   }
 
   return this.remove.bind(this, plugin)
@@ -58,7 +63,6 @@ PluginManager.prototype.remove = function remove (plugin) {
 
 PluginManager.prototype.exec = function ({
   method,
-  context=this._defaultContext,
   args,
   waterfall,
   returnResult,
@@ -75,16 +79,11 @@ PluginManager.prototype.exec = function ({
 
   return execute({
     fns: handlers,
-    context,
     args,
     allowExit,
     returnResult,
     waterfall
   })
-}
-
-PluginManager.prototype.setContext = function (context) {
-  this._defaultContext = context
 }
 
 PluginManager.prototype.count = function (method) {
@@ -105,17 +104,12 @@ PluginManager.prototype._debug = function (...args) {
 /**
  * execute in series, with synchronous and promise support
  */
-function execute ({ fns, context, args, waterfall, allowExit, returnResult }) {
+function execute ({ fns, args, waterfall, allowExit, returnResult }) {
   let ret
   fns = fns.slice()
   while (fns.length) {
     let fn = fns.shift()
-    if (context) {
-      ret = fn.apply(context, args)
-    } else {
-      ret = fn(...args)
-    }
-
+    ret = fn(...args)
     if (isPromise(ret)) {
       return ret.then(continueExec)
     }
@@ -129,6 +123,6 @@ function execute ({ fns, context, args, waterfall, allowExit, returnResult }) {
     if (!fns.length) return ret
     if (waterfall) args = [ret]
 
-    return execute({ fns, context, args, waterfall, allowExit, returnResult })
+    return execute({ fns, args, waterfall, allowExit, returnResult })
   }
 }

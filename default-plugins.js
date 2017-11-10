@@ -58,7 +58,7 @@ module.exports = function (api) {
       // ignore and continue existing application
       //
       // delegate this decision to the outside?
-      yield this.continueApplication(req)
+      yield api.continueApplication(req)
       return
     }
 
@@ -80,10 +80,10 @@ module.exports = function (api) {
   })
 
   const onPendingApplicationCollision = co(function* ({ req, pending }) {
-    req.application = yield this.getApplicationByStub(pending[0])
+    req.application = yield api.getApplicationByStub(pending[0])
     req.context = req.application.context
     debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending: ${req.application._permalink}`)
-    yield this.continueApplication(req)
+    yield api.continueApplication(req)
   })
 
   const onRequestForExistingProduct = co(function* (req) {
@@ -130,6 +130,7 @@ module.exports = function (api) {
     let err = plugins.exec({
       method: 'validateForm',
       args: [{
+        productsAPI: api,
         application,
         form: object,
         returnResult: true
@@ -140,13 +141,13 @@ module.exports = function (api) {
 
     if (err) {
       debug('handleForm:requestEdit')
-      yield this.requestEdit({ req, details: err })
+      yield api.requestEdit({ req, details: err })
       return
     }
 
     debug('handleForm: addForm, continueApplication')
-    this.state.addForm(req)
-    yield this.continueApplication(req)
+    api.state.addForm(req)
+    yield api.continueApplication(req)
   })
 
   function validateForm ({ application, form }) {
@@ -177,7 +178,7 @@ module.exports = function (api) {
     if (buildResource.permalink(identity) === user.id) {
       debug(`saving user ${user.id} identity`)
       // relies on validation of proper versioning elsewhere in the stack
-      this.state.setIdentity({ user, identity })
+      api.state.setIdentity({ user, identity })
     } else {
       debug(`not saving user ${user.id} identity`)
     }
@@ -188,9 +189,9 @@ module.exports = function (api) {
     if (!object.profile) return
 
     const { firstName } = user
-    this.state.setProfile({ user, object })
+    api.state.setProfile({ user, object })
     // if (user.firstName !== firstName) {
-    //   yield this.send({
+    //   yield api.send({
     //     req,
     //     object: createSimpleMessage(format(STRINGS.HI_JOE, user.firstName))
     //   })
@@ -211,7 +212,7 @@ module.exports = function (api) {
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
-    return this.send({
+    return api.send({
       req,
       object: createSimpleMessage(message)
     })
@@ -222,7 +223,7 @@ module.exports = function (api) {
     if (message[0] === '/') {
       return plugins.exec({
         method: 'onCommand',
-        args: [{ req, command: message }]
+        args: [{ req, productsAPI: api, command: message }]
       })
     }
 
@@ -232,7 +233,7 @@ module.exports = function (api) {
   // const banter = co(function* (req) {
   //   const { object } = req
   //   const tellMeMore = format(STRINGS.TELL_ME_MORE, object.message)
-  //   yield this.send({
+  //   yield api.send({
   //     req,
   //     object: createSimpleMessage(STRINGS.DONT_UNDERSTAND)
   //   })
@@ -267,7 +268,7 @@ module.exports = function (api) {
   }
 
   function setCompleted ({ application }) {
-    this.state.setApplicationStatus({ application, status: 'completed' })
+    api.state.setApplicationStatus({ application, status: 'completed' })
   }
 
   function shouldSealReceived ({ message, object }) {
@@ -309,7 +310,7 @@ module.exports = function (api) {
     const { req, to, link, object } = opts
     if (!to) opts.to = req.user
     if (link && !object) {
-      opts.object = yield this.bot.objects.get(link)
+      opts.object = yield api.bot.objects.get(link)
     }
   })
 

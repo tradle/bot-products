@@ -460,7 +460,9 @@ test('plugins', loudCo(function* (t) {
   const productsAPI = productsStrategy.install(bot)
   productsAPI.plugins.clear('getRequiredForms')
   productsAPI.plugins.use({
+    blah: 1,
     getRequiredForms: function () {
+      t.equal(this.blah, 1, 'context preserved')
       return ['blah']
     }
   })
