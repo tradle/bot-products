@@ -13,10 +13,11 @@ function PluginManager (defaults) {
 }
 
 PluginManager.prototype.register = function register (method, handlers, unshift) {
-  handlers = [].concat(handlers)
+  handlers = [].concat(handlers).map(wrapHandler)
+
   assert(
-    handlers.every(handler => typeof handler === 'function'),
-    'expected functions'
+    handlers.every(handler => typeof handler.fn === 'function'),
+    'expected wrapped handlers'
   )
 
   const current = this._plugins[method] || []
@@ -29,18 +30,18 @@ PluginManager.prototype.register = function register (method, handlers, unshift)
 PluginManager.prototype.unregister = function unregister (method, handlers) {
   if (!this._plugins[method]) return
 
-  handlers = [].concat(handlers)
+  handlers = [].concat(handlers).map(unwrapHandler)
   this._plugins[method] = this._plugins[method]
-    .filter(fn => !handlers.includes(fn))
+    .filter(({ fn }) => !handlers.includes(fn))
 }
 
 PluginManager.prototype.use = function use (plugin, unshift) {
   for (let method in plugin) {
     let val = plugin[method]
     if (typeof val === 'function') {
-      this.register(method, val.bind(plugin), unshift)
+      this.register(method, wrapHandler(val, plugin), unshift)
     } else if (Array.isArray(val) && val.every(sub => typeof sub === 'function')) {
-      this.register(method, val, unshift)
+      this.register(method, wrapHandler(val), unshift)
     }
   }
 
@@ -78,7 +79,7 @@ PluginManager.prototype.exec = function ({
   if (!handlers.length) return Promise.resolve()
 
   return execute({
-    fns: handlers,
+    handlers,
     args,
     allowExit,
     returnResult,
@@ -104,12 +105,12 @@ PluginManager.prototype._debug = function (...args) {
 /**
  * execute in series, with synchronous and promise support
  */
-function execute ({ fns, args, waterfall, allowExit, returnResult }) {
+function execute ({ handlers, args, waterfall, allowExit, returnResult }) {
   let ret
-  fns = fns.slice()
-  while (fns.length) {
-    let fn = fns.shift()
-    ret = fn(...args)
+  handlers = handlers.slice()
+  while (handlers.length) {
+    let handler = handlers.shift()
+    ret = handler.fn.call(handler.context || this, ...args)
     if (isPromise(ret)) {
       return ret.then(continueExec)
     }
@@ -120,9 +121,17 @@ function execute ({ fns, args, waterfall, allowExit, returnResult }) {
   function continueExec (ret) {
     if (allowExit && ret === false) return ret
     if (returnResult && ret != null) return ret
-    if (!fns.length) return ret
+    if (!handlers.length) return ret
     if (waterfall) args = [ret]
 
-    return execute({ fns, args, waterfall, allowExit, returnResult })
+    return execute({ handlers, args, waterfall, allowExit, returnResult })
   }
+}
+
+function wrapHandler (fn, context) {
+  return typeof fn === 'function' ? { fn, context } : fn
+}
+
+function unwrapHandler (handler) {
+  return typeof handler === 'function' ? handler : handler.fn
 }

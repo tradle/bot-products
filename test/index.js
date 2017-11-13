@@ -459,13 +459,19 @@ test('plugins', loudCo(function* (t) {
 
   const productsAPI = productsStrategy.install(bot)
   productsAPI.plugins.clear('getRequiredForms')
-  productsAPI.plugins.use({
+  const custom = {
     blah: 1,
     getRequiredForms: function () {
       t.equal(this.blah, 1, 'context preserved')
       return ['blah']
-    }
-  })
+    },
+    doABC: [
+      function doABC1 () {},
+      function doABC2 () {},
+    ]
+  }
+
+  productsAPI.plugins.use(custom)
 
   t.same(productsAPI.plugins.exec('getRequiredForms'), ['blah'])
 
@@ -477,6 +483,10 @@ test('plugins', loudCo(function* (t) {
   })
 
   t.same(yield productsAPI.plugins.exec('getRequiredForms'), ['blah1'])
+
+  productsAPI.removeDefaultHandlers()
+  t.same(productsAPI.plugins._plugins['onmessage:tradle.Form'], [])
+
   t.end()
 }))
 
