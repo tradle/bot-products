@@ -71,10 +71,10 @@ function genApplicationModels ({ namespace, models, products }) {
     }
   })
 
-  const productRequest = GenModel.productRequest({
-    productList,
-    id: GenId.productRequest({ namespace })
-  })
+  // const productRequest = GenModel.productRequest({
+  //   productList,
+  //   id: GenId.productRequest({ namespace })
+  // })
 
   const all = {}
   const applicationModels = {
@@ -82,7 +82,7 @@ function genApplicationModels ({ namespace, models, products }) {
       return productList.enum.map(val => val.id)
     },
     productList,
-    productRequest,
+    // productRequest,
     // applicationSubmitted,
     certificates,
     certificateFor,
@@ -91,7 +91,7 @@ function genApplicationModels ({ namespace, models, products }) {
     all
   }
 
-  additional[productRequest.id] = productRequest
+  // additional[productRequest.id] = productRequest
   additional[productList.id] = productList
 
   getValues(models)
