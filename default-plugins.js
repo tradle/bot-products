@@ -80,10 +80,24 @@ module.exports = function (api) {
   })
 
   const onPendingApplicationCollision = co(function* ({ req, pending }) {
-    req.application = yield api.getApplicationByStub(pending[0])
-    req.context = req.application.context
-    debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending: ${req.application._permalink}`)
-    yield api.continueApplication(req)
+    const { user } = req
+    for (const appStub of pending) {
+      try {
+        req.application = yield api.getApplicationByStub(appStub)
+        break
+      } catch (err) {
+        debug(`application not found by stub: ${JSON.stringify(appStub)}`)
+        // user.applications = user.applications.filter(stub => stub.id !== appStub.id)
+      }
+    }
+
+    if (req.application) {
+      req.context = req.application.context
+      debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending: ${req.application._permalink}`)
+      yield api.continueApplication(req)
+    } else {
+      debug('ERROR: failed to find colliding application')
+    }
   })
 
   const onRequestForExistingProduct = co(function* (req) {
