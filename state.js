@@ -16,6 +16,12 @@ const {
 const baseModels = require('./base-models')
 const VERIFICATION = 'tradle.Verification'
 const VERIFIED_ITEM = 'tradle.VerifiedItem'
+const STATUS = {
+  started: 'started',
+  completed: 'completed',
+  approved: 'approved',
+  denied: 'denied'
+}
 
 module.exports = function stateMutater ({ models }) {
 
@@ -98,7 +104,7 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
 
     shallowExtend(application, updated)
-    setApplicationStatus({ application, status: 'approved' })
+    setApplicationStatus({ application, status: STATUS.approved })
     user.applicationsApproved.push(user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
@@ -231,20 +237,26 @@ module.exports = function stateMutater ({ models }) {
     const now = Date.now()
     const properties = { status, dateModified: now }
     switch (status) {
-    case 'completed':
+    case STATUS.completed:
       properties.dateCompleted = now
       break
-    case 'started':
+    case STATUS.started:
       properties.dateStarted = now
       break
-    case 'approved':
-    case 'denied':
+    case STATUS.approved:
+    case STATUS.denied:
       properties.dateEvaluated = now
       break
+    default:
+      throw new Error(`invalid application status: ${status}`)
     }
 
     updateApplication({ application, properties })
     return application
+  }
+
+  function isApplicationCompleted (application) {
+    return application.status === 'completed'
   }
 
   /**
@@ -417,7 +429,9 @@ module.exports = function stateMutater ({ models }) {
     findApplication,
     guessApplicationFromIncomingType,
     getApplicationContext,
-    newRequestState
+    newRequestState,
+    isApplicationCompleted,
+    status: STATUS
   }
 }
 

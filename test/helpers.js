@@ -88,7 +88,7 @@ function createFakeBot (opts={}) {
         assert(typeof type === 'string', 'expected string, "type"')
         assert(typeof permalink === 'string', 'expected string, "permalink"')
       }),
-      latest: co(function* (props) {
+      get: co(function* (props) {
         const type = props[TYPE]
         const permalink = props._permalink
         const object = byPermalink[permalink]

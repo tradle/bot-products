@@ -91,10 +91,14 @@ module.exports = function (api) {
       }
     }
 
-    if (req.application) {
-      req.context = req.application.context
-      debug(`ignoring 2nd request for ${req.application.requestFor}, one is already pending: ${req.application._permalink}`)
-      yield api.continueApplication(req)
+    const { application } = req
+    if (application) {
+      req.context = application.context
+      debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
+      if (!state.isApplicationCompleted(application)) {
+        yield api.continueApplication(req)
+      }
+
     } else {
       debug('ERROR: failed to find colliding application')
     }
@@ -282,7 +286,7 @@ module.exports = function (api) {
   }
 
   function setCompleted ({ application }) {
-    api.state.setApplicationStatus({ application, status: 'completed' })
+    api.state.setApplicationStatus({ application, status: state.status.completed })
   }
 
   function shouldSealReceived ({ message, object }) {

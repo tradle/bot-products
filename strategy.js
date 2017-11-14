@@ -179,6 +179,13 @@ proto.addProducts = function addProducts ({ models, products }) {
   return this
 }
 
+// proto.addPrivateModels = (models) => {
+//   shallowExtend(this.models.private.all, models)
+//   this.models.all = mergeModels()
+//     .add(this.models.all)
+//     .add(this.models.private.all)
+// }
+
 proto._exec = function _exec (method, ...args) {
   const opts = normalizeExecArgs(...arguments)
   return Promise.resolve(this.plugins.exec(opts))
@@ -361,8 +368,15 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
 }
 
 proto.getApplication = function (permalink) {
-  return this.bot.db.latest({
-    [TYPE]: this.models.private.application.id,
+  return this.getResource({
+    type: this.models.private.application.id,
+    permalink
+  })
+}
+
+proto.getResource = function ({ type, permalink }) {
+  return this.bot.db.get({
+    [TYPE]: type,
     _permalink: permalink
   })
 }
@@ -509,7 +523,7 @@ proto.forgetUser = co(function* (req) {
   const { db } = bot
   const applicationPermalinks = getApplicationPermalinks({ user, models })
   const applications = yield applicationPermalinks.map(_permalink => {
-    return db.latest({
+    return db.get({
       [TYPE]: APPLICATION,
       _permalink
     })
@@ -605,7 +619,11 @@ proto.denyApplication = co(function* ({ req, user, application }) {
   })
   .toJSON()
 
-  this.state.setApplicationStatus({ application, status: 'denied' })
+  this.state.setApplicationStatus({
+    application,
+    status: this.state.status.denied
+  })
+
   this.state.moveToDenied({ user, application })
   return this.send({ req, to: user, object: denial })
 })

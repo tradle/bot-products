@@ -346,11 +346,11 @@ test('basic form loop', loudCo(function* (t) {
       let app
       let expectedStatus
       if (done) {
-        expectedStatus = approve ? 'approved' : 'denied'
+        expectedStatus = approve ? api.state.status.approved : api.state.status.denied
         const applications = approve ? user.applicationsApproved : user.applicationsDenied
         app = api.state.getApplicationsByType(applications, productModel.id)[0]
       } else {
-        expectedStatus = 'started'
+        expectedStatus = api.state.status.started
         app = api.state.getApplicationsByType(user.applications, productModel.id)[0]
       }
 
@@ -364,10 +364,10 @@ test('basic form loop', loudCo(function* (t) {
     const respType = response.object[TYPE]
     if (approve) {
       t.equal(respType, models.biz.certificateFor[productModel.id].id)
-      t.same(user.applicationsApproved[0].status, 'approved')
+      t.same(user.applicationsApproved[0].status, api.state.status.approved)
     } else {
       t.equal(respType, 'tradle.ApplicationDenial')
-      t.same(user.applicationsDenied[0].status, 'denied')
+      t.same(user.applicationsDenied[0].status, api.state.status.denied)
     }
 
     // yield wait(100)
