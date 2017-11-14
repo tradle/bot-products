@@ -95,7 +95,12 @@ module.exports = function (api) {
     if (application) {
       req.context = application.context
       debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
-      if (!state.isApplicationCompleted(application)) {
+      if (state.isApplicationCompleted(application)) {
+        yield api.send({
+          req,
+          object: STRINGS.APPLICATION_IN_REVIEW
+        })
+      } else {
         yield api.continueApplication(req)
       }
 

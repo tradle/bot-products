@@ -12,6 +12,7 @@ module.exports = {
   APPLICATION_NOT_FOUND: 'Hm, application not found. Please re-apply, but be happy about it!',
   APPLICATION_SUBMITTED: 'Application submitted!',
   APPLICATION_UPDATED: 'Application updated!',
+  APPLICATION_IN_REVIEW: 'Your application is in review :-)',
   APPLICATION_DENIED: `I'm sorry, your application was denied`,
   SORRY_TO_FORGET_YOU: 'You\'re pretty unforgettable, but alright',
   // NICE_TO_MEET_YOU: 'Nice to meet you!',
