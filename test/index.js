@@ -358,6 +358,7 @@ test('basic form loop', loudCo(function* (t) {
       const appState = yield api.getApplicationByStub(app)
       t.same(appState.status, expectedStatus)
       t.ok(api.state.getFormsByType(appState.forms, nextForm).length > 0)
+      t.ok(api.state.getLatestFormByType(appState.forms, nextForm))
     }
 
     // get product cert

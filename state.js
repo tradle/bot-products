@@ -30,7 +30,7 @@ module.exports = function stateMutater ({ models }) {
   const allModels = models.all
   const build = model => buildResource({ model, models: allModels })
 
-  function validateCustomer (user) {
+  const validateCustomer = (user) => {
     user[TYPE] = privateModels.customer.id
     validateResource({
       models: allModels,
@@ -39,7 +39,7 @@ module.exports = function stateMutater ({ models }) {
     })
   }
 
-  function createCertificate ({ application }) {
+  const createCertificate = ({ application }) => {
     const { requestFor, forms } = application
     const certModel = bizModels.certificateFor[requestFor]
     // const copy = forms
@@ -68,7 +68,7 @@ module.exports = function stateMutater ({ models }) {
    * @param {application} options.application
    * @param {Certification}    options.certificate
    */
-  function addCertificate ({ req, user, application, certificate }) {
+  const addCertificate = ({ req, user, application, certificate }) => {
     if (!user) user = req.user
     if (!application) application = req.application
 
@@ -111,7 +111,7 @@ module.exports = function stateMutater ({ models }) {
     return application
   }
 
-  function moveToDenied ({ user, application }) {
+  const moveToDenied = ({ user, application }) => {
     const idx = getApplicationStubIndex({
       applications: user.applications,
       application
@@ -127,11 +127,11 @@ module.exports = function stateMutater ({ models }) {
     return application
   }
 
-  // function revokeCertificate ({ user, application }) {
+  // const revokeCertificate = ({ user, application }) => {
   //   application.certificate
   // }
 
-  function setProfile ({ user, object }) {
+  const setProfile = ({ user, object }) => {
     const { firstName, lastName } = object.profile
     // const oldFirstName = user.firstName
     user.firstName = firstName
@@ -140,15 +140,15 @@ module.exports = function stateMutater ({ models }) {
     }
   }
 
-  function getTime (obj, message) {
+  const getTime = (obj, message) => {
     return obj._time || obj.time || (message && message.time) || Date.now()
   }
 
-  function importVerification ({ user, application, verification }) {
+  const importVerification = ({ user, application, verification }) => {
     addVerification({ user, application, verification, imported: true })
   }
 
-  function createVerifiedItem ({ verification }) {
+  const createVerifiedItem = ({ verification }) => {
     return build(allModels[VERIFIED_ITEM])
       .set({
         verification,
@@ -157,7 +157,7 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function createApplication ({ user, object }) {
+  const createApplication = ({ user, object }) => {
     const { requestFor } = object
     const application = build(privateModels.application)
       .set({
@@ -176,7 +176,7 @@ module.exports = function stateMutater ({ models }) {
     return application
   }
 
-  function updateApplicationStub ({ user, application }) {
+  const updateApplicationStub = ({ user, application }) => {
     const updated = [
       user.applications,
       user.applicationsApproved,
@@ -194,17 +194,17 @@ module.exports = function stateMutater ({ models }) {
     }
   }
 
-  function getApplicationStubIndex ({ applications, application }) {
+  const getApplicationStubIndex = ({ applications, application }) => {
     return applications.findIndex(application2 => {
       return application._permalink === application2.statePermalink
     })
   }
 
-  function hasApplication ({ applications, application }) {
+  const hasApplication = ({ applications, application }) => {
     return getApplicationStubIndex({ applications, application }) !== -1
   }
 
-  function createApplicationStub ({ application }) {
+  const createApplicationStub = ({ application }) => {
     const copy = Object.keys(privateModels.applicationStub.properties)
       .filter(propertyName => propertyName in privateModels.application.properties)
 
@@ -216,7 +216,7 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function updateApplication ({ application, properties={} }) {
+  const updateApplication = ({ application, properties={} }) => {
     if (!properties.dateModified) {
       properties.dateModified = Date.now()
     }
@@ -231,7 +231,7 @@ module.exports = function stateMutater ({ models }) {
     return application
   }
 
-  function setApplicationStatus ({ application, status }) {
+  const setApplicationStatus = ({ application, status }) => {
     if (status === application.status) return
 
     const now = Date.now()
@@ -255,7 +255,7 @@ module.exports = function stateMutater ({ models }) {
     return application
   }
 
-  function isApplicationCompleted (application) {
+  const isApplicationCompleted = (application) => {
     return application.status === 'completed'
   }
 
@@ -265,7 +265,7 @@ module.exports = function stateMutater ({ models }) {
    * @param {Application Form} options.object  [description]
    * @param {tradle.Message}   options.message [description]
    */
-  function addApplication ({ user, application }) {
+  const addApplication = ({ user, application }) => {
     ensureLinks(application)
     debug('added application with context: ' + application.context)
     const stub = createApplicationStub({ application })
@@ -274,7 +274,7 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  function createVerification ({ req, user, application, object, verification={} }) {
+  const createVerification = ({ req, user, application, object, verification={} }) => {
     if (!user) user = req.user
 
     const builder = build(baseModels[VERIFICATION])
@@ -306,7 +306,7 @@ module.exports = function stateMutater ({ models }) {
     return builder.toJSON()
   }
 
-  function addVerification ({ user, application, verification, imported }) {
+  const addVerification = ({ user, application, verification, imported }) => {
     if (!application) {
       throw new Error('expected "application"')
     }
@@ -330,7 +330,7 @@ module.exports = function stateMutater ({ models }) {
     return verification
   }
 
-  function addForm ({ user, object, application }) {
+  const addForm = ({ user, object, application }) => {
     if (!application.forms) {
       application.forms = []
     }
@@ -345,7 +345,7 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  function init (user) {
+  const init = (user) => {
     const { properties } = privateModels.customer
     for (let propertyName in properties) {
       let prop = properties[propertyName]
@@ -357,14 +357,14 @@ module.exports = function stateMutater ({ models }) {
     }
   }
 
-  function setIdentity ({ user, identity }) {
+  const setIdentity = ({ user, identity }) => {
     user.identity = buildResource.stub({
       models: allModels,
       resource: identity
     })
   }
 
-  function toItem ({ object, message }) {
+  const toItem = ({ object, message }) => {
     const time = getTime(object, message)
     return build(privateModels.item)
       .set({
@@ -375,32 +375,46 @@ module.exports = function stateMutater ({ models }) {
       .toJSON()
   }
 
-  function findApplication (applications, test) {
+  const findApplication = (applications, test) => {
     return applications.find(test)
   }
 
-  function getApplicationByContext (applications, context) {
-    return findApplication(applications, application => {
-      return application.context === context
+  const getApplicationByContext = (applications, context) => {
+    return findApplication(applications, application => application.context === context)
+  }
+
+  const getApplicationsByType = (applications, type) =>
+    applications.filter(application => application.requestFor === type)
+
+  const getFormsByType = (forms, type) =>
+    forms.filter(stub => parseStub(stub).type === type)
+
+  const createFilterForType = query => ({ type }) => type === query
+
+  const getLatestForm = (forms, filter) => {
+    let result
+    forms.slice().reverse().some(stub => {
+      const parsed = parseStub(stub)
+      if (filter(parsed)) {
+        result = parsed
+        return true
+      }
     })
+
+    return result
   }
 
-  function getApplicationsByType (applications, type) {
-    return applications.filter(application => application.requestFor === type)
-  }
+  const getLatestFormByType = (forms, type) =>
+    getLatestForm(forms, createFilterForType(type))
 
-  function getFormsByType (forms, type) {
-    return forms.filter(stub => parseStub(stub).type === type)
-  }
-
-  function guessApplicationFromIncomingType (applications, type) {
+  const guessApplicationFromIncomingType = (applications, type) => {
     return findApplication(applications, app => {
       const productModel = models.all[app.requestFor]
       return productModel.forms.indexOf(type) !== -1
     })
   }
 
-  function getApplicationContext (application) {
+  const getApplicationContext = (application) => {
     return application.context
   }
 
@@ -423,6 +437,8 @@ module.exports = function stateMutater ({ models }) {
     setIdentity,
     init,
     getFormsByType,
+    getLatestForm,
+    getLatestFormByType,
     hasApplication,
     getApplicationsByType,
     getApplicationByContext,
