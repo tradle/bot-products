@@ -369,19 +369,25 @@ module.exports = function (api) {
     return application
   }
 
-  // const maybeSendProductList = co(function* (req) {
-  //   const { historySummary=[] } = req.user
-  //   const plLabel = getProductListLabel()
-  //   const productList = historySummary.find(({ label, inbound }) => {
-  //     return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
-  //   })
+  const maybeSendProductList = co(function* (req) {
+    if (req.context) {
+      debug('not sending product list in contextual chat')
+    } else {
+      yield api.sendProductList(req)
+    }
 
-  //   if (!(productList && productList.label === plLabel)) {
-  //     return api.sendProductList(req)
-  //   }
+    // const { historySummary=[] } = req.user
+    // const plLabel = getProductListLabel()
+    // const productList = historySummary.find(({ label, inbound }) => {
+    //   return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
+    // })
 
-  //   debug('not sending product list as I sent it recently')
-  // })
+    // if (!(productList && productList.label === plLabel)) {
+    //   return api.sendProductList(req)
+    // }
+
+    // debug('not sending product list as I sent it recently')
+  })
 
   // const getProductListLabel = (other={}) => {
   //   const hash = sha256({
@@ -467,19 +473,19 @@ module.exports = function (api) {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,
-      api.sendProductList
+      maybeSendProductList
     ],
     'tradle.IdentityPublishRequest': [
       saveIdentity,
       saveName,
-      api.sendProductList
+      maybeSendProductList
     ],
     // 'tradle.Name': saveName,
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,
     'tradle.SimpleMessage': handleSimpleMessage,
-    'tradle.CustomerWaiting': api.sendProductList,
+    'tradle.CustomerWaiting': maybeSendProductList,
     'tradle.ForgetMe': api.forgetUser,
     'tradle.NextFormRequest': breakOutOfMultiEntry
     // onUnhandledMessage: noComprendo
