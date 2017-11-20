@@ -295,6 +295,8 @@ module.exports = function (api) {
   }
 
   function shouldSealReceived ({ message, object }) {
+    if (object._seal) return false
+
     const type = object[TYPE]
     const model = models.all[type]
     if (model && model.subClassOf === 'tradle.Form') {
@@ -303,6 +305,8 @@ module.exports = function (api) {
   }
 
   function shouldSealSent ({ message, object }) {
+    if (object._seal) return false
+
     const type = object[TYPE]
     if (TO_SEAL.includes(type)) return true
 
