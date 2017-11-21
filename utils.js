@@ -220,6 +220,16 @@ function calcHash (data, algorithm) {
   return crypto.createHash(algorithm).update(data).digest('hex')
 }
 
+function createNewVersionOfApplication ({ bot, state, application }) {
+  application = buildResource.version(application)
+  this.state.updateApplication({
+    application,
+    properties: { dateModified: Date.now() }
+  })
+
+  return this.bot.sign(application)
+}
+
 module.exports = {
   co,
   isPromise,
@@ -250,5 +260,6 @@ module.exports = {
   getVerificationPermalinks,
   getNameFromForm,
   hashObject,
-  sha256
+  sha256,
+  createNewVersionOfApplication
 }

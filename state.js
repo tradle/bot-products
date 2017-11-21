@@ -228,6 +228,10 @@ module.exports = function stateMutater ({ models }) {
       properties
     })
 
+    buildResource.setVirtual(application, {
+      _time: application.dateModified
+    })
+
     return application
   }
 

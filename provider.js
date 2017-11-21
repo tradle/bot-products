@@ -32,6 +32,7 @@ const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
+const applicationMixin = require('./application-mixin')
 const {
   DENIAL,
   APPLICATION,
@@ -58,11 +59,12 @@ const types = {
   })
 }
 
-exports = module.exports = opts => new Strategy(opts)
+exports = module.exports = opts => new Provider(opts)
 
-function Strategy (opts) {
+function Provider (opts) {
   EventEmitter.call(this)
   bindAll(this)
+  applicationMixin(this)
 
   const { namespace, models, products } = opts
   this.namespace = namespace
@@ -104,8 +106,8 @@ function Strategy (opts) {
   // })
 }
 
-inherits(Strategy, EventEmitter)
-const proto = Strategy.prototype
+inherits(Provider, EventEmitter)
+const proto = Provider.prototype
 
 proto.install = function (bot) {
   this.bot = bot
@@ -288,24 +290,6 @@ proto._processIncoming = co(function* (req) {
 
 proto.versionAndSave = function (resource) {
   return this.bot.versionAndSave(resource)
-}
-
-/**
- * update PERMALINK, PREVLINK on application, save new application version
- */
-proto.saveNewVersionOfApplication = function ({ user, application }) {
-  return this.createNewVersionOfApplication(application)
-    .then(application => this.saveApplication({ user, application }))
-}
-
-proto.createNewVersionOfApplication = function (application) {
-  application = buildResource.version(application)
-  this.state.updateApplication({
-    application,
-    properties: { dateModified: Date.now() }
-  })
-
-  return this.bot.sign(application)
 }
 
 proto.getApplicationByStub = function ({ id, statePermalink }) {
