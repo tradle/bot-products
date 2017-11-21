@@ -4,17 +4,12 @@ const inherits = require('inherits')
 const validateResource = require('@tradle/validate-resource')
 const { omitVirtual, getRef } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
-const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
-const Gen = require('./gen')
-const baseModels = require('./base-models')
-const createPrivateModels = require('./private-models')
+const ModelManager = require('./models')
 const {
   co,
   bindAll,
-  uniq,
   omit,
-  shallowClone,
   clone,
   deepEqual,
   debug,
@@ -37,12 +32,15 @@ const createDefaultPlugins = require('./default-plugins')
 const STRINGS = require('./strings')
 const createDefiner = require('./definer')
 const triggerBeforeAfter = require('./trigger-before-after')
-const DENIAL = 'tradle.ApplicationDenial'
-const APPLICATION = 'tradle.Application'
-const VERIFICATION = 'tradle.Verification'
-const FORGOT_YOU = 'tradle.ForgotYou'
-const FORM_REQUEST = 'tradle.FormRequest'
-const PRODUCT_REQUEST = 'tradle.ProductRequest'
+const {
+  DENIAL,
+  APPLICATION,
+  VERIFICATION,
+  FORGOT_YOU,
+  FORM_REQUEST,
+  PRODUCT_REQUEST
+} = require('./types')
+
 const HISTORY_OPTS = {
   inbound: 3,
   outbound: 3,
@@ -68,16 +66,8 @@ function Strategy (opts) {
 
   const { namespace, models, products } = opts
   this.namespace = namespace
-  const privateModels = createPrivateModels(namespace)
-  this.models = {
-    private: privateModels,
-    all: mergeModels()
-      .add(baseModels)
-      .add(privateModels.all)
-      .get()
-  }
-
-  this._stateProps = Object.keys(privateModels.customer.properties)
+  this.models = new ModelManager({ namespace, products })
+  this._stateProps = Object.keys(this.models.private.customer.properties)
   this._forgettableProps = this._stateProps.filter(prop => {
     return prop !== 'identity' && prop !== 'id' && prop !== TYPE
   })
@@ -125,48 +115,7 @@ proto.install = function (bot) {
 }
 
 proto.addProducts = function addProducts ({ models, products }) {
-  const newAllModels = shallowClone(this.models.all, models ? models.all : {})
-  products.forEach(id => {
-    const model = newAllModels[id]
-    if (!model) {
-      throw new Error(`missing model for product ${id}`)
-    }
-
-    if (model.subClassOf !== 'tradle.FinancialProduct') {
-      throw new Error(`${id} is not a product!`)
-    }
-  })
-
-  this.models.biz = Gen.applicationModels({
-    models: newAllModels,
-    products: uniq(products.concat(this.products)),
-    namespace: this.namespace
-  })
-
-  if (models) {
-    ['private', 'biz'].forEach(subset => {
-      if (!models[subset] || !models[subset].all) return
-
-      if (!this.models[subset]) {
-        this.models[subset] = {}
-      }
-
-      const all = shallowClone(
-        this.models[subset].all,
-        models[subset].all
-      )
-
-      this.models[subset] = shallowClone(this.models[subset], models[subset])
-      this.models[subset].all = all
-    })
-  }
-
-  this.models.all = mergeModels()
-    .add(baseModels)
-    .add(this.models.private.all)
-    .add(this.models.biz.all)
-    .get()
-
+  this.models.addProducts({ models, products })
   this.state = createStateMutater({ models: this.models })
   this.removeDefaultHandlers()
   this._defaultPlugins = createDefaultPlugins(this)

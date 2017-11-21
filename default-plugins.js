@@ -16,12 +16,15 @@ const {
 
 const Commander = require('./commander')
 const STRINGS = require('./strings')
-const REMEDIATION = 'tradle.Remediation'
-const VERIFICATION = 'tradle.Verification'
-const APPROVAL = 'tradle.ApplicationApproval'
-const DENIAL = 'tradle.ApplicationDenial'
-const FORM_REQUEST = 'tradle.FormRequest'
-const PRODUCT_REQUEST = 'tradle.ProductRequest'
+const {
+  DENIAL,
+  APPROVAL,
+  VERIFICATION,
+  PRODUCT_REQUEST,
+  REMEDIATION,
+  CONFIRMATION
+} = require('./types')
+
 const TO_SEAL = [
   VERIFICATION.
   CONFIRMATION,

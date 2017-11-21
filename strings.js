@@ -20,7 +20,6 @@ module.exports = {
   IM_HERE_IF_YOU_NEED: 'I\'m here if you need me',
   ANOTHER: 'Another {0}? Whooah!!',
   PRODUCT_LIST_MESSAGE: 'See a list of products',
-  PRODUCT_APPLICATION: 'Product Application',
   AGE_VERIFICATION: 'Age Verification',
   PRODUCT_LIST_LABEL: 'pl'
 }
