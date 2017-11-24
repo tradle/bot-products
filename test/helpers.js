@@ -3,6 +3,7 @@ const { EventEmitter } = require('events')
 const co = require('co').wrap
 const shallowExtend = require('xtend/mutable')
 const sinon = require('sinon')
+const createHooks = require('event-hooks')
 const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const fakeResource = require('@tradle/build-resource/fake')
@@ -41,6 +42,7 @@ function createFakeBot (opts={}) {
   const byLink = {}
   const handlers = []
   const objects = {}
+  const hooks = createHooks()
   const bot = shallowExtend(new EventEmitter(), {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
@@ -55,6 +57,9 @@ function createFakeBot (opts={}) {
     presignEmbeddedMediaLinks: function (object) {
       return object
     },
+    getMyIdentity: co(function* () {
+      return botIdentity
+    }),
     sign: co(function* (object) {
       object[SIG] = newSig()
       return object
@@ -98,7 +103,9 @@ function createFakeBot (opts={}) {
 
         return object
       })
-    }
+    },
+    hooks,
+    hook: hooks.hook
   })
 
   return { bot, handlers }

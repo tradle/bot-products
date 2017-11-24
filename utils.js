@@ -230,6 +230,36 @@ function createNewVersionOfApplication ({ bot, state, application }) {
   return this.bot.sign(application)
 }
 
+const getModelsPacks = co(function* ({ db, from, to }) {
+  const between = this.bot.db.find({
+    filter: {
+      EQ: {
+        [TYPE]: MODELS_PACK
+      },
+      BETWEEN: {
+        _time: [from, to]
+      }
+    }
+  })
+
+  const before = this.bot.db.findOne({
+    filter: {
+      EQ: {
+        [TYPE]: MODELS_PACK
+      },
+      LT: {
+        _time: from
+      }
+    }
+  })
+  .catch(err => {
+    if (err.name !== 'NotFound') throw err
+  })
+
+  const all = yield Promise.all([before, between])
+  return flatten(all)
+})
+
 module.exports = {
   co,
   isPromise,
@@ -261,5 +291,6 @@ module.exports = {
   getNameFromForm,
   hashObject,
   sha256,
-  createNewVersionOfApplication
+  createNewVersionOfApplication,
+  getModelsPacks
 }

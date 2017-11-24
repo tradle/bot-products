@@ -5,6 +5,7 @@ if (!process.env.NODE_ENV) {
 }
 
 const test = require('tape')
+const sinon = require('sinon')
 const co = require('co').wrap
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
@@ -17,8 +18,12 @@ const { pick } = require('../utils')
 const messageInterface = require('../message-interface')
 const botIdentity = require('./fixtures/bot-identity')
 const userIdentity = require('./fixtures/user-identity')
+const {
+  SELF_INTRODUCTION,
+  MODELS_PACK
+} = require('../types')
+
 const CURRENT_ACCOUNT = 'tradle.CurrentAccount'
-const SELF_INTRODUCTION = 'tradle.SelfIntroduction'
 const {
   formLoop,
   loudCo,
@@ -26,6 +31,7 @@ const {
   hex32,
   newSig,
   fakeBot,
+  fakeMessage
   // createIdentityStub
 } = require('./helpers')
 
@@ -33,7 +39,6 @@ const TEST_PRODUCT = {
   type: 'tradle.Model',
   id: 'tradle.TestProduct',
   title: 'Test Product',
-  interfaces: messageInterface ? [messageInterface] : [],
   subClassOf: 'tradle.FinancialProduct',
   forms: [
     'tradle.ORV',
@@ -124,13 +129,7 @@ test('state', loudCo(function* (t) {
   } = productsStrategy.install(bot)
 
   const privateModels = models.private
-  const productRequest = fakeResource({
-    models: models.all,
-    model: models.all['tradle.ProductRequest'],
-    signed: true
-  })
-
-  productRequest.requestFor = TEST_PRODUCT.id
+  const productRequest = createProductRequest(TEST_PRODUCT.id)
 
   state.init(user)
   t.same(user, {
@@ -625,6 +624,68 @@ test.skip('complex form loop', loudCo(co(function* (t) {
   yield testProduct({ productModel })
 })))
 
+test.skip('client', loudCo(function* (t) {
+  const namespace = 'test.namespace'
+  const productModel = TEST_PRODUCT
+  const customModels = { [TEST_PRODUCT.id]: TEST_PRODUCT }
+  const productsStrategy = createProductsStrategy({
+    namespace,
+    models: {
+      all: customModels
+    },
+    products: [TEST_PRODUCT.id]
+  })
+
+  const models = productsStrategy.models.all
+  const client = createProductsStrategy.createClient()
+  const userId = 'someuserid'
+  const { bot } = fakeBot()
+  client.install(bot)
+
+  const productRequest = createProductRequest(TEST_PRODUCT.id)
+  const context = 'somerandomcontext'
+  const botIdentity = yield bot.getMyIdentity()
+  const forms = TEST_PRODUCT.forms.map(id => {
+    const form = fakeResource({
+      models,
+      model: models[id],
+      signed: true
+    })
+
+    return fakeMessageFromUser(form, context)
+  })
+
+  const messages = [
+    fakeMessageFromUser(productRequest, context)
+  ].concat(forms)
+
+  sinon.stub(client, 'getModelsPacks').callsFake(co(function* ({ from, to }) {
+    return [
+      {
+        [TYPE]: MODELS_PACK,
+        models: customModels
+      }
+    ]
+  }))
+
+  yield bot.hooks.fire('messagestream:post', { messages })
+  t.end()
+
+  function fakeMessageFromUser (object, context) {
+    const msg = fakeMessage({
+      from: buildResource.permalink(botIdentity),
+      to: userId,
+      object
+    })
+
+    if (context) {
+      msg.context = context
+    }
+
+    return msg
+  }
+}))
+
 // test('genModels', function (t) {
 //   const enumModel = genEnumModel({ models, id: 'my.enum.of.Goodness' })
 //   // console.log(JSON.stringify(enumModel, null, 2))
@@ -653,4 +714,15 @@ function createSignedVerification ({ state, user, form }) {
 
 function compareId (a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+}
+
+function createProductRequest (productId) {
+  const productRequest = fakeResource({
+    models: baseModels,
+    model: baseModels['tradle.ProductRequest'],
+    signed: true
+  })
+
+  productRequest.requestFor = productId
+  return productRequest
 }

@@ -13,5 +13,7 @@ module.exports = {
   FORM: 'tradle.Form',
   VERIFIED_ITEM: 'tradle.VerifiedItem',
   CONFIRM_PACKAGE_REQUEST: 'tradle.VerifiedItem',
-  MY_PRODUCT: 'tradle.MyProduct'
+  MY_PRODUCT: 'tradle.MyProduct',
+  MODELS_PACK: 'tradle.ModelsPack',
+  SELF_INTRODUCTION: 'tradle.SelfIntroduction'
 }
