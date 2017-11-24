@@ -33,9 +33,10 @@ ModelManager.prototype.addProducts = function ({ models, products }) {
     }
   })
 
+  this.products = uniq(products.concat(this.products || []))
   this.biz = Gen.applicationModels({
     models: newAllModels,
-    products: uniq(products.concat(this.products || [])),
+    products: this.products,
     namespace: this.namespace
   })
 

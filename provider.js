@@ -66,7 +66,13 @@ function Provider (opts) {
   bindAll(this)
   applicationMixin(this)
 
-  const { namespace, models, products } = opts
+  const {
+    namespace,
+    models,
+    products,
+    queueSends=true
+  } = opts
+
   this.namespace = namespace
   this.models = new ModelManager({ namespace, products })
   this._stateProps = Object.keys(this.models.private.customer.properties)
@@ -99,6 +105,8 @@ function Provider (opts) {
     'approveApplication',
     'denyApplication'
   ])
+
+  this._queueSends = queueSends
 
   // ;['send', 'rawSend', 'sign'].forEach(method => {
   //   this[method] = (...args) => this._exec(method, ...args)
@@ -369,7 +377,7 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   })
 
   const opts = { req, to, link, object, other }
-  if (req.message) {
+  if (req.message && this._queueSends !== false) {
     // this request is based on an incoming message
     // so we can try to batch the sends at the end (maybe)
     req.sendQueue.push(opts)
