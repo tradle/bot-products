@@ -43,11 +43,11 @@ function genApplicationModels ({ namespace, models, products }) {
   // const ids = getNamespaceIds(namespace)
 
   const productModels = products.map(id => models[id])
-  const productListId = GenId.productList({ namespace })
-  const productList = GenModel.productList({
-    id: productListId,
-    productModels
-  })
+  // const productListId = GenId.productList({ namespace })
+  // const productList = GenModel.productList({
+  //   id: productListId,
+  //   productModels
+  // })
 
   // const appSubmittedId = getApplicationSubmittedModelId({ namespace })
   // const appSubmitted = genApplicationSubmittedModel({ namespace })
@@ -55,7 +55,7 @@ function genApplicationModels ({ namespace, models, products }) {
   const certificateFor = {}
   const productForCertificate = {}
   const additional = {
-    [productListId]: productList,
+    // [productListId]: productList,
     // [appSubmittedId]: appSubmitted
   }
 
@@ -78,10 +78,8 @@ function genApplicationModels ({ namespace, models, products }) {
 
   const all = {}
   const applicationModels = {
-    get products() {
-      return productList.enum.map(val => val.id)
-    },
-    productList,
+    products,
+    // productList,
     // productRequest,
     // applicationSubmitted,
     certificates,
@@ -92,7 +90,7 @@ function genApplicationModels ({ namespace, models, products }) {
   }
 
   // additional[productRequest.id] = productRequest
-  additional[productList.id] = productList
+  // additional[productList.id] = productList
 
   getValues(models)
     .concat(productModels)
@@ -208,15 +206,15 @@ function genEnumModel ({ models, id, title }) {
 }
 
 const GenId = {
-  productList: ({ namespace }) => `${namespace}.Product`,
-  productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
+  // productList: ({ namespace }) => `${namespace}.Product`,
+  // productRequest: ({ namespace }) => `${namespace}.ProductRequest`,
   certificate: getCertificateModelId,
   // applicationSubmitted: genApplicationSubmittedModelId
 }
 
 const GenModel = {
-  productList: genProductListModel,
-  productRequest: genProductRequestModel,
+  // productList: genProductListModel,
+  // productRequest: genProductRequestModel,
   certificate: genCertificateModel,
   // applicationSubmitted: genApplicationSubmittedModel
 }
