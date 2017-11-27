@@ -223,11 +223,8 @@ proto._onmessage = co(function* (data) {
       debug('didReceive failed', err.stack)
     }
 
-    const sendQueue = req.sendQueue.slice()
-    const n = sendQueue.length
-    if (n) {
-      debug(`processing ${n} items in send queue to ${userId}`)
-      yield series(sendQueue, opts => this.rawSend(opts))
+    if (req.sendQueue.length) {
+      yield this.rawSendBatch({ req, messages: req.sendQueue })
     }
   }
 
@@ -334,6 +331,11 @@ proto.removeDefaultHandlers = function () {
   if (this._defaultPlugins) {
     return this.plugins.remove(this._defaultPlugins)
   }
+}
+
+proto.rawSendBatch = function ({ req, messages }) {
+  debug(`sending batch of ${messages.length} messages`)
+  return this.bot.send(messages)
 }
 
 proto.rawSend = function ({ req, to, link, object, other={} }) {

@@ -68,12 +68,17 @@ function createFakeBot (opts={}) {
       byPermalink[buildResource.permalink(object)] = object
       byLink[buildResource.link(object)] = object
     }),
-    send: co(function* ({ to, object, other }) {
-      object = yield bot.sign(object)
-      yield bot.save(object)
-      const ret = fakeMessage({ from: botId, to: user.id, object, other })
-      process.nextTick(() => bot.emit('sent', ret))
-      return ret
+    send: co(function* (opts) {
+      const ret = yield Promise.all([].concat(opts)
+        .map(co(function* ({ to, object, other }) {
+          object = yield bot.sign(object)
+          yield bot.save(object)
+          const msg = fakeMessage({ from: botId, to: user.id, object, other })
+          process.nextTick(() => bot.emit('sent', msg))
+          return msg
+        })))
+
+      return Array.isArray(opts) ? ret : ret[0]
     }),
     objects: {
       get: co(function* (link) {
