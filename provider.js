@@ -427,7 +427,7 @@ proto.saveApplication = co(function* ({ user, application }) {
 })
 
 proto.version = function (object) {
-  return this.bot.version(object)
+  return this.bot.createNewVersion(object)
 }
 
 proto.save = function (signedObject) {
