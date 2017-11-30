@@ -10,7 +10,8 @@ const {
   shallowClone,
   pick,
   debug,
-  getContext
+  getContext,
+  getLinkFromResourceOrStub
 } = require('./utils')
 
 const baseModels = require('./base-models')
@@ -281,6 +282,7 @@ module.exports = function stateMutater ({ models }) {
   const createVerification = ({ req, user, application, object, verification={} }) => {
     if (!user) user = req.user
 
+    const oLink = getLinkFromResourceOrStub(object)
     const builder = build(baseModels[VERIFICATION])
       .set(verification)
       .set('document', object)
@@ -296,7 +298,7 @@ module.exports = function stateMutater ({ models }) {
       const sources = verificationsImported.map(verifiedItem => {
         const { id } = verifiedItem.item
         const { link } = parseId(id)
-        if (link === object._link) {
+        if (link === oLink) {
           return id
         }
       })

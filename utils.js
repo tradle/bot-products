@@ -260,6 +260,14 @@ const getModelsPacks = co(function* ({ db, from, to }) {
   return flatten(all)
 })
 
+function getLinkFromResourceOrStub (object) {
+  if (buildResource.isProbablyResourceStub(object)) {
+    return parseStub(object).link
+  }
+
+  return buildResource.link(object)
+}
+
 module.exports = {
   co,
   isPromise,
@@ -292,5 +300,6 @@ module.exports = {
   hashObject,
   sha256,
   createNewVersionOfApplication,
-  getModelsPacks
+  getModelsPacks,
+  getLinkFromResourceOrStub
 }
