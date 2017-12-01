@@ -3,6 +3,6 @@ const base = require('@tradle/models').models
 const custom = require('@tradle/custom-models')
 
 module.exports = mergeModels()
-  .add(base)
-  .add(custom)
+  .add(base, { validate: false })
+  .add(custom, { validate: false })
   .get()

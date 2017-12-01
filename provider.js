@@ -70,11 +70,12 @@ function Provider (opts) {
     namespace,
     models,
     products,
-    queueSends=true
+    queueSends=true,
+    validateModels=true
   } = opts
 
   this.namespace = namespace
-  this.models = new ModelManager({ namespace, products })
+  this.models = new ModelManager({ namespace, products, validate: validateModels })
   this._stateProps = Object.keys(this.models.private.customer.properties)
   this._forgettableProps = this._stateProps.filter(prop => {
     return prop !== 'identity' && prop !== 'id' && prop !== TYPE

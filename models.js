@@ -9,12 +9,13 @@ const {
 
 module.exports = ModelManager
 
-function ModelManager ({ namespace }) {
+function ModelManager ({ namespace, validate }) {
   this.namespace = namespace
+  this.validate = validate
   this.private = createPrivateModels(namespace)
   this.all = mergeModels()
-    .add(baseModels)
-    .add(this.private.all)
+    .add(baseModels, { validate })
+    .add(this.private.all, { validate })
     .get()
 
   this.products = []
@@ -58,9 +59,10 @@ ModelManager.prototype.addProducts = function ({ models, products }) {
     })
   }
 
+  const opts = { validate: this.validate }
   this.all = mergeModels()
-    .add(baseModels)
-    .add(this.private.all)
-    .add(this.biz.all)
+    .add(baseModels, opts)
+    .add(this.private.all, opts)
+    .add(this.biz.all, opts)
     .get()
 }
