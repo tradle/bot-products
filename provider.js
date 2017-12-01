@@ -39,7 +39,8 @@ const {
   VERIFICATION,
   FORGOT_YOU,
   FORM_REQUEST,
-  PRODUCT_REQUEST
+  PRODUCT_REQUEST,
+  IDENTITY
 } = require('./types')
 
 const HISTORY_OPTS = {
@@ -572,10 +573,44 @@ proto.denyApplication = co(function* ({ req, user, application }) {
   return this.send({ req, to: user, object: denial })
 })
 
-proto.sendVerifications = co(function* ({ req, to, application }) {
+proto.sendIssuedVerifications = co(function* ({ req, to, application }) {
   const { verificationsIssued=[] } = application
-  yield Promise.all(verificationsIssued.map(({ link }) => {
-    return this.send({ req, to, link })
+  yield verificationsIssued.map(({ link }) => this.send({ req, to, link }))
+})
+
+proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
+  const { forms=[], verificationsIssued=[] } = application
+  return forms.every(form => {
+    return verificationsIssued.find(({ item }) => {
+      return item.id === form.id
+    })
+  })
+}
+
+proto.issueVerifications = co(function* ({ req, user, application, send }) {
+  if (req) {
+    if (!user) user = req.user
+    if (!application) application = req.application
+  } else {
+    req = this.state.newRequestState({ user })
+  }
+
+  const {
+    forms,
+    verificationsImported=[],
+    verificationsIssued=[]
+  } = application
+
+  const unverified = forms.filter(form => {
+    return !verificationsIssued.find(({ item }) => item.id === form.id)
+  })
+
+  return yield unverified.map(formStub => this.verify({
+    req,
+    user,
+    application,
+    object: formStub,
+    send
   }))
 })
 

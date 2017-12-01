@@ -15,5 +15,6 @@ module.exports = {
   CONFIRM_PACKAGE_REQUEST: 'tradle.VerifiedItem',
   MY_PRODUCT: 'tradle.MyProduct',
   MODELS_PACK: 'tradle.ModelsPack',
-  SELF_INTRODUCTION: 'tradle.SelfIntroduction'
+  SELF_INTRODUCTION: 'tradle.SelfIntroduction',
+  IDENTITY: 'tradle.Identity'
 }

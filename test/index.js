@@ -353,6 +353,7 @@ test('basic form loop', loudCo(function* (t) {
         app = api.state.getApplicationsByType(user.applications, productModel.id)[0]
       }
 
+      t.equal(api.haveAllSubmittedFormsBeenVerified({ application: app }), true)
       t.ok(app)
       const appState = yield api.getApplicationByStub(app)
       t.same(appState.status, expectedStatus)
