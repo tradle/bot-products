@@ -155,6 +155,9 @@ module.exports = function stateMutater ({ models }) {
         verification,
         item: verification.document
       })
+      .setVirtual({
+        _verifiedBy: verification._author
+      })
       .toJSON()
   }
 

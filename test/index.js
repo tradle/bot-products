@@ -28,7 +28,7 @@ const {
   formLoop,
   loudCo,
   toObject,
-  hex32,
+  newLink,
   newSig,
   fakeBot,
   fakeMessage
@@ -151,7 +151,7 @@ test('state', loudCo(function* (t) {
   state.addApplication({ user, application })
 
   productModel.forms.forEach((form, i) => {
-    const link = hex32()
+    const link = newLink()
     const signedForm = fakeResource({
       models: models.all,
       model: models.all[form],
@@ -703,10 +703,11 @@ function createSignedVerification ({ state, user, form }) {
   })
 
   verification[SIG] = newSig()
-  const vLink = hex32()
+  const vLink = newLink()
   buildResource.setVirtual(verification, {
     _link: vLink,
-    _permalink: vLink
+    _permalink: vLink,
+    _author: newLink()
   })
 
   return verification

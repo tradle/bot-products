@@ -62,6 +62,10 @@ function createFakeBot (opts={}) {
     }),
     sign: co(function* (object) {
       object[SIG] = newSig()
+      buildResource.setVirtual(object, {
+        _author: botId
+      })
+
       return object
     }),
     save: co(function (object) {
