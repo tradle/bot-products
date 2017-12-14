@@ -413,21 +413,6 @@ proto.addApplication = co(function* ({ req }) {
   yield this.continueApplication(req)
 })
 
-// proxy to facilitate plugin attachment
-proto.saveApplication = co(function* ({ user, application }) {
-  application._time = application.dateModified
-  if (!user) {
-    const { permalink } = parseStub(application.applicant)
-    user = yield this.bot.users.get(permalink)
-  }
-
-  this.state.updateApplicationStub({ user, application })
-  return yield Promise.all([
-    this.bot.objects.put(application),
-    this.bot.save(application)
-  ])
-})
-
 proto.version = function (object) {
   return this.bot.createNewVersion(object)
 }

@@ -1,4 +1,5 @@
 const co = require('co').wrap
+const { PREVLINK } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const { parseStub } = require('./utils')
 
@@ -25,10 +26,14 @@ module.exports = function applicationMixin (target) {
   }
 
   target.saveApplication = co(function* ({ user, application }) {
-    if (user) {
-      this.state.updateApplicationStub({ user, application })
+    // application._time = application.dateModified
+    if (!user) {
+      const { permalink } = parseStub(application.applicant)
+      user = yield this.bot.users.get(permalink)
     }
 
+    this.state.updateApplicationStub({ user, application })
+    // const method = application[PREVLINK] ? 'update' : 'save'
     return yield Promise.all([
       this.bot.objects.put(application),
       this.bot.save(application)
