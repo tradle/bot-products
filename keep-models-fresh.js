@@ -6,7 +6,7 @@ const { isPromise, stableStringify, shallowClone } = require('./utils')
 const defaultPropertyName = 'modelsHash'
 
 function defaultGetIdentifier (req) {
-  return req => req.user.id
+  return req.user.id
 }
 
 function hashObject (obj) {
