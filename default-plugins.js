@@ -194,9 +194,15 @@ module.exports = function (api) {
     return err
   }
 
-  const handleVerification = function handleVerification (req) {
+  const handleVerification = req => {
     const { user, application, object } = req
-    return api.importVerification({ user, application, verification: object })
+    return api.importVerification({
+      req,
+      user,
+      application,
+      verification: object,
+      saveApplication: false
+    })
   }
 
   function saveIdentity ({ user, object }) {

@@ -259,7 +259,11 @@ proto._processIncoming = co(function* (req) {
   let { application } = req
   if (application) {
     // lookup current application state
-    application = req.application = yield this.getApplicationByStub(application)
+    if (!application[SIG]) {
+      application = yield this.getApplicationByStub(application)
+    }
+
+    req.application = application
     applicationPreviousVersion = clone(application)
   }
 
@@ -427,12 +431,17 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.importVerification = function ({ req, user, application, verification }) {
+proto.importVerification = co(function* ({ req, user, application, verification, saveApplication=true }) {
   if (!user) user = req.user
   if (!application) application = req.application
   if (!verification) verification = req.object
+  if (!(user && application && verification)) {
+    throw new Error('expected "user", "application" and "verification"')
+  }
+
   this.state.importVerification({ user, application, verification })
-}
+  if (saveApplication) yield this.saveNewVersionOfApplication({ user, application })
+})
 
 proto.continueApplication = co(function* (req) {
   debug('continueApplication')
@@ -531,6 +540,7 @@ proto.verify = co(function* ({ req, user, application, object, verification={}, 
   }
 
   state.addVerification({ user, application, object, verification })
+  yield this.saveNewVersionOfApplication({ user, application })
   return verification
 })
 
