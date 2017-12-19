@@ -10,6 +10,7 @@ const {
   co,
   bindAll,
   omit,
+  shallowClone,
   clone,
   deepEqual,
   debug,
@@ -431,7 +432,14 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.importVerification = co(function* ({ req, user, application, verification, saveApplication=true }) {
+proto.addVerification = co(function* ({
+  req,
+  user,
+  application,
+  verification,
+  imported,
+  saveApplication=true,
+}) {
   if (!user) user = req.user
   if (!application) application = req.application
   if (!verification) verification = req.object
@@ -439,8 +447,20 @@ proto.importVerification = co(function* ({ req, user, application, verification,
     throw new Error('expected "user", "application" and "verification"')
   }
 
-  this.state.importVerification({ user, application, verification })
+  this.state.addVerification({ user, application, verification, imported })
   if (saveApplication) yield this.saveNewVersionOfApplication({ user, application })
+})
+
+proto.importVerification = co(function* (opts) {
+  return yield this.addVerification(shallowExtend({
+    imported: true
+  }, opts))
+})
+
+proto.issueVerification = co(function* (opts) {
+  return yield this.addVerification(shallowExtend({
+    imported: false
+  }, opts))
 })
 
 proto.continueApplication = co(function* (req) {
