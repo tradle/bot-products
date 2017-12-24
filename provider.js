@@ -683,30 +683,35 @@ proto.requestItem = co(function* ({ req, item }) {
   debug('requestItem', item)
   const { user, application } = req
   const { context, requestFor } = application
+  const itemRequested = typeof item === 'string' ? item : item[TYPE]
   // const context = parseId(application.request.id).permalink
-  debug(`requesting ${item} from user ${user.id} for ${requestFor}`)
+  debug(`requesting ${itemRequested} from user ${user.id} for ${requestFor}`)
   const reqItem = yield this.createItemRequest({ req, requestFor, item })
   yield this.send({ req, object: reqItem, other: { context } })
   return true
 })
 
 // promisified because it might be overridden by an async function
-proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
+proto.createItemRequest = co(function* ({ req, requestFor, item }) {
   debug('createItemRequest', item)
   const { user, application } = req
-  const itemRequest = {
-    [TYPE]: FORM_REQUEST,
-    form: item,
-    time: Date.now()
+  const itemRequest = typeof item === 'string' ? { form: item } : item
+  itemRequest[TYPE] = FORM_REQUEST
+  if (!itemRequest.time) {
+    itemRequest.time = Date.now()
   }
 
-  if (!requestFor && application) {
-    requestFor = application.requestFor
+  if (!itemRequest.product) {
+    if (!requestFor && application) {
+      requestFor = application.requestFor
+    }
+
+    if (requestFor) itemRequest.product = requestFor
   }
 
-  if (requestFor) itemRequest.product = requestFor
-  if (chooser) itemRequest.chooser = chooser
-  if (req.context) itemRequest.context = req.context
+  if (!itemRequest.context && req.context) {
+    itemRequest.context = req.context
+  }
 
   yield this._exec('willRequestForm', {
     req,
@@ -724,11 +729,13 @@ proto.createItemRequest = co(function* ({ req, requestFor, item, chooser }) {
 proto.sendProductList = co(function* (req) {
   const productChooser = yield this.createItemRequest({
     req,
-    item: PRODUCT_REQUEST,
-    chooser: {
-      property: 'requestFor',
-      // TODO: prefill each choice with "context" property
-      oneOf: this.models.biz.products.slice()
+    item: {
+      form: PRODUCT_REQUEST,
+      chooser: {
+        property: 'requestFor',
+        // TODO: prefill each choice with "context" property
+        oneOf: this.models.biz.products.slice()
+      }
     }
   })
 
