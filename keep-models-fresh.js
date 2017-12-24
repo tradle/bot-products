@@ -82,34 +82,7 @@ module.exports = function keepModelsFresh ({
     })
     .toJSON()
 
-    const split = splitPack(pack)
-    yield split.map(subPack => send({ req, object: subPack }))
-  })
-}
-
-function splitPack (pack) {
-  const { models } = pack
-  let batch = []
-  let batchLength = 0
-  const batches = [batch]
-  for (const model of models) {
-    // keep under 128KB
-    // leave some breathing room
-    // as this might be wrapped in another message
-    if (batchLength > 100000) {
-      batch = []
-      batchLength = 0
-      batches.push(batch)
-    }
-
-    batch.push(model)
-    batchLength += byteLength(model)
-  }
-
-  return batches.map(batch => {
-    return shallowClone(pack, {
-      models: batch
-    })
+    yield send({ req, object: subPack })
   })
 }
 
