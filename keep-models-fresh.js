@@ -82,7 +82,7 @@ module.exports = function keepModelsFresh ({
     })
     .toJSON()
 
-    yield send({ req, object: subPack })
+    yield send({ req, object: pack })
   })
 }
 

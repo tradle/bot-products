@@ -10,6 +10,7 @@ const {
   co,
   bindAll,
   omit,
+  shallowExtend,
   shallowClone,
   clone,
   deepEqual,

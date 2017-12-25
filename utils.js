@@ -15,8 +15,11 @@ const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
 const baseModels = require('./base-models')
 const { getPropertyTitle, parseId, parseStub, getRef } = validateResource.utils
-const VERIFICATION = 'tradle.Verification'
-const APPLICATION = 'tradle.Application'
+const {
+  VERIFICATION,
+  APPLICATION,
+  MODELS_PACK
+} = require('./types')
 
 function isPromise (obj) {
   return obj && typeof obj.then === 'function'
@@ -267,6 +270,8 @@ function getLinkFromResourceOrStub (object) {
 
   return buildResource.link(object)
 }
+
+const flatten = (arr) => arr.reduce((flat, more) => flat.concat(more), [])
 
 module.exports = {
   co,
