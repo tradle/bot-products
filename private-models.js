@@ -200,6 +200,21 @@ module.exports = namespace => {
     }
   }
 
+  const tsAndCsState = {
+    type: 'tradle.Model',
+    title: "T's & C's state",
+    id: `${namespace}.TsAndCsState`,
+    inlined: true,
+    properties: {
+      datePresented: {
+        type: 'date'
+      },
+      dateAccepted: {
+        type: 'date'
+      }
+    }
+  }
+
   const customer = {
     type: 'tradle.Model',
     title: 'Customer',
@@ -254,6 +269,11 @@ module.exports = namespace => {
         items: {
           ref: historyItem.id
         }
+      },
+      tsAndCsState: {
+        type: 'object',
+        inlined: true,
+        ref: tsAndCsState.id
       }
     }
   }
@@ -267,7 +287,8 @@ module.exports = namespace => {
     applicationStub,
     role,
     item,
-    historyItem
+    historyItem,
+    tsAndCsState
     // verifiedItem
   }
 

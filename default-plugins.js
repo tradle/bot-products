@@ -282,6 +282,10 @@ module.exports = function (api) {
       return STRINGS.PRODUCT_LIST_MESSAGE
     }
 
+    if (!application) {
+      return format(STRINGS.PLEASE_FILL_FORM, model.title)
+    }
+
     const { forms=[], requestFor } = application
     const { multiEntryForms=[] } = models.all[requestFor]
     if (model.subClassOf === 'tradle.Form') {
