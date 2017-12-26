@@ -379,6 +379,14 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
     other.context = context
   }
 
+  if (!other.inReplyTo) {
+    const msgLink = req && req.message && req.message._link
+    if (msgLink) {
+      debug('setting reply-to on message')
+      other.inReplyTo = msgLink
+    }
+  }
+
   debug(`send: queueing to ${to}, context: ${other.context}`)
   this._updateHistorySummary({
     req,
