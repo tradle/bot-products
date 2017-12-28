@@ -692,7 +692,7 @@ proto.requestItem = co(function* ({ req, item }) {
   debug('requestItem', item)
   const { user, application } = req
   const { context, requestFor } = application || {}
-  const itemRequested = typeof item === 'string' ? item : item[TYPE]
+  const itemRequested = typeof item === 'string' ? item : item.form
   // const context = parseId(application.request.id).permalink
   debug(`requesting ${itemRequested} from user ${user.id} for ${requestFor}`)
   const reqItem = yield this.createItemRequest({ req, requestFor, item })
