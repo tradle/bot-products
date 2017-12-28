@@ -272,7 +272,9 @@ module.exports = function (api) {
   // })
 
   function willRequestForm (opts) {
-    opts.formRequest.message = getFormRequestMessage(opts)
+    if (!opts.formRequest.message) {
+      opts.formRequest.message = getFormRequestMessage(opts)
+    }
   }
 
   function getFormRequestMessage ({ application, formRequest }) {
