@@ -14,7 +14,6 @@ const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
 const createProductsStrategy = require('../')
 const createDefiner = require('../definer')
-const { pick } = require('../utils')
 const messageInterface = require('../message-interface')
 const botIdentity = require('./fixtures/bot-identity')
 const userIdentity = require('./fixtures/user-identity')
@@ -35,9 +34,10 @@ const {
   // createIdentityStub
 } = require('./helpers')
 
+const namespace = 'test.namespace'
 const TEST_PRODUCT = {
   type: 'tradle.Model',
-  id: 'tradle.TestProduct',
+  id: `${namespace}.TestProduct`,
   title: 'Test Product',
   subClassOf: 'tradle.FinancialProduct',
   forms: [
@@ -45,6 +45,19 @@ const TEST_PRODUCT = {
     'tradle.AboutYou'
   ],
   properties: {}
+}
+
+const TEST_MYPRODUCT = {
+  type: 'tradle.Model',
+  id: `${namespace}.MyTestProduct`,
+  title: 'Test My Product',
+  subClassOf: 'tradle.MyProduct',
+  properties: {}
+}
+
+const customModels = {
+  [TEST_PRODUCT.id]: TEST_PRODUCT,
+  [TEST_MYPRODUCT.id]: TEST_MYPRODUCT
 }
 
 test('definer', function (t) {
@@ -64,12 +77,11 @@ test('definer', function (t) {
 })
 
 test('addProducts', function (t) {
-  const namespace = 'test.namespace'
   const productModels = [TEST_PRODUCT]
   const productsStrategy = createProductsStrategy({
     namespace,
     models: {
-      all: toObject(productModels)
+      all: customModels
     },
     products: productModels.map(model => model.id)
   })
@@ -117,7 +129,7 @@ test('state', loudCo(function* (t) {
   const productsStrategy = createProductsStrategy({
     namespace,
     models: {
-      all: toObject(productModels)
+      all: customModels
     },
     products: productModels.map(model => model.id)
   })
@@ -206,8 +218,8 @@ test('state', loudCo(function* (t) {
   t.end()
 }))
 
-test('basic form loop', loudCo(function* (t) {
-  const products = [CURRENT_ACCOUNT, 'tradle.TestProduct']
+test.only('basic form loop', loudCo(function* (t) {
+  const products = [TEST_PRODUCT.id, CURRENT_ACCOUNT]
   const {
     bot,
     botIdentity,
@@ -223,7 +235,7 @@ test('basic form loop', loudCo(function* (t) {
     products,
     models: mergeModels()
       .add(baseModels)
-      .add([TEST_PRODUCT])
+      .add(customModels)
       .get()
   })
 
@@ -447,7 +459,7 @@ test('plugins', loudCo(function* (t) {
   const productsStrategy = createProductsStrategy({
     namespace: 'test.namespace',
     models: {
-      all: toObject(productModels)
+      all: customModels
     },
     products: productModels.map(model => model.id)
   })
@@ -494,7 +506,7 @@ test('plugins', loudCo(function* (t) {
 test('multi entry', loudCo(co(function* (t) {
   const productModel = {
     type: 'tradle.Model',
-    id: 'tradle.TestProduct1',
+    id: `${namespace}.TestProduct1`,
     title: 'Test Product1',
     interfaces: messageInterface ? [messageInterface] : [],
     subClassOf: 'tradle.FinancialProduct',
@@ -626,9 +638,7 @@ test.skip('complex form loop', loudCo(co(function* (t) {
 })))
 
 test.skip('client', loudCo(function* (t) {
-  const namespace = 'test.namespace'
   const productModel = TEST_PRODUCT
-  const customModels = { [TEST_PRODUCT.id]: TEST_PRODUCT }
   const productsStrategy = createProductsStrategy({
     namespace,
     models: {

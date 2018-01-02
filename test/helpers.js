@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const { EventEmitter } = require('events')
+const _ = require('lodash')
 const co = require('co').wrap
-const shallowExtend = require('xtend/mutable')
 const sinon = require('sinon')
 const createHooks = require('event-hooks')
 const { TYPE, SIG } = require('@tradle/constants')
@@ -43,7 +43,7 @@ function createFakeBot (opts={}) {
   const handlers = []
   const objects = {}
   const hooks = createHooks()
-  const bot = shallowExtend(new EventEmitter(), {
+  const bot = _.extend(new EventEmitter(), {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
     onusercreate: () => {},
@@ -250,7 +250,7 @@ function formLoop ({
 function fakeMessage ({ from, to, object, other={} }) {
   const msgLink = newLink()
   const objLink = newLink()
-  object = shallowExtend({
+  object = _.extend({
     [SIG]: object[SIG] || newSig(),
     _author: from,
     _link: objLink,
@@ -258,7 +258,7 @@ function fakeMessage ({ from, to, object, other={} }) {
     _virtual: ['_author', '_link', '_permalink']
   }, object)
 
-  return shallowExtend({
+  return _.extend({
     _author: from,
     _recipient: to,
     _link: msgLink,

@@ -1,3 +1,4 @@
+const _ = require('lodash')
 const co = require('co').wrap
 const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
@@ -6,9 +7,6 @@ const validateResource = require('@tradle/validate-resource')
 const { parseStub, parseId } = validateResource.utils
 const {
   ensureLinks,
-  shallowExtend,
-  shallowClone,
-  pick,
   debug,
   getContext,
   getLinkFromResourceOrStub
@@ -104,7 +102,7 @@ module.exports = function stateMutater ({ models }) {
       })
       .toJSON()
 
-    shallowExtend(application, updated)
+    _.extend(application, updated)
     setApplicationStatus({ application, status: STATUS.approved })
     user.applicationsApproved.push(user.applications[idx])
     user.applications.splice(idx, 1)
@@ -213,7 +211,7 @@ module.exports = function stateMutater ({ models }) {
       .filter(propertyName => propertyName in privateModels.application.properties)
 
     return build(privateModels.applicationStub)
-      .set(pick(application, copy))
+      .set(_.pick(application, copy))
       .set({
         statePermalink: buildResource.permalink(application)
       })
@@ -474,7 +472,7 @@ function getInfo (objOrId) {
 
 function newRequestState (data) {
   const payload = data.payload || data.object
-  return shallowClone(data, {
+  return _.extend({}, data, {
     sendQueue: [],
     object: payload,
     payload,

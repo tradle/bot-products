@@ -1,6 +1,7 @@
 const { EventEmitter } = require('events')
-const typeforce = require('typeforce')
 const inherits = require('inherits')
+const _ = require('lodash')
+const typeforce = require('typeforce')
 const validateResource = require('@tradle/validate-resource')
 const { omitVirtual, getRef } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
@@ -9,11 +10,6 @@ const ModelManager = require('./models')
 const {
   co,
   bindAll,
-  omit,
-  shallowExtend,
-  shallowClone,
-  clone,
-  deepEqual,
   debug,
   parseId,
   parseStub,
@@ -143,7 +139,7 @@ proto.addProducts = function addProducts ({ models, products }) {
 }
 
 // proto.addPrivateModels = (models) => {
-//   shallowExtend(this.models.private.all, models)
+//   _.extend(this.models.private.all, models)
 //   this.models.all = mergeModels()
 //     .add(this.models.all)
 //     .add(this.models.private.all)
@@ -266,7 +262,7 @@ proto._processIncoming = co(function* (req) {
     }
 
     req.application = application
-    applicationPreviousVersion = clone(application)
+    applicationPreviousVersion = _.cloneDeep(application)
   }
 
   let keepGoing = yield this._execBubble('onmessage', req)
@@ -290,7 +286,7 @@ proto._processIncoming = co(function* (req) {
   }
 
   ({ application } = req)
-  if (!application || deepEqual(application, applicationPreviousVersion)) {
+  if (!application || _.isEqual(application, applicationPreviousVersion)) {
     return
   }
 
@@ -461,13 +457,13 @@ proto.addVerification = co(function* ({
 })
 
 proto.importVerification = co(function* (opts) {
-  return yield this.addVerification(shallowExtend({
+  return yield this.addVerification(_.extend({
     imported: true
   }, opts))
 })
 
 proto.issueVerification = co(function* (opts) {
-  return yield this.addVerification(shallowExtend({
+  return yield this.addVerification(_.extend({
     imported: false
   }, opts))
 })
@@ -771,7 +767,7 @@ proto.requestEdit = co(function* ({ req, user, object, details }) {
     models: this.models.all,
     model: 'tradle.FormError',
     resource: {
-      prefill: omit(object, '_s'),
+      prefill: _.omit(object, '_s'),
       message,
       errors
     }

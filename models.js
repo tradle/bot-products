@@ -1,11 +1,8 @@
+const _ = require('lodash')
 const mergeModels = require('@tradle/merge-models')
-const Gen = require('./gen')
 const baseModels = require('./base-models')
 const createPrivateModels = require('./private-models')
-const {
-  shallowClone,
-  uniq
-} = require('./utils')
+const { categorizeApplicationModels } = require('./utils')
 
 module.exports = ModelManager
 
@@ -22,7 +19,7 @@ function ModelManager ({ namespace, validate }) {
 }
 
 ModelManager.prototype.addProducts = function ({ models, products }) {
-  const newAllModels = shallowClone(this.all, models ? models.all : {})
+  const newAllModels = _.extend({}, this.all, models ? models.all : {})
   products.forEach(id => {
     const model = newAllModels[id]
     if (!model) {
@@ -34,8 +31,8 @@ ModelManager.prototype.addProducts = function ({ models, products }) {
     }
   })
 
-  this.products = uniq(products.concat(this.products || []))
-  this.biz = Gen.applicationModels({
+  this.products = _.uniq(products.concat(this.products || []))
+  this.biz = categorizeApplicationModels({
     models: newAllModels,
     products: this.products,
     namespace: this.namespace
@@ -49,12 +46,13 @@ ModelManager.prototype.addProducts = function ({ models, products }) {
         this[subset] = {}
       }
 
-      const all = shallowClone(
+      const all = _.extend(
+        {},
         this[subset].all,
         models[subset].all
       )
 
-      this[subset] = shallowClone(this[subset], models[subset])
+      this[subset] = _.extend({}, this[subset], models[subset])
       this[subset].all = all
     })
   }

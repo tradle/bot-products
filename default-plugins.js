@@ -1,12 +1,10 @@
+const _ = require('lodash')
 const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const {
   co,
   isPromise,
-  pick,
   format,
-  shallowExtend,
-  shallowClone,
   debug,
   validateRequired,
   createSimpleMessage,
@@ -344,7 +342,7 @@ module.exports = function (api) {
     const [sendInput, sendOutput] = args
     const object = sendOutput
     const link = buildResource.link(object)
-    const sealOpts = shallowClone(sendInput, { link, object })
+    const sealOpts = _.extend({}, sendInput, { link, object })
     yield api.seal(sealOpts)
   })
 
@@ -423,7 +421,7 @@ module.exports = function (api) {
   //     object.form === PRODUCT_REQUEST
 
   //   if (isProductList) {
-  //     return getProductListLabel(pick(message, ['originalSender']))
+  //     return getProductListLabel(_.pick(message, ['originalSender']))
   //   }
   // }
 
@@ -488,7 +486,7 @@ module.exports = function (api) {
     ]
   }
 
-  shallowExtend(defaults, prependKeysWith('onmessage:', {
+  _.extend(defaults, prependKeysWith('onmessage:', {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,

@@ -1,4 +1,3 @@
-const Gen = require('./gen')
 const { getValues } = require('./utils')
 const baseModels = require('./base-models')
 

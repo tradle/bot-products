@@ -2,13 +2,7 @@ const crypto = require('crypto')
 const debug = require('debug')(require('./package.json').name)
 const co = require('co').wrap
 const bindAll = require('bindall')
-const shallowExtend = require('xtend/mutable')
-const shallowClone = require('xtend')
-const clone = require('clone')
-const deepEqual = require('deep-equal')
-const pick = require('object.pick')
-const omit = require('object.omit')
-const uniq = require('uniq')
+const _ = require('lodash')
 const stableStringify = require('json-stable-stringify')
 const { TYPE } = require('@tradle/constants')
 const validateResource = require('@tradle/validate-resource')
@@ -49,10 +43,6 @@ function splitCamelCase (str) {
 
 function wait (millis) {
   return new Promise(resolve => setTimeout(resolve, millis))
-}
-
-function getValues (obj) {
-  return Object.keys(obj).map(id => obj[id])
 }
 
 function validateRequired ({ model, resource }) {
@@ -273,6 +263,45 @@ function getLinkFromResourceOrStub (object) {
 
 const flatten = (arr) => arr.reduce((flat, more) => flat.concat(more), [])
 
+function categorizeApplicationModels ({ namespace, models, products }) {
+  const productModels = products.map(id => models[id])
+  const certificates = {}
+  const certificateFor = {}
+  const productForCertificate = {}
+
+  productModels.forEach(productModel => {
+    const { id } = productModel
+    const certId = getCertificateModelId({ productModel })
+    const cert = models[certId]
+    if (!cert) return
+
+    certificates[certId] = cert
+    productForCertificate[certId] = productModel
+    certificateFor[id] = cert
+  })
+
+  const all = {}
+  const applicationModels = {
+    products,
+    certificates,
+    certificateFor,
+    productForCertificate,
+    all
+  }
+
+  _.values(models)
+    .concat(productModels)
+    .forEach(model => all[model.id] = model)
+
+  return applicationModels
+}
+
+function getCertificateModelId ({ productModel }) {
+  const id = productModel.id || productModel
+  const lastIdx = id.lastIndexOf('.')
+  return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
+}
+
 module.exports = {
   co,
   isPromise,
@@ -282,15 +311,7 @@ module.exports = {
   parseId,
   parseStub,
   wait,
-  uniq,
-  omit,
-  pick,
-  shallowExtend,
-  shallowClone,
-  clone,
-  deepEqual,
   bindAll,
-  getValues,
   debug,
   validateRequired,
   // getProductFromEnumValue,
@@ -306,5 +327,6 @@ module.exports = {
   sha256,
   createNewVersionOfApplication,
   getModelsPacks,
-  getLinkFromResourceOrStub
+  getLinkFromResourceOrStub,
+  categorizeApplicationModels
 }
