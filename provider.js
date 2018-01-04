@@ -437,13 +437,12 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.addVerification = co(function* ({
+proto.addVerification = function ({
   req,
   user,
   application,
   verification,
-  imported,
-  saveApplication=true,
+  imported
 }) {
   if (!user) user = req.user
   if (!application) application = req.application
@@ -453,8 +452,7 @@ proto.addVerification = co(function* ({
   }
 
   this.state.addVerification({ user, application, verification, imported })
-  if (saveApplication) yield this.saveNewVersionOfApplication({ user, application })
-})
+}
 
 proto.importVerification = co(function* (opts) {
   return yield this.addVerification(_.extend({
@@ -539,7 +537,14 @@ proto.forgetUser = co(function* (req) {
   })
 })
 
-proto.verify = co(function* ({ req, user, application, object, verification={}, send }) {
+proto.verify = co(function* ({
+  req,
+  user,
+  application,
+  object,
+  verification={},
+  send
+}) {
   if (!user) user = req.user
   if (!object) object = req.object
   if (!application) application = req.application
@@ -565,7 +570,6 @@ proto.verify = co(function* ({ req, user, application, object, verification={}, 
   }
 
   state.addVerification({ user, application, object, verification })
-  yield this.saveNewVersionOfApplication({ user, application })
   return verification
 })
 
