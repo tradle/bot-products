@@ -165,7 +165,7 @@ proto._updateHistorySummary = co(function* ({
   inbound,
   label
 }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!object) object = req.object
   if (!label) {
     label = this.plugins.exec({
@@ -248,20 +248,11 @@ proto._processIncoming = co(function* (req) {
   debug(`processing incoming ${type}, context: ${req.context}`)
 
   state.init(user)
-  const deduced = yield this._execBubble('deduceApplication', req)
-  if (deduced) {
-    req.application = deduced
-  }
+  yield this._deduceApplicantAndApplication(req)
 
   let applicationPreviousVersion
   let { application } = req
   if (application) {
-    // lookup current application state
-    if (!application[SIG]) {
-      application = yield this.getApplicationByStub(application)
-    }
-
-    req.application = application
     applicationPreviousVersion = _.cloneDeep(application)
   }
 
@@ -290,11 +281,40 @@ proto._processIncoming = co(function* (req) {
     return
   }
 
-  if (applicationPreviousVersion) {
-    application = yield this.saveNewVersionOfApplication({ user, application })
-  } else {
-    yield this.saveApplication({ user, application })
+  const saveOpts = {
+    // in case it changed
+    user: yield this._getApplicant(req),
+    application
   }
+
+  if (applicationPreviousVersion) {
+    application = yield this.saveNewVersionOfApplication(saveOpts)
+  } else {
+    yield this.saveApplication(saveOpts)
+  }
+})
+
+proto._deduceApplicantAndApplication = co(function* (req) {
+  const { user } = req
+  let application = yield this._execBubble('deduceApplication', req)
+  if (!application) return
+
+  if (!application[SIG]) {
+    application = yield this.getApplicationByStub(application)
+  }
+
+  req.application = application
+  req.applicant = yield this._getApplicant(req)
+})
+
+proto._getApplicant = co(function* (req) {
+  const { user, application } = req
+  const applicantPermalink = parseStub(application.applicant).permalink
+  if (applicantPermalink === user.id) {
+    return user
+  }
+
+  return yield this.bot.users.get(applicantPermalink)
 })
 
 proto.versionAndSave = function (resource) {
@@ -444,7 +464,7 @@ proto.addVerification = function ({
   verification,
   imported
 }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!application) application = req.application
   if (!verification) verification = req.object
   if (!(user && application && verification)) {
@@ -545,7 +565,7 @@ proto.verify = co(function* ({
   verification={},
   send
 }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!object) object = req.object
   if (!application) application = req.application
 
@@ -574,7 +594,7 @@ proto.verify = co(function* ({
 })
 
 proto.denyApplication = co(function* ({ req, user, application }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!application) application = req.application
 
   const denial = buildResource({
@@ -613,7 +633,7 @@ proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
 
 proto.issueVerifications = co(function* ({ req, user, application, send }) {
   if (req) {
-    if (!user) user = req.user
+    if (!user) user = getApplicantFromRequest(req)
     if (!application) application = req.application
   } else {
     req = this.state.newRequestState({ user })
@@ -639,7 +659,7 @@ proto.issueVerifications = co(function* ({ req, user, application, send }) {
 })
 
 proto.approveApplication = co(function* ({ req, user, application }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!application) application = req.application
 
   debug(`approving application for ${application.requestFor}, for user: ${user.id}`)
@@ -758,7 +778,7 @@ proto.sendProductList = co(function* (req) {
 })
 
 proto.requestEdit = co(function* ({ req, user, object, details }) {
-  if (!user) user = req.user
+  if (!user) user = getApplicantFromRequest(req)
   if (!object) object = req.object
 
   const { message, errors=[] } = details
@@ -792,4 +812,8 @@ function normalizeExecArgs (method, ...args) {
   return typeof method === 'object'
     ? method
     : { method, args }
+}
+
+function getApplicantFromRequest (req) {
+  return req.applicant || req.user
 }
