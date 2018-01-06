@@ -1,3 +1,4 @@
+const Promise = require('bluebird')
 const _ = require('lodash')
 const co = require('co').wrap
 const uuid = require('uuid/v4')
@@ -22,7 +23,7 @@ const STATUS = {
   denied: 'denied'
 }
 
-module.exports = function stateMutater ({ models }) {
+module.exports = function stateMutater ({ bot, models }) {
 
   const privateModels = models.private
   const bizModels = models.biz
@@ -280,7 +281,7 @@ module.exports = function stateMutater ({ models }) {
     return stub
   }
 
-  const createVerification = ({ req, user, application, object, verification={} }) => {
+  const createVerification = co(function* ({ req, user, application, object, verification={} }) {
     if (!user) user = req.user
 
     const oLink = getLinkFromResourceOrStub(object)
@@ -296,22 +297,23 @@ module.exports = function stateMutater ({ models }) {
 
     if (!verification.sources && application) {
       const { verificationsImported=[] } = application
-      const sources = verificationsImported.map(verifiedItem => {
+      let sources = verificationsImported.map(verifiedItem => {
         const { id } = verifiedItem.item
         const { link } = parseId(id)
         if (link === oLink) {
-          return id
+          return verifiedItem.verification
         }
       })
       .filter(s => s)
 
       if (sources.length) {
-        builder.set('sources', sources.map(id => ({ id })))
+        sources = yield Promise.map(sources, stub => bot.getResourceByStub(stub))
+        builder.set('sources', sources)
       }
     }
 
     return builder.toJSON()
-  }
+  })
 
   const addVerification = ({ user, application, verification, imported }) => {
     if (!application) {
@@ -347,7 +349,14 @@ module.exports = function stateMutater ({ models }) {
       resource: object
     })
 
-    application.forms.push(stub)
+    const formPermalink = buildResource.permalink(object)
+    const idx = application.forms.findIndex(form => parseStub(form).permalink === formPermalink)
+    if (idx === -1) {
+      application.forms.push(stub)
+    } else {
+      application.forms[idx] = stub
+    }
+
     validateCustomer(user)
     return stub
   }

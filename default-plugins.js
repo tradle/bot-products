@@ -31,17 +31,17 @@ const TO_SEAL = [
 ]
 
 module.exports = function (api) {
-  const { models, plugins, state } = api
+  const { models, plugins, state, logger } = api
   const bizModels = models.biz
   const commands = new Commander(api)
   const handleApplication = co(function* (req) {
     const { user, object } = req
     const { requestFor } = object
 
-    debug(`received application for "${requestFor}"`)
+    logger.debug(`received application for "${requestFor}"`)
     const isOfferedProduct = bizModels.products.includes(requestFor)
     if (!isOfferedProduct) {
-      debug(`ignoring application for "${requestFor}" as it's not in specified offering`)
+      logger.debug(`ignoring application for "${requestFor}" as it's not in specified offering`)
       return
     }
 
@@ -87,7 +87,7 @@ module.exports = function (api) {
         req.application = yield api.getApplicationByStub(appStub)
         break
       } catch (err) {
-        debug(`application not found by stub: ${JSON.stringify(appStub)}`)
+        logger.error(`application not found by stub: ${JSON.stringify(appStub)}`)
         // user.applications = user.applications.filter(stub => stub.id !== appStub.id)
       }
     }
@@ -95,7 +95,7 @@ module.exports = function (api) {
     const { application } = req
     if (application) {
       req.context = application.context
-      debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
+      logger.debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
       if (state.isApplicationCompleted(application)) {
         yield api.send({
           req,
@@ -106,7 +106,7 @@ module.exports = function (api) {
       }
 
     } else {
-      debug('ERROR: failed to find colliding application')
+      logger.error('ERROR: failed to find colliding application')
     }
   })
 
@@ -123,22 +123,27 @@ module.exports = function (api) {
   })
 
   const handleForm = co(function* (req) {
-    debug('handleForm start')
-    const { application, object, type } = req
+    logger.debug('handleForm start')
+    const { user, application, object, type } = req
     if (!application) {
-      debug('application is unknown, ignoring form')
+      logger.debug('application is unknown, ignoring form')
       return
     }
 
     if (type === PRODUCT_REQUEST) {
-      debug('handleForm', `ignoring ${type} as it's handled by handleApplication`)
+      logger.debug('handleForm', `ignoring ${type} as it's handled by handleApplication`)
       // handled by handleApplication
+      return
+    }
+
+    if (user.id !== parseStub(application.applicant).permalink) {
+      logger.debug(`ignoring form submitted by someone other than applicant`)
       return
     }
 
     const { requestFor, skip=[] } = application
     if (requestFor === REMEDIATION) {
-      debug(`don't know how to handle ${REMEDIATION} product yet`)
+      logger.debug(`don't know how to handle ${REMEDIATION} product yet`)
       return
     }
 
@@ -146,11 +151,11 @@ module.exports = function (api) {
     if (skipIdx !== -1) {
       // unmark as skipped
       // receipt of next tradle.NextFormRequest will re-mark it if needed
-      debug(`un-marking ${type} as skippable (for multi-entry)`)
+      logger.debug(`un-marking ${type} as skippable (for multi-entry)`)
       skip.splice(skipIdx, 1)
     }
 
-    debug('handleForm:validateForm')
+    logger.debug('handleForm:validateForm')
     let err = plugins.exec({
       method: 'validateForm',
       args: [{
@@ -164,13 +169,18 @@ module.exports = function (api) {
     if (isPromise(err)) err = yield err
 
     if (err) {
-      debug('handleForm:requestEdit')
+      logger.debug('handleForm:requestEdit')
       yield api.requestEdit({ req, details: err })
       return
     }
 
-    debug('handleForm: addForm, continueApplication')
-    api.state.addForm(req)
+    logger.debug('handleForm: addForm, continueApplication')
+    api.state.addForm({
+      user: req.applicant,
+      object,
+      application
+    })
+
     yield api.continueApplication(req)
   })
 
@@ -206,11 +216,11 @@ module.exports = function (api) {
   function saveIdentity ({ user, object }) {
     const { identity } = object
     if (buildResource.permalink(identity) === user.id) {
-      debug(`saving user ${user.id} identity`)
+      logger.debug(`saving user ${user.id} identity`)
       // relies on validation of proper versioning elsewhere in the stack
       api.state.setIdentity({ user, identity })
     } else {
-      debug(`not saving user ${user.id} identity`)
+      logger.debug(`not saving user ${user.id} identity`)
     }
   }
 
@@ -237,13 +247,14 @@ module.exports = function (api) {
   })
 
   function sendApplicationSubmitted (req) {
-    const { application } = req
+    const { applicant, application } = req
     const message = application.dateCompleted
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
     return api.send({
       req,
+      to: applicant,
       object: createSimpleMessage(message)
     })
   }
@@ -365,7 +376,7 @@ module.exports = function (api) {
         state.getApplicationByContext(applicationsApproved, context)
 
       if (!application) {
-        debug(`application with context ${context} not found`)
+        logger.debug(`application with context ${context} not found`)
       }
     } else {
       application = state.guessApplicationFromIncomingType(applications, type) ||
@@ -378,9 +389,9 @@ module.exports = function (api) {
     }
 
     if (application) {
-      debug('deduced current application, context: ' + application.context)
+      logger.debug('deduced current application, context: ' + application.context)
     } else {
-      debug(`could not deduce current application`)
+      logger.debug(`could not deduce current application`)
     }
 
     return application
@@ -388,7 +399,7 @@ module.exports = function (api) {
 
   const maybeSendProductList = co(function* (req) {
     if (req.context) {
-      debug('not sending product list in contextual chat')
+      logger.debug('not sending product list in contextual chat')
     } else {
       yield api.sendProductList(req)
     }
@@ -403,7 +414,7 @@ module.exports = function (api) {
     //   return api.sendProductList(req)
     // }
 
-    // debug('not sending product list as I sent it recently')
+    // logger.debug('not sending product list as I sent it recently')
   })
 
   // const getProductListLabel = (other={}) => {
@@ -452,13 +463,16 @@ module.exports = function (api) {
     const { after } = payload
     if (multiEntryForms.includes(after)) {
       if (!skip.includes(after)) {
-        debug(`marking ${after} as skippable (for multi-entry)`)
+        logger.debug(`marking ${after} as skippable (for multi-entry)`)
         skip.push(after)
         // in case it was null
         application.skip = skip
       }
     } else {
-      debug(`product ${requestFor}, form ${after} is not listed in multiEntryForms, ignoring ${type}`)
+      logger.debug(`form is not listed in multiEntryForms, ignoring ${type}`, {
+        product: requestFor,
+        form: after
+      })
     }
 
     return api.continueApplication(req)

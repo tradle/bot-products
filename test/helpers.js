@@ -13,7 +13,8 @@ const defaultUserIdentity = require('./fixtures/user-identity')
 const baseModels = require('../base-models')
 const FORM_REQ = 'tradle.FormRequest'
 const {
-  series
+  series,
+  parseStub
 } = require('../utils')
 
 let contextCounter = 0
@@ -37,6 +38,7 @@ function createFakeBot (opts={}) {
     botIdentity=defaultBotIdentity
   } = opts
 
+  const users = {}
   const botId = botIdentity._permalink
   const byPermalink = {}
   const byLink = {}
@@ -84,6 +86,9 @@ function createFakeBot (opts={}) {
 
       return Array.isArray(opts) ? ret : ret[0]
     }),
+    getResourceByStub: co(function* (stub) {
+      return bot.objects.get(parseStub(stub).link)
+    }),
     objects: {
       get: co(function* (link) {
         if (!objects[link]) {
@@ -111,6 +116,19 @@ function createFakeBot (opts={}) {
         }
 
         return object
+      })
+    },
+    users: {
+      get: co(function* (id) {
+        const user = users[id]
+        if (user) return user
+        throw new Error('user not found: ' + id)
+      }),
+      save: co(function* (user) {
+        users[user.id] = user
+      }),
+      merge: co(function* (user) {
+        _.extend(users[user.id], user)
       })
     },
     hooks,

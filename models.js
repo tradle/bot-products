@@ -11,7 +11,7 @@ function ModelManager ({ namespace, validate }) {
   this.validate = validate
   this.private = createPrivateModels(namespace)
   this.all = mergeModels()
-    .add(baseModels, { validate })
+    .add(baseModels, { validate: false })
     .add(this.private.all, { validate })
     .get()
 

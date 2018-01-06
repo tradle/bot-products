@@ -6,6 +6,7 @@ if (!process.env.NODE_ENV) {
 
 const test = require('tape')
 const sinon = require('sinon')
+const Promise = require('bluebird')
 const co = require('co').wrap
 const fakeResource = require('@tradle/build-resource/fake')
 const buildResource = require('@tradle/build-resource')
@@ -162,7 +163,7 @@ test('state', loudCo(function* (t) {
 
   state.addApplication({ user, application })
 
-  productModel.forms.forEach((form, i) => {
+  yield Promise.each(productModel.forms, co(function* (form, i) {
     const link = newLink()
     const signedForm = fakeResource({
       models: models.all,
@@ -183,16 +184,16 @@ test('state', loudCo(function* (t) {
       state.importVerification({
         user,
         application,
-        verification: createSignedVerification({ user, state, form: signedForm })
+        verification: yield createSignedVerification({ user, state, form: signedForm })
       })
     }
 
     state.addVerification({
       user,
       application,
-      verification: createSignedVerification({ user, state, form: signedForm })
+      verification: yield createSignedVerification({ user, state, form: signedForm })
     })
-  })
+  }))
 
   t.equal(user.applications.length, 1)
   t.equal(user.applicationsApproved.length, 0)
@@ -464,12 +465,7 @@ test('plugins', loudCo(function* (t) {
     products: productModels.map(model => model.id)
   })
 
-  const bot = {
-    use: (strategy, opts) => strategy(bot, opts),
-    onmessage: () => {},
-    onusercreate: () => {}
-  }
-
+  const bot = fakeBot()
   const productsAPI = productsStrategy.install(bot)
   productsAPI.plugins.clear('getRequiredForms')
   const custom = {
@@ -705,8 +701,8 @@ test.skip('client', loudCo(function* (t) {
 //
 // process.on('uncaughtException', console.error)
 
-function createSignedVerification ({ state, user, form }) {
-  const verification = state.createVerification({
+const createSignedVerification = co(function* ({ state, user, form }) {
+  const verification = yield state.createVerification({
     req: state.newRequestState({
       user
     }),
@@ -722,7 +718,7 @@ function createSignedVerification ({ state, user, form }) {
   })
 
   return verification
-}
+})
 
 function compareId (a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0

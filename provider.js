@@ -47,6 +47,14 @@ const HISTORY_OPTS = {
   maxLength: 10
 }
 
+const defaultLogger = {
+  debug,
+  log: debug,
+  error: debug,
+  warn: debug,
+  info: debug
+}
+
 const types = {
   request: typeforce.compile({
     user: typeforce.Object,
@@ -69,12 +77,14 @@ function Provider (opts) {
     namespace,
     models,
     products,
+    logger=defaultLogger,
     queueSends=true,
     validateModels=true
   } = opts
 
   this.namespace = namespace
   this.models = new ModelManager({ namespace, products, validate: validateModels })
+  this.logger = logger
   this._stateProps = Object.keys(this.models.private.customer.properties)
   this._forgettableProps = this._stateProps.filter(prop => {
     return prop !== 'identity' && prop !== 'id' && prop !== TYPE
@@ -201,7 +211,7 @@ proto._onmessage = co(function* (data) {
       const identity = yield this.bot.addressBook.byPermalink(user.id)
       state.setIdentity({ user, identity })
     } catch (err) {
-      debug(`don't have user's identity!`)
+      this.logger.error(`don't have user's identity!`)
     }
   }
 
@@ -214,13 +224,13 @@ proto._onmessage = co(function* (data) {
   try {
     yield this._processIncoming(req)
   } catch (err) {
-    debug(`failed to process incoming message from ${userId}`, err)
+    this.logger.error(`failed to process incoming message from ${userId}`, err)
     throw err
   } finally {
     try {
       yield this._exec('didReceive', req)
     } catch (err) {
-      debug('didReceive failed', err.stack)
+      this.logger.error('didReceive failed', err.stack)
     }
 
     if (req.sendQueue.length) {
@@ -241,57 +251,83 @@ proto._onmessage = co(function* (data) {
 })
 
 proto._processIncoming = co(function* (req) {
-  const { state, models } = this
+  const { bot, state, models } = this
   const { user, type } = req
   const model = models.all[type]
   // init is non-destructive
-  debug(`processing incoming ${type}, context: ${req.context}`)
+  this.logger.debug(`processing incoming`, { type, context: req.context })
 
   state.init(user)
   yield this._deduceApplicantAndApplication(req)
 
-  let applicationPreviousVersion
-  let { application } = req
-  if (application) {
-    applicationPreviousVersion = _.cloneDeep(application)
-  }
+  let { applicant, application } = req
+  let applicantIsUser = !applicant || applicant.id === user.id
+  const before = _.cloneDeep({
+    applicant: applicantIsUser ? null : applicant,
+    application,
+    user
+  })
 
   let keepGoing = yield this._execBubble('onmessage', req)
   if (keepGoing === false) {
-    debug('early exit after "onmessage"')
+    this.logger.debug('early exit after "onmessage"')
     return
   }
 
   keepGoing = yield this._execBubble(`onmessage:${type}`, req)
   if (keepGoing === false) {
-    debug(`early exit after "onmessage:${type}"`)
+    this.logger.debug(`early exit after "onmessage:${type}"`)
     return
   }
 
   if (model.subClassOf) {
     keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, req)
     if (keepGoing === false) {
-      debug(`early exit after "onmessage:${model.subClassOf}"`)
+      this.logger.debug(`early exit after "onmessage:${model.subClassOf}"`)
       return
     }
   }
 
   ({ application } = req)
-  if (!application || _.isEqual(application, applicationPreviousVersion)) {
-    return
+  applicant = getApplicantFromRequest(req)
+  const changes = []
+  if (application && !_.isEqual(application, before.application)) {
+    const saveOpts = {
+      // in case it changed
+      user: yield this._getApplicant(req),
+      application
+    }
+
+    this.logger.debug(`saving application`, {
+      application: application._permalink,
+      applicant: applicant._permalink,
+      new: !before.application
+    })
+
+    if (before.application) {
+      changes.push(this.saveNewVersionOfApplication(saveOpts))
+    } else {
+      changes.push(this.saveApplication(saveOpts))
+    }
   }
 
-  const saveOpts = {
-    // in case it changed
-    user: yield this._getApplicant(req),
-    application
+  if (!applicantIsUser && !_.isEqual(applicant, before.applicant)) {
+    this.logger.debug('saving applicant state', {
+      applicant: applicant._permalink
+    })
+
+    changes.push(bot.users.merge(applicant))
   }
 
-  if (applicationPreviousVersion) {
-    application = yield this.saveNewVersionOfApplication(saveOpts)
-  } else {
-    yield this.saveApplication(saveOpts)
+  if (!_.isEqual(user, before.user)) {
+    this.logger.debug('saving message sender state', {
+      applicant: applicant._permalink
+    })
+
+    changes.push(bot.users.merge(user))
   }
+
+  yield changes
 })
 
 proto._deduceApplicantAndApplication = co(function* (req) {
@@ -358,12 +394,12 @@ proto.removeDefaultHandlers = function () {
 }
 
 proto.rawSendBatch = function ({ req, messages }) {
-  debug(`sending batch of ${messages.length} messages`)
+  this.logger.debug(`sending batch of ${messages.length} messages`)
   return this.bot.send(messages)
 }
 
 proto.rawSend = function ({ req, to, link, object, other={} }) {
-  debug(`sending ${object ? object[TYPE] : link} to ${to}`)
+  this.logger.debug(`sending ${object ? object[TYPE] : link} to ${to}`)
   return this.bot.send({ to, link, object, other })
 }
 
@@ -391,19 +427,24 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
 
   if (!other.context && application) {
     const context = this.state.getApplicationContext(application)
-    debug(`send: setting context ${context} from application ${application._permalink} for ${application.requestFor}`)
+    this.logger.debug(`send: setting context`, {
+      context,
+      application: application._permalink,
+      product: application.requestFor
+    })
+
     other.context = context
   }
 
   if (!other.inReplyTo) {
     const msgLink = req && req.message && req.message._link
     if (msgLink) {
-      debug('setting reply-to on message')
+      this.logger.debug('setting reply-to on message', { inReplyTo: msgLink })
       other.inReplyTo = msgLink
     }
   }
 
-  debug(`send: queueing to ${to}, context: ${other.context}`)
+  this.logger.debug('send: queueing', { to, context: other.context })
   this._updateHistorySummary({
     req,
     object,
@@ -474,22 +515,24 @@ proto.addVerification = function ({
   this.state.addVerification({ user, application, verification, imported })
 }
 
-proto.importVerification = co(function* (opts) {
-  return yield this.addVerification(_.extend({
+proto.importVerification = function importVerification (opts) {
+  return this.addVerification(_.extend({
     imported: true
   }, opts))
-})
+}
 
-proto.issueVerification = co(function* (opts) {
-  return yield this.addVerification(_.extend({
+proto.issueVerification = function issueVerification (opts) {
+  return this.addVerification(_.extend({
     imported: false
   }, opts))
-})
+}
 
 proto.continueApplication = co(function* (req) {
-  debug('continueApplication')
-  const { application } = req
+  this.logger.debug('continueApplication')
+  const { user, applicant, application } = req
   if (!application) return
+  // e.g. employee assigned himself as the relationship manager
+  if (applicant && user.id !== applicant.id) return
 
   const requested = yield this.requestNextRequiredItem(req)
   if (!requested) {
@@ -499,7 +542,10 @@ proto.continueApplication = co(function* (req) {
 
 proto.forgetUser = co(function* (req) {
   const { user } = req
-  debug(`forgetUser: clearing user state for ${user.id}: ${this._forgettableProps.join(', ')}`)
+  this.logger.debug('forgetUser: clearing user state', {
+    user: user.id,
+    props: this._forgettableProps.slice()
+  })
 
   const { bot, models } = this
   const { db } = bot
@@ -522,7 +568,7 @@ proto.forgetUser = co(function* (req) {
   }, [])
 
   const deleteFormsAndVerifications = Promise.all(formsAndVerifications.map(({ type, permalink }) => {
-    debug(`forgetUser: deleting form ${type}: ${permalink}`)
+    this.logger.debug(`forgetUser: deleting form`, { type, permalink })
     return db.del({
       [TYPE]: type,
       _permalink: permalink
@@ -531,7 +577,11 @@ proto.forgetUser = co(function* (req) {
 
   // don't delete the applications themselves
   const markForgottenApplications = Promise.all(applications.map(application => {
-    debug(`forgetUser: archiving application for ${application.requestFor}: ${application._permalink} `)
+    this.logger.debug('forgetUser: archiving application', {
+      product: application.requestFor,
+      application: application._permalink
+    })
+
     application.archived = true
     return this.saveNewVersionOfApplication({ user, application })
   }))
@@ -578,12 +628,16 @@ proto.verify = co(function* ({
     user = yield bot.users.get(user)
   }
 
-  debug(`verifying ${object[TYPE]} of user ${user.id} for application ${application._permalink}`)
-  debug(`sending verification to user right away: ${!!send}`)
+  this.logger.debug('verifying', {
+    type: object[TYPE],
+    user: user.id,
+    application: application._permalink,
+    sending: !!send
+  })
 
-  const unsigned = state.createVerification({ req, application, object, verification })
+  const unsigned = yield state.createVerification({ req, application, object, verification })
   if (send) {
-    verification = yield this.send({ req, object: unsigned })
+    verification = yield this.send({ req, to: user, object: unsigned })
   } else {
     verification = yield this.sign(unsigned)
     yield bot.save(verification)
@@ -662,7 +716,11 @@ proto.approveApplication = co(function* ({ req, user, application }) {
   if (!user) user = getApplicantFromRequest(req)
   if (!application) application = req.application
 
-  debug(`approving application for ${application.requestFor}, for user: ${user.id}`)
+  this.logger.debug(`approving application`, {
+    product: application.requestFor,
+    user: user.id
+  })
+
   const unsigned = this.state.createCertificate({ application })
   const certificate = yield this.send({ req, to: user, object: unsigned })
   this.state.addCertificate({ user, application, certificate })
@@ -699,7 +757,7 @@ proto.getNextRequiredItem = co(function* (req) {
 })
 
 proto.requestNextRequiredItem = co(function* (req) {
-  debug('requestNextRequiredItem')
+  this.logger.debug('requestNextRequiredItem')
   const next = yield this.getNextRequiredItem(req)
   if (!next) return false
 
@@ -709,12 +767,18 @@ proto.requestNextRequiredItem = co(function* (req) {
 
 // promisified because it might be overridden by an async function
 proto.requestItem = co(function* ({ req, item }) {
-  debug('requestItem', item)
-  const { user, application } = req
+  this.logger.debug('requestItem', item)
+  const user = getApplicantFromRequest(req)
+  const { application } = req
   const { context, requestFor } = application || {}
   const itemRequested = typeof item === 'string' ? item : item.form
   // const context = parseId(application.request.id).permalink
-  debug(`requesting ${itemRequested} from user ${user.id} for ${requestFor}`)
+  this.logger.debug(`requesting`, {
+    item: itemRequested,
+    user: user.id,
+    product: requestFor
+  })
+
   const reqItem = yield this.createItemRequest({ req, requestFor, item })
   const other = {}
   if (context) other.context = context
@@ -725,8 +789,9 @@ proto.requestItem = co(function* ({ req, item }) {
 
 // promisified because it might be overridden by an async function
 proto.createItemRequest = co(function* ({ req, requestFor, item }) {
-  debug('createItemRequest', item)
-  const { user, application } = req
+  this.logger.debug('createItemRequest', item)
+  const { application } = req
+  const user = getApplicantFromRequest(req)
   const itemRequest = typeof item === 'string' ? { form: item } : item
   itemRequest[TYPE] = FORM_REQUEST
   if (!itemRequest.time) {
@@ -786,7 +851,10 @@ proto.requestEdit = co(function* ({ req, user, object, details }) {
     message = errors[0].error
   }
 
-  debug(`requesting edit for form ${object[TYPE]}`)
+  this.logger.debug(`requesting edit`, {
+    for: object[TYPE]
+  })
+
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',

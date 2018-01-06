@@ -12,10 +12,11 @@
   "dependencies": {
     "@tradle/build-resource": "2.13.1",
     "@tradle/constants": "^2.1.0",
-    "@tradle/merge-models": "^2.0.0",
+    "@tradle/merge-models": "2.1.0",
     "@tradle/validate-model": "5.0.0",
     "@tradle/validate-resource": "2.15.1",
     "bindall": "^2.0.1",
+    "bluebird": "3.5.1",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",
     "debug": "3.1.0",
