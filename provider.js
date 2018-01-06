@@ -7,6 +7,7 @@ const { omitVirtual, getRef } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const ModelManager = require('./models')
+const stateModels = require('./state-models')
 const {
   co,
   bindAll,
@@ -85,7 +86,7 @@ function Provider (opts) {
   this.namespace = namespace
   this.models = new ModelManager({ namespace, products, validate: validateModels })
   this.logger = logger
-  this._stateProps = Object.keys(this.models.private.customer.properties)
+  this._stateProps = Object.keys(stateModels.customer.properties)
   this._forgettableProps = this._stateProps.filter(prop => {
     return prop !== 'identity' && prop !== 'id' && prop !== TYPE
   })
@@ -136,7 +137,7 @@ proto.install = function (bot) {
 
 proto.addProducts = function addProducts ({ models, products }) {
   this.models.addProducts({ models, products })
-  this.state = createStateMutater({ models: this.models })
+  this.state = createStateMutater(this)
   this.removeDefaultHandlers()
   this._defaultPlugins = createDefaultPlugins(this)
   this.plugins.use(this._defaultPlugins)
@@ -167,40 +168,40 @@ proto._execBubble = function _execBubble (method, ...args) {
   return Promise.resolve(this.plugins.exec(opts))
 }
 
-proto._updateHistorySummary = co(function* ({
-  req,
-  user,
-  message,
-  object,
-  inbound,
-  label
-}) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!object) object = req.object
-  if (!label) {
-    label = this.plugins.exec({
-      method: 'getMessageLabel',
-      args: [{ user, object, message, inbound }],
-      returnResult: true
-    })
+// proto._updateHistorySummary = co(function* ({
+//   req,
+//   user,
+//   message,
+//   object,
+//   inbound,
+//   label
+// }) {
+//   if (!user) user = getApplicantFromRequest(req)
+//   if (!object) object = req.object
+//   if (!label) {
+//     label = this.plugins.exec({
+//       method: 'getMessageLabel',
+//       args: [{ user, object, message, inbound }],
+//       returnResult: true
+//     })
 
-    if (isPromise(label)) label = yield label
-  }
+//     if (isPromise(label)) label = yield label
+//   }
 
-  const type = object[TYPE]
-  const { historySummary=[] } = user
-  const item = { type }
-  if (inbound) item.inbound = inbound
-  if (label) item.label = label
+//   const type = object[TYPE]
+//   const { historySummary=[] } = user
+//   const item = { type }
+//   if (inbound) item.inbound = inbound
+//   if (label) item.label = label
 
-  historySummary.push(item)
+//   historySummary.push(item)
 
-  while (historySummary.length > HISTORY_OPTS.maxLength) {
-    historySummary.shift()
-  }
+//   while (historySummary.length > HISTORY_OPTS.maxLength) {
+//     historySummary.shift()
+//   }
 
-  user.historySummary = historySummary
-})
+//   user.historySummary = historySummary
+// })
 
 proto._onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
@@ -217,7 +218,7 @@ proto._onmessage = co(function* (data) {
 
   req.models = models
   req.context = getRequestContext({ req, models: models.all })
-  this._updateHistorySummary({ req, inbound: true })
+  // this._updateHistorySummary({ req, inbound: true })
 
   // make a defensive copy
   const userId = data.user.id
@@ -367,7 +368,7 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
 
 proto.getApplication = function (permalink) {
   return this.getResource({
-    type: this.models.private.application.id,
+    type: APPLICATION,
     permalink
   })
 }
@@ -445,11 +446,11 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   }
 
   this.logger.debug('send: queueing', { to, context: other.context })
-  this._updateHistorySummary({
-    req,
-    object,
-    inbound: false
-  })
+  // this._updateHistorySummary({
+  //   req,
+  //   object,
+  //   inbound: false
+  // })
 
   const opts = { req, to, link, object, other }
   if (req.message && this._queueSends !== false) {
@@ -549,7 +550,7 @@ proto.forgetUser = co(function* (req) {
 
   const { bot, models } = this
   const { db } = bot
-  const applicationPermalinks = getApplicationPermalinks({ user, models })
+  const applicationPermalinks = getApplicationPermalinks({ user })
   const applications = yield applicationPermalinks.map(_permalink => {
     return db.get({
       [TYPE]: APPLICATION,

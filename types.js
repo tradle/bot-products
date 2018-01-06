@@ -16,5 +16,9 @@ module.exports = {
   MY_PRODUCT: 'tradle.MyProduct',
   MODELS_PACK: 'tradle.ModelsPack',
   SELF_INTRODUCTION: 'tradle.SelfIntroduction',
-  IDENTITY: 'tradle.Identity'
+  IDENTITY: 'tradle.Identity',
+  APPLICATION_STUB: 'tradle.products.ApplicationStub',
+  ROLE: 'tradle.products.Role',
+  CUSTOMER: 'tradle.products.Customer',
+  TS_AND_CS_STATE: 'tradle.products.TsAndCsState',
 }

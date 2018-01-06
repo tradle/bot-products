@@ -27,7 +27,8 @@
   },
   "peerDependencies": {
     "@tradle/custom-models": "*",
-    "@tradle/models": "*"
+    "@tradle/models": "*",
+    "@tradle/models-products-bot": "*"
   },
   "devDependencies": {
     "@tradle/biz-plugins": "github:tradle/biz-plugins",
@@ -35,6 +36,7 @@
     "@tradle/engine": "^4.10.0",
     "@tradle/models": "github:tradle/models",
     "@tradle/models-corporate-onboarding": "github:tradle/models-corporate-onboarding",
+    "@tradle/models-products-bot": "github:tradle/models-products-bot",
     "eslint": "^3.15.0",
     "event-hooks": "1.2.0",
     "sinon": "3.2.1",

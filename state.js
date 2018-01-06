@@ -14,8 +14,9 @@ const {
 } = require('./utils')
 
 const baseModels = require('./base-models')
-const VERIFICATION = 'tradle.Verification'
-const VERIFIED_ITEM = 'tradle.VerifiedItem'
+const { VERIFICATION } = require('./types')
+const verificationModel = baseModels[VERIFICATION]
+const stateModels = require('./state-models')
 const STATUS = {
   started: 'started',
   completed: 'completed',
@@ -25,16 +26,15 @@ const STATUS = {
 
 module.exports = function stateMutater ({ bot, models }) {
 
-  const privateModels = models.private
   const bizModels = models.biz
   const allModels = models.all
   const build = model => buildResource({ model, models: allModels })
 
   const validateCustomer = (user) => {
-    user[TYPE] = privateModels.customer.id
+    user[TYPE] = stateModels.customer.id
     validateResource({
       models: allModels,
-      model: privateModels.customer,
+      model: stateModels.customer,
       resource: user
     })
   }
@@ -93,7 +93,7 @@ module.exports = function stateMutater ({ bot, models }) {
     // lookup, modify stored version
     const updated = buildResource({
         models: allModels,
-        model: privateModels.application,
+        model: stateModels.application,
         resource: application,
         mutate: true
       })
@@ -149,7 +149,7 @@ module.exports = function stateMutater ({ bot, models }) {
   }
 
   const createVerifiedItem = ({ verification }) => {
-    return build(allModels[VERIFIED_ITEM])
+    return build(stateModels.verifiedItem)
       .set({
         verification,
         item: verification.document
@@ -162,7 +162,7 @@ module.exports = function stateMutater ({ bot, models }) {
 
   const createApplication = ({ user, object }) => {
     const { requestFor } = object
-    const application = build(privateModels.application)
+    const application = build(stateModels.application)
       .set({
         applicant: user.identity,
         context: getContext({
@@ -208,10 +208,10 @@ module.exports = function stateMutater ({ bot, models }) {
   }
 
   const createApplicationStub = ({ application }) => {
-    const copy = Object.keys(privateModels.applicationStub.properties)
-      .filter(propertyName => propertyName in privateModels.application.properties)
+    const copy = Object.keys(stateModels.applicationStub.properties)
+      .filter(propertyName => propertyName in stateModels.application.properties)
 
-    return build(privateModels.applicationStub)
+    return build(stateModels.applicationStub)
       .set(_.pick(application, copy))
       .set({
         statePermalink: buildResource.permalink(application)
@@ -226,7 +226,7 @@ module.exports = function stateMutater ({ bot, models }) {
 
     buildResource.set({
       models: models.all,
-      model: models.private.application,
+      model: stateModels.application,
       resource: application,
       properties
     })
@@ -285,7 +285,7 @@ module.exports = function stateMutater ({ bot, models }) {
     if (!user) user = req.user
 
     const oLink = getLinkFromResourceOrStub(object)
-    const builder = build(baseModels[VERIFICATION])
+    const builder = build(verificationModel)
       .set(verification)
       .set('document', object)
 
@@ -362,7 +362,7 @@ module.exports = function stateMutater ({ bot, models }) {
   }
 
   const init = (user) => {
-    const { properties } = privateModels.customer
+    const { properties } = stateModels.customer
     for (let propertyName in properties) {
       let prop = properties[propertyName]
       if (prop.type === 'array') {
@@ -378,17 +378,6 @@ module.exports = function stateMutater ({ bot, models }) {
       models: allModels,
       resource: identity
     })
-  }
-
-  const toItem = ({ object, message }) => {
-    const time = getTime(object, message)
-    return build(privateModels.item)
-      .set({
-        type: object[TYPE],
-        permalink: object._permalink,
-        time
-      })
-      .toJSON()
   }
 
   const findApplication = (applications, test) => {

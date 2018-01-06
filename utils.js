@@ -7,10 +7,12 @@ const stableStringify = require('json-stable-stringify')
 const { TYPE } = require('@tradle/constants')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
+const stateModels = require('./state-models')
 const baseModels = require('./base-models')
 const { getPropertyTitle, parseId, parseStub, getRef } = validateResource.utils
 const {
   VERIFICATION,
+  VERIFIED_ITEM,
   APPLICATION,
   MODELS_PACK
 } = require('./types')
@@ -124,8 +126,8 @@ function getRequestContext ({ req, models }) {
   })
 }
 
-function getApplicationPermalinks ({ user, models } ) {
-  const model = models.private.customer
+function getApplicationPermalinks ({ user } ) {
+  const model = stateModels.customer
   return Object.keys(model.properties)
     .reduce((applications, propertyName) => {
       let val = user[propertyName]
@@ -140,7 +142,7 @@ function getApplicationPermalinks ({ user, models } ) {
         return applications.concat(val.map(stub => parseStub(stub).permalink))
       }
 
-      if (ref === models.private.applicationStub.id) {
+      if (ref === stateModels.applicationStub.id) {
         return applications.concat(val.map(({ statePermalink }) => statePermalink))
       }
 
@@ -148,8 +150,8 @@ function getApplicationPermalinks ({ user, models } ) {
     }, [])
 }
 
-function getVerificationPermalinks ({ user, models }) {
-  const model = models.private.customer
+function getVerificationPermalinks ({ user }) {
+  const model = stateModels.customer
   return Object.keys(model.properties)
     .reduce((verifications, propertyName) => {
       let val = user[propertyName]
@@ -159,7 +161,7 @@ function getVerificationPermalinks ({ user, models }) {
       val = [].concat(val)
 
       const ref = getRef(model.properties[propertyName])
-      if (ref === models.private.verifiedItem.id) {
+      if (ref === VERIFIED_ITEM) {
         return verifications.concat(val.map(({ permalink }) => permalink))
       }
 
@@ -263,7 +265,7 @@ function getLinkFromResourceOrStub (object) {
 
 const flatten = (arr) => arr.reduce((flat, more) => flat.concat(more), [])
 
-function categorizeApplicationModels ({ namespace, models, products }) {
+function categorizeApplicationModels ({ models, products }) {
   const productModels = products.map(id => models[id])
   const certificates = {}
   const certificateFor = {}
