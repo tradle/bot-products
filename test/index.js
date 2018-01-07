@@ -13,6 +13,7 @@ const buildResource = require('@tradle/build-resource')
 const mergeModels = require('@tradle/merge-models')
 const { TYPE, SIG } = require('@tradle/constants')
 const baseModels = require('../base-models')
+const stateModels = require('../state-models')
 const createProductsStrategy = require('../')
 const createDefiner = require('../definer')
 const messageInterface = require('../message-interface')
@@ -79,7 +80,7 @@ test('definer', function (t) {
 
 test('addProducts', function (t) {
   const productModels = [TEST_PRODUCT]
-  const productsStrategy = createProductsStrategy({
+  const productsAPI = createProductsStrategy({
     namespace,
     models: {
       all: customModels
@@ -87,9 +88,9 @@ test('addProducts', function (t) {
     products: productModels.map(model => model.id)
   })
 
-  t.same(productsStrategy.products, [TEST_PRODUCT.id])
+  t.same(productsAPI.products, [TEST_PRODUCT.id])
   t.same(
-    productsStrategy.models.biz.products.slice()
+    productsAPI.models.biz.products.slice()
       .sort(),
     productModels
       .map(model => model.id)
@@ -97,12 +98,12 @@ test('addProducts', function (t) {
   )
 
   productModels.push(baseModels['tradle.CurrentAccount'])
-  productsStrategy.addProducts({
+  productsAPI.addProducts({
     products: productModels.map(model => model.id)
   })
 
   t.same(
-    productsStrategy.models.biz.products.slice()
+    productsAPI.models.biz.products.slice()
       .sort(),
     productModels
       .map(model => model.id)
@@ -127,7 +128,9 @@ test('state', loudCo(function* (t) {
 
   const productModel = TEST_PRODUCT
   const productModels = [productModel]
-  const productsStrategy = createProductsStrategy({
+  const { bot } = fakeBot()
+  const productsAPI = createProductsStrategy({
+    bot,
     namespace,
     models: {
       all: customModels
@@ -135,13 +138,11 @@ test('state', loudCo(function* (t) {
     products: productModels.map(model => model.id)
   })
 
-  const { bot } = fakeBot()
   const {
     state,
     models,
-  } = productsStrategy.install(bot)
+  } = productsAPI
 
-  const privateModels = models.private
   const productRequest = createProductRequest(TEST_PRODUCT.id)
 
   state.init(user)
@@ -198,7 +199,7 @@ test('state', loudCo(function* (t) {
   t.equal(user.applications.length, 1)
   t.equal(user.applicationsApproved.length, 0)
   t.equal(user.applicationsDenied.length, 0)
-  t.ok(user.applications.every(f => f[TYPE] === privateModels.applicationStub.id))
+  t.ok(user.applications.every(f => f[TYPE] === stateModels.applicationStub.id))
 
   const certificate = state.createCertificate({ application })
   certificate[SIG] = newSig()
@@ -213,8 +214,8 @@ test('state', loudCo(function* (t) {
   t.equal(application.verificationsIssued.length, productModel.forms.length)
   t.equal(application.verificationsImported.length, 1)
   // t.equal(user.forms.length, productModel.forms.length)
-  // t.ok(user.forms.every(f => f[TYPE] === privateModels.formState.id))
-  t.ok(user.applicationsApproved.every(f => f[TYPE] === privateModels.applicationStub.id))
+  // t.ok(user.forms.every(f => f[TYPE] === stateModels.formState.id))
+  t.ok(user.applicationsApproved.every(f => f[TYPE] === stateModels.applicationStub.id))
 
   t.end()
 }))
@@ -457,7 +458,8 @@ test('plugins', loudCo(function* (t) {
     baseModels[CURRENT_ACCOUNT]
   ]
 
-  const productsStrategy = createProductsStrategy({
+  const productsAPI = createProductsStrategy({
+    bot,
     namespace: 'test.namespace',
     models: {
       all: customModels
@@ -466,7 +468,6 @@ test('plugins', loudCo(function* (t) {
   })
 
   const bot = fakeBot()
-  const productsAPI = productsStrategy.install(bot)
   productsAPI.plugins.clear('getRequiredForms')
   const custom = {
     blah: 1,
@@ -635,7 +636,7 @@ test.skip('complex form loop', loudCo(co(function* (t) {
 
 test.skip('client', loudCo(function* (t) {
   const productModel = TEST_PRODUCT
-  const productsStrategy = createProductsStrategy({
+  const productsAPI = createProductsStrategy({
     namespace,
     models: {
       all: customModels
@@ -643,7 +644,7 @@ test.skip('client', loudCo(function* (t) {
     products: [TEST_PRODUCT.id]
   })
 
-  const models = productsStrategy.models.all
+  const models = productsAPI.models.all
   const client = createProductsStrategy.createClient()
   const userId = 'someuserid'
   const { bot } = fakeBot()

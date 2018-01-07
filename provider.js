@@ -75,6 +75,7 @@ function Provider (opts) {
   applicationMixin(this)
 
   const {
+    bot,
     namespace,
     models,
     products,
@@ -83,6 +84,7 @@ function Provider (opts) {
     validateModels=true
   } = opts
 
+  this.bot = bot
   this.namespace = namespace
   this.models = new ModelManager({ namespace, products, validate: validateModels })
   this.logger = logger
@@ -128,12 +130,12 @@ function Provider (opts) {
 inherits(Provider, EventEmitter)
 const proto = Provider.prototype
 
-proto.install = function (bot) {
-  this.bot = bot
-  this.uninstall = bot.onmessage(this._onmessage)
-  this.emit('bot', bot)
-  return this
-}
+// proto.install = function (bot) {
+//   this.bot = bot
+//   this.uninstall = bot.onmessage(this._onmessage)
+//   this.emit('bot', bot)
+//   return this
+// }
 
 proto.addProducts = function addProducts ({ models, products }) {
   this.models.addProducts({ models, products })
@@ -203,7 +205,7 @@ proto._execBubble = function _execBubble (method, ...args) {
 //   user.historySummary = historySummary
 // })
 
-proto._onmessage = co(function* (data) {
+proto.onmessage = co(function* (data) {
   const req = this.state.newRequestState(data)
   const { user } = data
   const { state, models } = this

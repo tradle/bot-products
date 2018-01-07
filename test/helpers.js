@@ -160,6 +160,7 @@ function formLoop ({
 
   const { bot, handlers } = createFakeBot({ user })
   const productsAPI = createProductsStrategy({
+    bot,
     namespace: 'test.namespace',
     models: {
       all: models
@@ -167,7 +168,7 @@ function formLoop ({
     products: productModels.map(model => model.id)
   })
 
-  productsAPI.install(bot)
+  bot.onmessage(productsAPI.onmessage)
   productsAPI.removeDefaultHandler('onFormsCollected')
   const receiveFromUser = co(function* ({
     object,
