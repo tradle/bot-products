@@ -239,7 +239,7 @@ proto.onmessage = co(function* (data) {
     }
 
     if (req.sendQueue.length) {
-      yield this.rawSendBatch({ req, messages: req.sendQueue })
+      yield this.rawSendBatch({ messages: req.sendQueue })
     }
   }
 
@@ -402,12 +402,12 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
-proto.rawSendBatch = function ({ req, messages }) {
+proto.rawSendBatch = function ({ messages }) {
   this.logger.debug(`sending batch of ${messages.length} messages`)
   return this.bot.send(messages)
 }
 
-proto.rawSend = function ({ req, to, link, object, other={} }) {
+proto.rawSend = function ({ to, link, object, other={} }) {
   this.logger.debug(`sending ${object ? object[TYPE] : link} to ${to}`)
   return this.bot.send({ to, link, object, other })
 }
@@ -417,12 +417,23 @@ proto.seal = function seal (req) {
   return this.bot.seal({ link })
 }
 
-proto.send = co(function* ({ req, application, to, link, object, other={} }) {
-  typeforce(types.request, req)
+proto.reply = function reply (req, reply) {
+  return this.send(_.extend({
+    req,
+    to: user,
+    application
+  }, reply))
+}
 
+proto.send = co(function* ({ req, application, to, link, object, other={} }) {
+  if (!(to && (link || object))) {
+    throw new Error('expected "to" and "link" or "object"')
+  }
+
+  const inReplyTo = req && req.message
   if (to.id) to = to.id
 
-  if (!application) {
+  if (!application && req) {
     application = req.application
   }
 
@@ -435,7 +446,7 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   }
 
   if (!other.context && application) {
-    const context = this.state.getApplicationContext(application)
+    const { context } = application
     this.logger.debug(`send: setting context`, {
       context,
       application: application._permalink,
@@ -445,8 +456,8 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
     other.context = context
   }
 
-  if (!other.inReplyTo) {
-    const msgLink = req && req.message && req.message._link
+  if (!other.inReplyTo && inReplyTo) {
+    const msgLink = inReplyTo._link
     if (msgLink) {
       this.logger.debug('setting reply-to on message', { inReplyTo: msgLink })
       other.inReplyTo = msgLink
@@ -461,7 +472,7 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   // })
 
   const opts = { req, to, link, object, other }
-  if (req.message && this._queueSends !== false) {
+  if (inReplyTo && this._queueSends !== false) {
     // this request is based on an incoming message
     // so we can try to batch the sends at the end (maybe)
     req.sendQueue.push(opts)
@@ -508,18 +519,17 @@ proto.signAndSave = co(function* (object) {
 })
 
 proto.addVerification = function ({
-  req,
   user,
   application,
   verification,
   imported
 }) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!application) application = req.application
-  if (!verification) verification = req.object
-  if (!(user && application && verification)) {
-    throw new Error('expected "user", "application" and "verification"')
-  }
+  // if (!user) user = getApplicantFromRequest(req)
+  // if (!application) application = req.application
+  // if (!verification) verification = req.object
+  // if (!(user && application && verification)) {
+  //   throw new Error('expected "user", "application" and "verification"')
+  // }
 
   this.state.addVerification({ user, application, verification, imported })
 }
@@ -543,9 +553,9 @@ proto.continueApplication = co(function* (req) {
   // e.g. employee assigned himself as the relationship manager
   if (applicant && user.id !== applicant.id) return
 
-  const requested = yield this.requestNextRequiredItem(req)
+  const requested = yield this.requestNextRequiredItem({ req, user, application })
   if (!requested) {
-    yield this._exec('onFormsCollected', req)
+    yield this._exec('onFormsCollected', { req, user, application })
   }
 })
 
@@ -607,6 +617,7 @@ proto.forgetUser = co(function* (req) {
   this.state.init(user)
   return this.send({
     req,
+    to: user,
     object: buildResource({
         models: this.models.all,
         model: FORGOT_YOU
@@ -624,10 +635,6 @@ proto.verify = co(function* ({
   verification={},
   send
 }) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!object) object = req.object
-  if (!application) application = req.application
-
   if (!(user && object && application)) {
     throw new Error('expected "user", "object", and "application"')
   }
@@ -644,9 +651,9 @@ proto.verify = co(function* ({
     sending: !!send
   })
 
-  const unsigned = yield state.createVerification({ req, application, object, verification })
+  const unsigned = yield state.createVerification({ user, application, object, verification })
   if (send) {
-    verification = yield this.send({ req, to: user, object: unsigned })
+    verification = yield this.send({ req, to: user, application, object: unsigned })
   } else {
     verification = yield this.sign(unsigned)
     yield bot.save(verification)
@@ -657,8 +664,9 @@ proto.verify = co(function* ({
 })
 
 proto.denyApplication = co(function* ({ req, user, application }) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!application) application = req.application
+  if (!(user && application)) {
+    throw new Error('expected "user" and "application"')
+  }
 
   const denial = buildResource({
     models: this.models.all,
@@ -677,12 +685,12 @@ proto.denyApplication = co(function* ({ req, user, application }) {
   })
 
   this.state.moveToDenied({ user, application })
-  return this.send({ req, to: user, object: denial })
+  return this.send({ req, to: user, application, object: denial })
 })
 
 proto.sendIssuedVerifications = co(function* ({ req, to, application }) {
   const { verificationsIssued=[] } = application
-  yield verificationsIssued.map(({ link }) => this.send({ req, to, link }))
+  yield verificationsIssued.map(({ link }) => this.send({ req, to, application, link }))
 })
 
 proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
@@ -695,11 +703,8 @@ proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
 }
 
 proto.issueVerifications = co(function* ({ req, user, application, send }) {
-  if (req) {
-    if (!user) user = getApplicantFromRequest(req)
-    if (!application) application = req.application
-  } else {
-    req = this.state.newRequestState({ user })
+  if (!(user && application)) {
+    throw new Error('expected "user" and "application"')
   }
 
   const {
@@ -721,9 +726,10 @@ proto.issueVerifications = co(function* ({ req, user, application, send }) {
   }))
 })
 
-proto.approveApplication = co(function* ({ req, user, application }) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!application) application = req.application
+proto.approveApplication = co(function* ({ req, user, application, approvedBy }) {
+  if (!(user && application)) {
+    throw new Error('expected "user" and "application"')
+  }
 
   this.logger.debug(`approving application`, {
     product: application.requestFor,
@@ -731,7 +737,7 @@ proto.approveApplication = co(function* ({ req, user, application }) {
   })
 
   const unsigned = this.state.createCertificate({ application })
-  const certificate = yield this.send({ req, to: user, object: unsigned })
+  const certificate = yield this.send({ req, to: user, application, object: unsigned })
   this.state.addCertificate({ user, application, certificate })
   return certificate
 })
@@ -748,37 +754,33 @@ proto.approveApplication = co(function* ({ req, user, application }) {
 // })
 
 // promisified because it might be overridden by an async function
-proto.getNextRequiredItem = co(function* (req) {
-  const { application } = req
+proto.getNextRequiredItem = co(function* ({ req, user, application }) {
   const { models, state } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({
     method: 'getRequiredForms',
-    args: [{ req, productModel }],
+    args: [{ user, application, productModel }],
     returnResult: true
   })
 
   return this._exec({
     method: 'getNextRequiredItem',
-    args: [{ req, productModel, required }],
+    args: [{ req, user, application, productModel, required }],
     returnResult: true
   })
 })
 
-proto.requestNextRequiredItem = co(function* (req) {
+proto.requestNextRequiredItem = co(function* ({ req, user, application }) {
   this.logger.debug('requestNextRequiredItem')
-  const next = yield this.getNextRequiredItem(req)
+  const next = yield this.getNextRequiredItem({ req, user, application })
   if (!next) return false
 
-  yield this.requestItem({ req, item: next })
+  yield this.requestItem({ req, user, application, item: next })
   return true
 })
 
-// promisified because it might be overridden by an async function
-proto.requestItem = co(function* ({ req, item }) {
+proto.requestItem = co(function* ({ req, user, application, item }) {
   this.logger.debug('requestItem', item)
-  const user = getApplicantFromRequest(req)
-  const { application } = req
   const { context, requestFor } = application || {}
   const itemRequested = typeof item === 'string' ? item : item.form
   // const context = parseId(application.request.id).permalink
@@ -788,19 +790,16 @@ proto.requestItem = co(function* ({ req, item }) {
     product: requestFor
   })
 
-  const reqItem = yield this.createItemRequest({ req, requestFor, item })
+  const reqItem = yield this.createItemRequest({ user, application, requestFor, item })
   const other = {}
   if (context) other.context = context
 
-  yield this.send({ req, object: reqItem, other })
+  yield this.send({ req, to: user, object: reqItem, other })
   return true
 })
 
-// promisified because it might be overridden by an async function
-proto.createItemRequest = co(function* ({ req, requestFor, item }) {
+proto.createItemRequest = co(function* ({ user, application, requestFor, item }) {
   this.logger.debug('createItemRequest', item)
-  const { application } = req
-  const user = getApplicantFromRequest(req)
   const itemRequest = typeof item === 'string' ? { form: item } : item
   itemRequest[TYPE] = FORM_REQUEST
   if (!itemRequest.time) {
@@ -815,12 +814,11 @@ proto.createItemRequest = co(function* ({ req, requestFor, item }) {
     if (requestFor) itemRequest.product = requestFor
   }
 
-  if (!itemRequest.context && req.context) {
-    itemRequest.context = req.context
+  if (!itemRequest.context && application) {
+    itemRequest.context = application.context
   }
 
   yield this._exec('willRequestForm', {
-    req,
     application,
     form: item,
     formRequest: itemRequest,
@@ -832,9 +830,9 @@ proto.createItemRequest = co(function* ({ req, requestFor, item }) {
   return itemRequest
 })
 
-proto.sendProductList = co(function* (req) {
+proto.sendProductList = co(function* ({ req, to }) {
   const productChooser = yield this.createItemRequest({
-    req,
+    user: to,
     item: {
       form: PRODUCT_REQUEST,
       chooser: {
@@ -847,40 +845,40 @@ proto.sendProductList = co(function* (req) {
 
   return this.send({
     req,
+    to,
     object: productChooser
   })
 })
 
-proto.requestEdit = co(function* ({ req, user, object, details }) {
-  if (!user) user = getApplicantFromRequest(req)
-  if (!object) object = req.object
-
+proto.requestEdit = co(function* ({ req, user, application, item, details }) {
   const { message, errors=[] } = details
   if (!message && errors.length) {
     message = errors[0].error
   }
 
   this.logger.debug(`requesting edit`, {
-    for: object[TYPE]
+    for: item[TYPE]
   })
 
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',
     resource: {
-      prefill: _.omit(object, '_s'),
+      prefill: _.omit(item, '_s'),
       message,
       errors
     }
   })
   .toJSON()
 
-  if (req.context) {
-    formError.context = req.context
+  if (application) {
+    formError.context = application.context
   }
 
   yield this.send({
     req,
+    to: user,
+    application,
     object: formError
   })
 })

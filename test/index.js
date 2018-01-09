@@ -204,11 +204,7 @@ test('state', loudCo(function* (t) {
   const certificate = state.createCertificate({ application })
   certificate[SIG] = newSig()
 
-  state.addCertificate({
-    req: state.newRequestState({ user, application }),
-    certificate
-  })
-
+  state.addCertificate({ user, application, certificate })
   t.equal(user.applications.length, 0)
   t.equal(user.applicationsApproved.length, 1)
   t.equal(application.verificationsIssued.length, productModel.forms.length)
@@ -286,7 +282,7 @@ test.only('basic form loop', loudCo(function* (t) {
         t.notOk(pluginsCalled.onFormsCollected[application.requestFor])
         pluginsCalled.onFormsCollected[application.requestFor] = true
         const action = approve ? api.approveApplication : api.denyApplication
-        return action.call(this, { req })
+        return action.call(this, { user, application })
       }
     })
 
@@ -321,10 +317,8 @@ test.only('basic form loop', loudCo(function* (t) {
       if (bad[nextForm]) {
         // user corrects form
         api.requestEdit({
-          req: api.state.newRequestState({
-            user,
-            object: result.request.object,
-          }),
+          user,
+          item: result.request.object,
           details: {
             message: 'dude, seriously',
             errors: []
@@ -344,12 +338,10 @@ test.only('basic form loop', loudCo(function* (t) {
 
       response = result.response
       yield api.verify({
-        req: api.state.newRequestState({
-          user,
-          application: yield api.getApplicationByStub(user.applications[0] ||
-            user.applicationsApproved[0] ||
-            user.applicationsDenied[0])
-        }),
+        user,
+        application: yield api.getApplicationByStub(user.applications[0] ||
+          user.applicationsApproved[0] ||
+          user.applicationsDenied[0]),
         object: result.request.object,
         send: true
       })
@@ -704,9 +696,7 @@ test.skip('client', loudCo(function* (t) {
 
 const createSignedVerification = co(function* ({ state, user, form }) {
   const verification = yield state.createVerification({
-    req: state.newRequestState({
-      user
-    }),
+    user,
     object: form
   })
 

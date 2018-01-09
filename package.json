@@ -16,7 +16,7 @@
     "@tradle/validate-model": "5.0.0",
     "@tradle/validate-resource": "2.15.1",
     "bindall": "^2.0.1",
-    "bluebird": "3.5.1",
+    "bluebird": "2.11.0",
     "co": "^4.6.0",
     "cross-env": "^4.0.0",
     "debug": "3.1.0",
@@ -47,8 +47,8 @@
     "start": "cross-env DEBUG=@tradle/bot* bots --conf ./conf.json",
     "debug": "cross-env DEBUG=@tradle/bot* node --debug --inspect $(which bots) --conf ./conf.json",
     "debug-brk": "cross-env DEBUG=@tradle/bot* node --debug-brk --inspect $(which bots) --conf ./conf.json",
-    "test": "cross-env NODE_ENV=test DEBUG=@tradle/bot* node test",
-    "test:debug": "cross-env NODE_ENV=test DEBUG=@tradle/bot* node --debug --inspect test",
-    "test:debug-brk": "NODE_ENV=test DEBUG=@tradle/bot* node --debug-brk --inspect test"
+    "test": "cross-env BLUEBIRD_DEBUG=1 NODE_ENV=test DEBUG=@tradle/bot* node test",
+    "test:debug": "cross-env BLUEBIRD_DEBUG=1 NODE_ENV=test DEBUG=@tradle/bot* node --debug --inspect test",
+    "test:debug-brk": "cross-env BLUEBIRD_DEBUG=1 NODE_ENV=test DEBUG=@tradle/bot* node --debug-brk --inspect test"
   }
 }

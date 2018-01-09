@@ -24,9 +24,9 @@ proto.exec = co(function* ({ req, command }) {
     resp = HELP_MENU
     break
   case '/products':
-    return this.api.sendProductList(req)
+    return this.api.sendProductList({ req, to: req.user })
   case '/forgetme':
-    return this.api.forgetUser(req)
+    return this.api.forgetUser({ req, user: req.user })
   // case '/human':
   //   return this.api.sendProductList(req)
   default:

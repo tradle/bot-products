@@ -98,7 +98,8 @@ module.exports = function (api) {
       logger.debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
       if (state.isApplicationCompleted(application)) {
         yield api.send({
-          req,
+          to: user,
+          application,
           object: STRINGS.APPLICATION_IN_REVIEW
         })
       } else {
@@ -113,11 +114,11 @@ module.exports = function (api) {
   const onRequestForExistingProduct = co(function* (req) {
     // to allow the 2nd application, uncomment:
     // yield api.addApplication({ req })
-
+    const { user } = req
     const type = req.object.requestFor
     const model = models.all[type]
     yield api.send({
-      req,
+      user,
       object: format(STRINGS.ALREADY_HAVE_PRODUCT, model.title)
     })
   })
@@ -170,7 +171,7 @@ module.exports = function (api) {
 
     if (err) {
       logger.debug('handleForm:requestEdit')
-      yield api.requestEdit({ req, details: err })
+      yield api.requestEdit({ user, application, item: object, details: err })
       return
     }
 
@@ -205,7 +206,6 @@ module.exports = function (api) {
   const handleVerification = req => {
     const { user, application, object } = req
     return api.importVerification({
-      req,
       user,
       application,
       verification: object,
@@ -246,15 +246,14 @@ module.exports = function (api) {
     // }
   })
 
-  function sendApplicationSubmitted (req) {
-    const { applicant, application } = req
+  function sendApplicationSubmitted ({ user, application }) {
     const message = application.dateCompleted
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
     return api.send({
-      req,
-      to: applicant,
+      to: user,
+      application,
       object: createSimpleMessage(message)
     })
   }
@@ -358,8 +357,11 @@ module.exports = function (api) {
   })
 
   const willSend = co(function* (opts) {
-    const { req, to, link, object } = opts
-    if (!to) opts.to = req.user
+    const { to, link, object } = opts
+    if (!(to && (link || object))) {
+      throw new Error('expected "to" and "link" or "object"')
+    }
+
     if (link && !object) {
       opts.object = yield api.bot.objects.get(link)
     }
@@ -397,11 +399,11 @@ module.exports = function (api) {
     return application
   }
 
-  const maybeSendProductList = co(function* (req) {
-    if (req.context) {
+  const maybeSendProductList = co(function* ({ user, context }) {
+    if (context) {
       logger.debug('not sending product list in contextual chat')
     } else {
-      yield api.sendProductList(req)
+      yield api.sendProductList({ to: user })
     }
 
     // const { historySummary=[] } = req.user
@@ -436,8 +438,8 @@ module.exports = function (api) {
   //   }
   // }
 
-  const getNextRequiredItem = ({ req, productModel, required }) => {
-    const { forms=[], skip=[] } = req.application
+  const getNextRequiredItem = ({ user, application, productModel, required }) => {
+    const { forms=[], skip=[] } = application
     const { multiEntryForms=[] } = productModel
     return required.find(form => {
       if (multiEntryForms.includes(form)) {
@@ -535,6 +537,6 @@ function prependKeysWith (prefix, obj) {
 }
 
 // promisified because it might be overridden by an async function
-function getRequiredForms ({ req, productModel }) {
+function getRequiredForms ({ user, application, productModel }) {
   return productModel.forms.slice()
 }
