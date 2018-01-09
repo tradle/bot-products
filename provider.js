@@ -42,6 +42,7 @@ const {
   IDENTITY
 } = require('./types')
 
+const BEFORE_PROP = '$before'
 const HISTORY_OPTS = {
   inbound: 3,
   outbound: 3,
@@ -226,6 +227,7 @@ proto.onmessage = co(function* (data) {
   const userId = data.user.id
   try {
     yield this._processIncoming(req)
+    yield this._saveChanges(req)
   } catch (err) {
     this.logger.error(`failed to process incoming message from ${userId}`, err)
     throw err
@@ -264,9 +266,8 @@ proto._processIncoming = co(function* (req) {
   yield this._deduceApplicantAndApplication(req)
 
   let { applicant, application } = req
-  let applicantIsUser = !applicant || applicant.id === user.id
-  const before = _.cloneDeep({
-    applicant: applicantIsUser ? null : applicant,
+  req[BEFORE_PROP] = _.cloneDeep({
+    applicant: isApplicantSender(req) ? null : applicant,
     application,
     user
   })
@@ -290,9 +291,14 @@ proto._processIncoming = co(function* (req) {
       return
     }
   }
+})
 
-  ({ application } = req)
-  applicant = getApplicantFromRequest(req)
+proto._saveChanges = co(function* (req) {
+  const { bot } = this
+  const { user, application } = req
+  const before = req[BEFORE_PROP]
+  const applicant = getApplicantFromRequest(req)
+  const applicantIsSender = isApplicantSender(req)
   const changes = []
   if (application && !_.isEqual(application, before.application)) {
     const saveOpts = {
@@ -314,7 +320,7 @@ proto._processIncoming = co(function* (req) {
     }
   }
 
-  if (!applicantIsUser && !_.isEqual(applicant, before.applicant)) {
+  if (!applicantIsSender && !_.isEqual(applicant, before.applicant)) {
     this.logger.debug('saving applicant state', {
       applicant: applicant._permalink
     })
@@ -887,4 +893,9 @@ function normalizeExecArgs (method, ...args) {
 
 function getApplicantFromRequest (req) {
   return req.applicant || req.user
+}
+
+function isApplicantSender (req) {
+  const { applicant, user } = req
+  return !applicant || applicant.id === user.id
 }
