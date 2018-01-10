@@ -425,6 +425,13 @@ proto.reply = function reply (req, reply) {
   }, reply))
 }
 
+proto.sendSimpleMessage = co(function* (opts) {
+  const { message } = opts
+  opts = _.omit(opts, ['message'])
+  opts.object = createSimpleMessage(message)
+  return this.send(opts)
+})
+
 proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   if (!(to && (link || object))) {
     throw new Error('expected "to" and "link" or "object"')
@@ -635,8 +642,8 @@ proto.verify = co(function* ({
   verification={},
   send
 }) {
-  if (!(user && object && application)) {
-    throw new Error('expected "user", "object", and "application"')
+  if (!(user && object)) {
+    throw new Error('expected "user", "object"')
   }
 
   const { bot, state } = this
@@ -659,7 +666,10 @@ proto.verify = co(function* ({
     yield bot.save(verification)
   }
 
-  state.addVerification({ user, application, object, verification })
+  if (application) {
+    state.addVerification({ user, application, object, verification })
+  }
+
   return verification
 })
 
