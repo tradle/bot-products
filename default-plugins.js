@@ -357,7 +357,17 @@ module.exports = function (api) {
   })
 
   const willSend = co(function* (opts) {
-    const { to, link, object } = opts
+    let { req, application, to, link, object } = opts
+    if (req) {
+      if (!application && req.application) {
+        to = opts.application = req.application
+      }
+
+      if (!to && req.user) {
+        to = opts.to = req.user
+      }
+    }
+
     if (!(to && (link || object))) {
       throw new Error('expected "to" and "link" or "object"')
     }
