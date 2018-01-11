@@ -13,7 +13,7 @@
     "@tradle/build-resource": "2.13.1",
     "@tradle/constants": "^2.1.0",
     "@tradle/merge-models": "2.1.0",
-    "@tradle/validate-model": "5.0.0",
+    "@tradle/validate-model": "5.1.0",
     "@tradle/validate-resource": "2.15.1",
     "bindall": "^2.0.1",
     "bluebird": "2.11.0",
