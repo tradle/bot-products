@@ -796,7 +796,7 @@ proto.requestNextRequiredItem = co(function* ({ req, user, application }) {
   return true
 })
 
-proto.requestItem = co(function* ({ req, user, application, item }) {
+proto.requestItem = co(function* ({ req, user, application, item, message }) {
   this.logger.debug('requestItem', item)
   const { context, requestFor } = application || {}
   const itemRequested = typeof item === 'string' ? item : item.form
@@ -807,7 +807,14 @@ proto.requestItem = co(function* ({ req, user, application, item }) {
     product: requestFor
   })
 
-  const reqItem = yield this.createItemRequest({ user, application, requestFor, item })
+  const reqItem = yield this.createItemRequest({
+    user,
+    application,
+    requestFor,
+    item,
+    message
+  })
+
   const other = {}
   if (context) other.context = context
 
@@ -815,7 +822,7 @@ proto.requestItem = co(function* ({ req, user, application, item }) {
   return true
 })
 
-proto.createItemRequest = co(function* ({ user, application, requestFor, item }) {
+proto.createItemRequest = co(function* ({ user, application, requestFor, item, message }) {
   this.logger.debug('createItemRequest', item)
   const itemRequest = typeof item === 'string' ? { form: item } : item
   itemRequest[TYPE] = FORM_REQUEST
@@ -833,6 +840,10 @@ proto.createItemRequest = co(function* ({ user, application, requestFor, item })
 
   if (!itemRequest.context && application) {
     itemRequest.context = application.context
+  }
+
+  if (!itemRequest.message && message) {
+    itemRequest.message = message
   }
 
   yield this._exec('willRequestForm', {
@@ -881,7 +892,7 @@ proto.requestEdit = co(function* ({ req, user, application, item, details }) {
     models: this.models.all,
     model: 'tradle.FormError',
     resource: {
-      prefill: _.omit(item, '_s'),
+      prefill: _.omit(omitVirtual(item), SIG),
       message,
       errors
     }
