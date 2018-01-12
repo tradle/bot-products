@@ -345,7 +345,17 @@ module.exports = function stateMutater ({ bot, models }) {
     })
 
     const formPermalink = buildResource.permalink(object)
-    const idx = application.forms.findIndex(form => parseStub(form).permalink === formPermalink)
+    const productModel = allModels[application.requestFor]
+    const { multiEntryForms=[] } = productModel
+    const idx = application.forms.findIndex(form => {
+      const { type, permalink } = parseStub(form)
+      if (permalink === formPermalink) return true
+      if (type === object[TYPE] && !multiEntryForms.includes(type)) {
+        // e.g. we don't want multiple tradle.Selfie forms, just the last one
+        return true
+      }
+    })
+
     if (idx === -1) {
       application.forms.push(stub)
     } else {
