@@ -685,6 +685,14 @@ proto.denyApplication = co(function* ({ req, user, application }) {
     throw new Error('expected "user" and "application"')
   }
 
+  if (application.status === this.state.status.denied) {
+    this.logger(`ignoring request to deny already denied application`, {
+      application: application._permalink
+    })
+
+    return
+  }
+
   const denial = buildResource({
     models: this.models.all,
     model: DENIAL,
@@ -746,6 +754,14 @@ proto.issueVerifications = co(function* ({ req, user, application, send }) {
 proto.approveApplication = co(function* ({ req, user, application, approvedBy }) {
   if (!(user && application)) {
     throw new Error('expected "user" and "application"')
+  }
+
+  if (application.status === this.state.status.approved) {
+    this.logger(`ignoring request to approve already approved application`, {
+      application: application._permalink
+    })
+
+    return
   }
 
   this.logger.debug(`approving application`, {
