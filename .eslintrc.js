@@ -10,7 +10,7 @@ module.exports = {
     "rules": {
         "accessor-pairs": "error",
         "array-bracket-spacing": "error",
-        "array-callback-return": "error",
+        "array-callback-return": "warn",
         "arrow-body-style": "warn",
         "arrow-parens": "warn",
         "arrow-spacing": [
@@ -124,7 +124,7 @@ module.exports = {
         "no-extend-native": "error",
         "no-extra-bind": "error",
         "no-extra-label": "error",
-        "no-extra-parens": "error",
+        "no-extra-parens": "warn",
         "no-floating-decimal": "error",
         "no-implicit-coercion": "warn",
         "no-implicit-globals": "error",
