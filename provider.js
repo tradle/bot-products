@@ -659,7 +659,7 @@ proto.verify = co(function* ({
   }
 
   this.logger.debug('verifying', {
-    type: object[TYPE],
+    type: object[TYPE] || parseStub(object).type,
     user: user.id,
     application: application._permalink,
     sending: !!send
