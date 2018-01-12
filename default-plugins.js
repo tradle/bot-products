@@ -98,6 +98,7 @@ module.exports = function (api) {
       logger.debug(`ignoring 2nd request for ${application.requestFor}, one is already pending: ${application._permalink}`)
       if (state.isApplicationCompleted(application)) {
         yield api.send({
+          req,
           to: user,
           application,
           object: STRINGS.APPLICATION_IN_REVIEW
@@ -118,6 +119,7 @@ module.exports = function (api) {
     const type = req.object.requestFor
     const model = models.all[type]
     yield api.send({
+      req,
       user,
       object: format(STRINGS.ALREADY_HAVE_PRODUCT, model.title)
     })
@@ -160,6 +162,7 @@ module.exports = function (api) {
     let err = plugins.exec({
       method: 'validateForm',
       args: [{
+        req,
         productsAPI: api,
         application,
         form: object,
@@ -171,7 +174,7 @@ module.exports = function (api) {
 
     if (err) {
       logger.debug('handleForm:requestEdit')
-      yield api.requestEdit({ user, application, item: object, details: err })
+      yield api.requestEdit({ req, user, application, item: object, details: err })
       return
     }
 
@@ -246,12 +249,13 @@ module.exports = function (api) {
     // }
   })
 
-  function sendApplicationSubmitted ({ user, application }) {
+  function sendApplicationSubmitted ({ req, user, application }) {
     const message = application.dateCompleted
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
     return api.send({
+      req,
       to: user,
       application,
       object: createSimpleMessage(message)
@@ -409,11 +413,12 @@ module.exports = function (api) {
     return application
   }
 
-  const maybeSendProductList = co(function* ({ user, context }) {
+  const maybeSendProductList = co(function* (req) {
+    const { user, context } = req
     if (context) {
       logger.debug('not sending product list in contextual chat')
     } else {
-      yield api.sendProductList({ to: user })
+      yield api.sendProductList({ req, to: user })
     }
 
     // const { historySummary=[] } = req.user
