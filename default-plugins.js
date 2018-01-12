@@ -360,7 +360,7 @@ module.exports = function (api) {
     let { req, application, to, link, object } = opts
     if (req) {
       if (!application && req.application) {
-        to = opts.application = req.application
+        application = opts.application = req.application
       }
 
       if (!to && req.user) {
