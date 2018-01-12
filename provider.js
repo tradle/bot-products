@@ -160,12 +160,12 @@ proto.addProducts = function addProducts ({ models, products }) {
 // }
 
 proto._exec = function _exec (method, ...args) {
-  const opts = normalizeExecArgs(...arguments)
+  const opts = normalizeExecArgs(method, ...args)
   return Promise.resolve(this.plugins.exec(opts))
 }
 
 proto._execBubble = function _execBubble (method, ...args) {
-  const opts = normalizeExecArgs(...arguments)
+  const opts = normalizeExecArgs(method, ...args)
   opts.allowExit = true
   opts.returnResult = true
   return Promise.resolve(this.plugins.exec(opts))
@@ -265,7 +265,7 @@ proto._processIncoming = co(function* (req) {
   state.init(user)
   yield this._deduceApplicantAndApplication(req)
 
-  let { applicant, application } = req
+  const { applicant, application } = req
   req[BEFORE_PROP] = _.cloneDeep({
     applicant: isApplicantSender(req) ? null : applicant,
     application,
@@ -394,11 +394,13 @@ proto.removeDefaultHandler = function (method) {
     this.plugins.unregister(method, handlers)
     return handlers
   }
+
+  return []
 }
 
 proto.removeDefaultHandlers = function () {
   if (this._defaultPlugins) {
-    return this.plugins.remove(this._defaultPlugins)
+    this.plugins.remove(this._defaultPlugins)
   }
 }
 
@@ -417,12 +419,17 @@ proto.seal = function seal (req) {
   return this.bot.seal({ link })
 }
 
-proto.reply = function reply (req, reply) {
+proto.reply = function reply (req, replyObj) {
+  const { user, application } = req
+  if (!user) {
+    throw new Error('req is missing "user" property')
+  }
+
   return this.send(_.extend({
     req,
     to: user,
     application
-  }, reply))
+  }, replyObj))
 }
 
 proto.sendSimpleMessage = co(function* (opts) {
@@ -861,7 +868,7 @@ proto.sendProductList = co(function* ({ req, to }) {
 })
 
 proto.requestEdit = co(function* ({ req, user, application, item, details }) {
-  const { message, errors=[] } = details
+  let { message, errors=[] } = details
   if (!message && errors.length) {
     message = errors[0].error
   }

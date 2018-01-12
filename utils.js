@@ -126,7 +126,7 @@ function getRequestContext ({ req, models }) {
   })
 }
 
-function getApplicationPermalinks ({ user } ) {
+function getApplicationPermalinks ({ user }) {
   const model = stateModels.customer
   return Object.keys(model.properties)
     .reduce((applications, propertyName) => {
@@ -189,6 +189,8 @@ function getNameFromForm (form) {
       : null
   case 'tradle.Name':
     return normalizeNameProps(form)
+  default:
+    return null
   }
 }
 
@@ -263,7 +265,7 @@ function getLinkFromResourceOrStub (object) {
   return buildResource.link(object)
 }
 
-const flatten = (arr) => arr.reduce((flat, more) => flat.concat(more), [])
+const flatten = arr => arr.reduce((flat, more) => flat.concat(more), [])
 
 function categorizeApplicationModels ({ models, products }) {
   const productModels = products.map(id => models[id])
