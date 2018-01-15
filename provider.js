@@ -322,7 +322,7 @@ proto._saveChanges = co(function* (req) {
 
   if (!applicantIsSender && !_.isEqual(applicant, before.applicant)) {
     this.logger.debug('saving applicant state', {
-      applicant: applicant._permalink
+      applicant: applicant.id
     })
 
     changes.push(bot.users.merge(applicant))
@@ -330,7 +330,7 @@ proto._saveChanges = co(function* (req) {
 
   if (!_.isEqual(user, before.user)) {
     this.logger.debug('saving message sender state', {
-      applicant: applicant._permalink
+      user: user.id
     })
 
     changes.push(bot.users.merge(user))
