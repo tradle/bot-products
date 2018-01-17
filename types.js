@@ -1,5 +1,6 @@
 
 module.exports = {
+  SUBMITTED: 'tradle.ApplicationSubmitted',
   DENIAL: 'tradle.ApplicationDenial',
   APPROVAL: 'tradle.ApplicationApproval',
   APPLICATION: 'tradle.Application',

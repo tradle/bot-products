@@ -20,7 +20,8 @@ const {
   VERIFICATION,
   PRODUCT_REQUEST,
   REMEDIATION,
-  CONFIRMATION
+  CONFIRMATION,
+  SUBMITTED
 } = require('./types')
 
 const TO_SEAL = [
@@ -254,11 +255,17 @@ module.exports = function (api) {
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
+    const { context, requestFor, forms } = application
     return api.send({
       req,
       to: user,
       application,
-      object: createSimpleMessage(message)
+      object: buildResource({
+          models: models.all,
+          model: SUBMITTED
+        })
+        .set({ context, requestFor, forms, message })
+        .toJSON()
     })
   }
 
