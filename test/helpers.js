@@ -161,7 +161,6 @@ function formLoop ({
   const { bot, handlers } = createFakeBot({ user })
   const productsAPI = createProductsStrategy({
     bot,
-    namespace: 'test.namespace',
     models: {
       all: models
     },

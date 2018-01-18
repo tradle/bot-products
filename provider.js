@@ -77,7 +77,6 @@ function Provider (opts) {
 
   const {
     bot,
-    namespace,
     models,
     products,
     logger=defaultLogger,
@@ -86,8 +85,7 @@ function Provider (opts) {
   } = opts
 
   this.bot = bot
-  this.namespace = namespace
-  this.models = new ModelManager({ namespace, products, validate: validateModels })
+  this.models = new ModelManager({ products, validate: validateModels })
   this.logger = logger
   this._stateProps = Object.keys(stateModels.customer.properties)
   this._forgettableProps = this._stateProps.filter(prop => {

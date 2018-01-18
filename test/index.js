@@ -81,7 +81,6 @@ test('definer', function (t) {
 test('addProducts', function (t) {
   const productModels = [TEST_PRODUCT]
   const productsAPI = createProductsStrategy({
-    namespace,
     models: {
       all: customModels
     },
@@ -114,7 +113,6 @@ test('addProducts', function (t) {
 })
 
 test('state', loudCo(function* (t) {
-  const namespace = 'test.namespace'
   const identityStub = buildResource.stub({
     model: 'tradle.Identity',
     models: baseModels,
@@ -131,7 +129,6 @@ test('state', loudCo(function* (t) {
   const { bot } = fakeBot()
   const productsAPI = createProductsStrategy({
     bot,
-    namespace,
     models: {
       all: customModels
     },
@@ -452,7 +449,6 @@ test('plugins', loudCo(function* (t) {
 
   const productsAPI = createProductsStrategy({
     bot,
-    namespace: 'test.namespace',
     models: {
       all: customModels
     },
@@ -629,7 +625,6 @@ test.skip('complex form loop', loudCo(co(function* (t) {
 test.skip('client', loudCo(function* (t) {
   const productModel = TEST_PRODUCT
   const productsAPI = createProductsStrategy({
-    namespace,
     models: {
       all: customModels
     },
