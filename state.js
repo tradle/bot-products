@@ -5,7 +5,7 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
-const { parseStub, parseId } = validateResource.utils
+const { parseStub, parseId, omitVirtual } = validateResource.utils
 const {
   ensureLinks,
   debug,
@@ -307,7 +307,7 @@ module.exports = function stateMutater ({ bot, models }) {
       }
     }
 
-    return builder.toJSON()
+    return cleanVerification(builder.toJSON())
   })
 
   function addVerification ({ user, application, verification, imported }) {
@@ -481,4 +481,11 @@ function newRequestState (data) {
     payload,
     type: data.type || (payload && payload[TYPE])
   })
+}
+
+function cleanVerification (v) {
+  v = omitVirtual(v)
+  if (v.sources) v.sources = v.sources.map(cleanVerification)
+
+  return v
 }
