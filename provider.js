@@ -8,6 +8,7 @@ const buildResource = require('@tradle/build-resource')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const ModelManager = require('./models')
 const stateModels = require('./state-models')
+const Errors = require('./errors')
 const {
   co,
   bindAll,
@@ -725,11 +726,7 @@ proto.verify = co(function* ({
 
 proto.denyApplication = co(function* ({ req, user, application, judge }) {
   if (application.status === this.state.status.denied) {
-    this.logger.debug(`ignoring request to deny already denied application`, {
-      application: application._permalink
-    })
-
-    return
+    throw new Errors.Duplicate('already denied')
   }
 
   const denial = buildResource({
@@ -804,11 +801,7 @@ proto._resolveApplicationAndApplicant = co(function* (opts, applicantProp='user'
 
 proto.approveApplication = co(function* ({ req, user, application, judge }) {
   if (application.status === this.state.status.approved) {
-    this.logger.debug(`ignoring request to approve already approved application`, {
-      application: application._permalink
-    })
-
-    return
+    throw new Errors.Duplicate('already approved')
   }
 
   this.logger.debug(`approving application`, {
