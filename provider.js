@@ -22,7 +22,8 @@ const {
   isPromise,
   deleteAllVersions,
   getApplicationPermalinks,
-  getVerificationPermalinks
+  getVerificationPermalinks,
+  getPermalinkFromResourceOrStub
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -68,6 +69,17 @@ const types = {
   })
 }
 
+const APPLICATION_METHODS = [
+  { name: 'approveApplication' },
+  { name: 'denyApplication' },
+  { name: 'verify' },
+  { name: 'issueVerifications' },
+  { name: 'requestNextRequiredItem' },
+  { name: 'requestEdit' },
+  { name: 'continueApplication' },
+  { name: 'sendIssuedVerifications', preprocess: '_resolveApplication' }
+]
+
 exports = module.exports = opts => new Provider(opts)
 
 function Provider (opts) {
@@ -108,6 +120,17 @@ function Provider (opts) {
     this.addProducts({ models, products })
   }
 
+  APPLICATION_METHODS.forEach(({
+    name,
+    preprocess='_resolveApplicationAndApplicant'
+  }) => {
+    const fn = this[name]
+    this[name] = co(function* (opts) {
+      opts = yield this[preprocess](opts)
+      return fn.call(this, opts)
+    }).bind(this)
+  })
+
   triggerBeforeAfter(this, [
     'send',
     'sign',
@@ -115,7 +138,9 @@ function Provider (opts) {
     'save',
     'verify',
     'approveApplication',
-    'denyApplication'
+    'denyApplication',
+    'saveNewVersionOfApplication',
+    'saveApplication'
   ])
 
   this._queueSends = queueSends
@@ -298,7 +323,7 @@ proto._saveChanges = co(function* (req) {
   const applicant = getApplicantFromRequest(req)
   const applicantIsSender = isApplicantSender(req)
   const changes = []
-  if (application && !_.isEqual(application, before.application)) {
+  if (shouldSaveChange(before.application, application)) {
     const saveOpts = {
       // in case it changed
       user: yield this._getApplicant(req),
@@ -318,7 +343,7 @@ proto._saveChanges = co(function* (req) {
     }
   }
 
-  if (!applicantIsSender && !_.isEqual(applicant, before.applicant)) {
+  if (!applicantIsSender && shouldSaveChange(before.applicant, applicant)) {
     this.logger.debug('saving applicant state', {
       applicant: applicant.id
     })
@@ -326,7 +351,7 @@ proto._saveChanges = co(function* (req) {
     changes.push(bot.users.merge(applicant))
   }
 
-  if (!_.isEqual(user, before.user)) {
+  if (shouldSaveChange(before.user, user)) {
     this.logger.debug('saving message sender state', {
       user: user.id
     })
@@ -352,7 +377,7 @@ proto._deduceApplicantAndApplication = co(function* (req) {
 
 proto._getApplicant = co(function* (req) {
   const { user, application } = req
-  const applicantPermalink = parseStub(application.applicant).permalink
+  const applicantPermalink = getPermalinkFromResourceOrStub(application.applicant)
   if (applicantPermalink === user.id) {
     return user
   }
@@ -372,19 +397,47 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
   return this.getApplication(parseId(id).permalink)
 }
 
-proto.getApplication = function (permalink) {
-  return this.getResource({
-    type: APPLICATION,
-    permalink
-  })
-}
+proto.getApplication = co(function* (application) {
+  if (typeof application === 'string') {
+    return yield this.getResource({
+      type: APPLICATION,
+      permalink: application
+    })
+  }
 
-proto.getResource = function ({ type, permalink }) {
-  return this.bot.db.get({
+  if (application[TYPE]) return application
+
+  return yield this.getApplicationByStub(application)
+})
+
+proto.getApplicationAndApplicant = co(function* ({ applicant, application }) {
+  const applicationPromise = application
+    ? this.getApplication(application)
+    : Promise.resolve(null)
+
+  if (typeof applicant === 'string') {
+    applicant = yield this.getResource({
+      type: stateModels.customer,
+      permalink: applicant
+    })
+  } else if (!applicant) {
+    applicant = yield applicationPromise.then(application => {
+      if (!application) throw new Error('unable to resolve "applicant" argument')
+
+      return this.bot.users.get(getPermalinkFromResourceOrStub(application.applicant))
+    })
+  }
+
+  application = yield applicationPromise
+  return { applicant, application }
+})
+
+proto.getResource = co(function* ({ type, permalink }) {
+  return yield this.bot.db.get({
     [TYPE]: type,
     _permalink: permalink
   })
-}
+})
 
 proto.removeDefaultHandler = function (method) {
   if (this._defaultPlugins) {
@@ -402,39 +455,39 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
-proto.rawSendBatch = function ({ messages }) {
+proto.rawSendBatch = co(function* ({ messages }) {
   this.logger.debug(`sending batch of ${messages.length} messages`)
-  return this.bot.send(messages)
-}
+  return yield this.bot.send(messages)
+})
 
-proto.rawSend = function ({ to, link, object, other={} }) {
+proto.rawSend = co(function* ({ to, link, object, other={} }) {
   this.logger.debug(`sending ${object ? object[TYPE] : link} to ${to}`)
-  return this.bot.send({ to, link, object, other })
-}
+  return yield this.bot.send({ to, link, object, other })
+})
 
-proto.seal = function seal (req) {
+proto.seal = co(function* (req) {
   const { link } = req
-  return this.bot.seal({ link })
-}
+  return yield this.bot.seal({ link })
+})
 
-proto.reply = function reply (req, replyObj) {
+proto.reply = co(function* (req, replyObj) {
   const { user, application } = req
   if (!user) {
     throw new Error('req is missing "user" property')
   }
 
-  return this.send(_.extend({
+  return yield this.send(_.extend({
     req,
     to: user,
     application
   }, replyObj))
-}
+})
 
 proto.sendSimpleMessage = co(function* (opts) {
   const { message } = opts
   opts = _.omit(opts, ['message'])
   opts.object = createSimpleMessage(message)
-  return this.send(opts)
+  return yield this.send(opts)
 })
 
 proto.send = co(function* ({ req, application, to, link, object, other={} }) {
@@ -516,13 +569,13 @@ proto.addApplication = co(function* ({ req }) {
   yield this.continueApplication(req)
 })
 
-proto.version = function (object) {
-  return this.bot.createNewVersion(object)
-}
+proto.version = co(function* (object) {
+  return yield this.bot.createNewVersion(object)
+})
 
-proto.save = function (signedObject) {
-  return this.bot.save(signedObject)
-}
+proto.save = co(function* (signedObject) {
+  return yield this.bot.save(signedObject)
+})
 
 proto.signAndSave = co(function* (object) {
   const signed = yield this.sign(object)
@@ -647,15 +700,7 @@ proto.verify = co(function* ({
   verification={},
   send
 }) {
-  if (!(user && object)) {
-    throw new Error('expected "user", "object"')
-  }
-
   const { bot, state } = this
-  if (typeof user === 'string') {
-    user = yield bot.users.get(user)
-  }
-
   this.logger.debug('verifying', {
     type: object[TYPE] || parseStub(object).type,
     user: user.id,
@@ -678,13 +723,9 @@ proto.verify = co(function* ({
   return verification
 })
 
-proto.denyApplication = co(function* ({ req, user, application }) {
-  if (!(user && application)) {
-    throw new Error('expected "user" and "application"')
-  }
-
+proto.denyApplication = co(function* ({ req, user, application, judge }) {
   if (application.status === this.state.status.denied) {
-    this.logger(`ignoring request to deny already denied application`, {
+    this.logger.debug(`ignoring request to deny already denied application`, {
       application: application._permalink
     })
 
@@ -726,10 +767,6 @@ proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
 }
 
 proto.issueVerifications = co(function* ({ req, user, application, send }) {
-  if (!(user && application)) {
-    throw new Error('expected "user" and "application"')
-  }
-
   const {
     forms,
     verificationsImported=[],
@@ -749,13 +786,25 @@ proto.issueVerifications = co(function* ({ req, user, application, send }) {
   }))
 })
 
-proto.approveApplication = co(function* ({ req, user, application, approvedBy }) {
-  if (!(user && application)) {
-    throw new Error('expected "user" and "application"')
-  }
+proto._resolveApplication = co(function* (opts, applicantProp='user') {
+  opts = _.clone(opts)
+  opts.application = this.getApplication(opts.application)
+  return opts
+})
 
+proto._resolveApplicationAndApplicant = co(function* (opts, applicantProp='user') {
+  opts = _.clone(opts)
+  const { application } = opts
+  const applicant = opts[applicantProp]
+  const resolved = yield this.getApplicationAndApplicant({ applicant, application })
+  opts.application = resolved.application
+  opts[applicantProp] = resolved.applicant
+  return opts
+})
+
+proto.approveApplication = co(function* ({ req, user, application, judge }) {
   if (application.status === this.state.status.approved) {
-    this.logger(`ignoring request to approve already approved application`, {
+    this.logger.debug(`ignoring request to approve already approved application`, {
       application: application._permalink
     })
 
@@ -938,4 +987,11 @@ function getApplicantFromRequest (req) {
 function isApplicantSender (req) {
   const { applicant, user } = req
   return !applicant || applicant.id === user.id
+}
+
+function shouldSaveChange (before, after) {
+  if (!after) return false
+  if (!before) return true
+
+  return before._permalink === after._permalink && !_.isEqual(after, before)
 }

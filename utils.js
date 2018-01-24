@@ -139,7 +139,7 @@ function getApplicationPermalinks ({ user }) {
       const property = model.properties[propertyName]
       const ref = getRef(property)
       if (ref === APPLICATION) {
-        return applications.concat(val.map(stub => parseStub(stub).permalink))
+        return applications.concat(val.map(getPermalinkFromResourceOrStub))
       }
 
       if (ref === stateModels.applicationStub.id) {
@@ -166,7 +166,7 @@ function getVerificationPermalinks ({ user }) {
       }
 
       if (ref === VERIFICATION) {
-        return verifications.concat(val.map(stub => parseStub(stub).permalink))
+        return verifications.concat(val.map(getPermalinkFromResourceOrStub))
       }
 
       return verifications
@@ -257,6 +257,14 @@ const getModelsPacks = co(function* ({ db, from, to }) {
   return flatten(all)
 })
 
+function getPermalinkFromResourceOrStub (object) {
+  if (buildResource.isProbablyResourceStub(object)) {
+    return parseStub(object).permalink
+  }
+
+  return buildResource.permalink(object)
+}
+
 function getLinkFromResourceOrStub (object) {
   if (buildResource.isProbablyResourceStub(object)) {
     return parseStub(object).link
@@ -332,5 +340,6 @@ module.exports = {
   createNewVersionOfApplication,
   getModelsPacks,
   getLinkFromResourceOrStub,
+  getPermalinkFromResourceOrStub,
   categorizeApplicationModels
 }
