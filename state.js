@@ -1,4 +1,3 @@
-const Promise = require('bluebird')
 const _ = require('lodash')
 const co = require('co').wrap
 const uuid = require('uuid/v4')
@@ -302,7 +301,7 @@ module.exports = function stateMutater ({ bot, models }) {
       .filter(s => s)
 
       if (sources.length) {
-        sources = yield Promise.map(sources, stub => bot.getResourceByStub(stub))
+        sources = yield Promise.all(sources.map(stub => bot.getResourceByStub(stub)))
         builder.set('sources', sources)
       }
     }
