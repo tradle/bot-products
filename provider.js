@@ -677,7 +677,8 @@ proto.forgetUser = co(function* (req) {
   ]
 
   this._forgettableProps.forEach(propertyName => {
-    delete user[propertyName]
+    // indicate that these properties should be deleted
+    user[propertyName] = null
   })
 
   this.state.init(user)
