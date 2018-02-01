@@ -362,9 +362,8 @@ module.exports = function (api) {
 
     const [sendInput, sendOutput] = args
     const object = sendOutput
-    const link = buildResource.link(object)
-    const sealOpts = _.extend({}, sendInput, { link, object })
-    yield api.seal(sealOpts)
+    const counterparty = sendInput.to.id || sendInput.to
+    yield api.seal({ object, counterparty })
   })
 
   const willSend = co(function* (opts) {

@@ -94,7 +94,8 @@ function Provider (opts) {
     products,
     logger=defaultLogger,
     queueSends=true,
-    validateModels=true
+    validateModels=true,
+    nullifyToDeleteProperty
   } = opts
 
   this.bot = bot
@@ -145,6 +146,7 @@ function Provider (opts) {
   ])
 
   this._queueSends = queueSends
+  this._nullifyToDeleteProperty = nullifyToDeleteProperty
 
   // ;['send', 'rawSend', 'sign'].forEach(method => {
   //   this[method] = (...args) => this._exec(method, ...args)
@@ -466,9 +468,23 @@ proto.rawSend = co(function* ({ to, link, object, other={} }) {
   return yield this.bot.send({ to, link, object, other })
 })
 
-proto.seal = co(function* (req) {
-  const { link } = req
-  return yield this.bot.seal({ link })
+// accept "req" or params to "seal"
+proto.seal = co(function* (opts) {
+  const {
+    // req
+    user,
+    payload,
+    // seal opts
+    counterparty,
+    object,
+    link
+  } = opts
+
+  return yield this.bot.seal({
+    counterparty: counterparty || user.id,
+    object: object || payload,
+    link
+  })
 })
 
 proto.reply = co(function* (req, replyObj) {
@@ -678,7 +694,11 @@ proto.forgetUser = co(function* (req) {
 
   this._forgettableProps.forEach(propertyName => {
     // indicate that these properties should be deleted
-    user[propertyName] = null
+    if (this._nullifyToDeleteProperty) {
+      user[propertyName] = null
+    } else {
+      delete user[propertyName]
+    }
   })
 
   this.state.init(user)

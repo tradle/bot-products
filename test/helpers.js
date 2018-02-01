@@ -49,13 +49,15 @@ function createFakeBot (opts={}) {
     use: (strategy, opts) => strategy(bot, opts),
     onmessage: handler => handlers.push(handler),
     onusercreate: () => {},
-    seal: function ({ link }) {
-      if (typeof link !== 'string') {
-        return Promise.reject('expected string link')
+    seal: co(function* ({ object, counterparty }) {
+      if (!object || typeof object !== 'object') {
+        throw new Error('expected "object" to seal')
       }
 
-      return Promise.resolve()
-    },
+      if (typeof counterparty !== 'string') {
+        throw new Error('expected string "counterparty"')
+      }
+    }),
     presignEmbeddedMediaLinks: function (object) {
       return object
     },
