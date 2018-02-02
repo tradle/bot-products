@@ -956,7 +956,7 @@ proto.sendProductList = co(function* ({ req, to }) {
 })
 
 proto.requestEdit = co(function* ({ req, user, application, item, details }) {
-  let { message, errors=[] } = details
+  let { message, errors=[], requestedProperties, prefill } = details
   if (!message && errors.length) {
     message = errors[0].error
   }
@@ -965,26 +965,32 @@ proto.requestEdit = co(function* ({ req, user, application, item, details }) {
     for: item[TYPE]
   })
 
+  prefill = omitVirtual(prefill || item)
+  if (!prefill[PERMALINK]) delete prefill[SIG]
+
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',
     resource: {
-      prefill: _.omit(omitVirtual(item), SIG),
+      prefill,
       message,
       errors
     }
   })
-  .toJSON()
+
+  if (requestedProperties) {
+    formError.set({ requestedProperties })
+  }
 
   if (application) {
-    formError.context = application.context
+    formError.set({ context: application.context })
   }
 
   yield this.send({
     req,
     to: user,
     application,
-    object: formError
+    object: formError.toJSON()
   })
 })
 
