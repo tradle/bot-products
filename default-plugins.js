@@ -166,9 +166,9 @@ module.exports = function (api) {
         req,
         productsAPI: api,
         application,
-        form: object,
-        returnResult: true
-      }]
+        form: object
+      }],
+      returnResult: true
     })
 
     if (isPromise(err)) err = yield err
