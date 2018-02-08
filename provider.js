@@ -956,7 +956,7 @@ proto.sendProductList = co(function* ({ req, to }) {
 })
 
 proto.requestEdit = co(function* ({ req, user, application, item, details }) {
-  let { message, errors=[], requestedProperties, prefill } = details
+  let { message, errors=[], requestedProperties, prefill, lens } = details
   if (!message && errors.length) {
     message = errors[0].error
   }
@@ -980,6 +980,10 @@ proto.requestEdit = co(function* ({ req, user, application, item, details }) {
 
   if (requestedProperties) {
     formError.set({ requestedProperties })
+  }
+
+  if (lens) {
+    formError.set({ lens })
   }
 
   if (application) {
