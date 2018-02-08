@@ -961,12 +961,12 @@ proto.requestEdit = co(function* ({ req, user, application, item, details }) {
     message = errors[0].error
   }
 
-  this.logger.debug(`requesting edit`, {
-    for: item[TYPE]
-  })
-
   prefill = omitVirtual(prefill || item)
   if (!prefill[PERMALINK]) delete prefill[SIG]
+
+  this.logger.debug(`requesting edit`, {
+    for: prefill[TYPE] || prefill.id
+  })
 
   const formError = buildResource({
     models: this.models.all,
