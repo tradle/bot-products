@@ -34,9 +34,6 @@ module.exports = function applicationMixin (target) {
 
     this.state.updateApplicationStub({ user, application })
     // const method = application[PREVLINK] ? 'update' : 'save'
-    return yield Promise.all([
-      this.bot.objects.put(application),
-      this.bot.save(application)
-    ])
+    return this.bot.save(application)
   })
 }
