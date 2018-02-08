@@ -873,7 +873,7 @@ proto.requestNextRequiredItem = co(function* ({ req, user, application }) {
   return true
 })
 
-proto.requestItem = co(function* ({ req, user, application, item, message }) {
+proto.requestItem = co(function* ({ req, user, application, item, message, other={} }) {
   this.logger.debug('requestItem', item)
   const { context, requestFor } = application || {}
   const itemRequested = typeof item === 'string' ? item : item.form
@@ -892,8 +892,9 @@ proto.requestItem = co(function* ({ req, user, application, item, message }) {
     message
   })
 
-  const other = {}
-  if (context) other.context = context
+  if (context && !other.context) {
+    other.context = context
+  }
 
   yield this.send({ req, to: user, object: reqItem, other })
   return true
@@ -955,7 +956,7 @@ proto.sendProductList = co(function* ({ req, to }) {
   })
 })
 
-proto.requestEdit = co(function* ({ req, user, application, item, details }) {
+proto.requestEdit = co(function* ({ req, user, application, item, details, other }) {
   let { message, errors=[], requestedProperties, prefill, lens } = details
   if (!message && errors.length) {
     message = errors[0].error
@@ -994,7 +995,8 @@ proto.requestEdit = co(function* ({ req, user, application, item, details }) {
     req,
     to: user,
     application,
-    object: formError.toJSON()
+    object: formError.toJSON(),
+    other
   })
 })
 
