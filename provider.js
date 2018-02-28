@@ -581,8 +581,12 @@ proto.sign = co(function* (object) {
 })
 
 proto.addApplication = co(function* ({ req }) {
-  req.application = yield this.sign(this.state.createApplication(req))
+  const { user } = req
+  const application = this.state.createApplication(req)
+  yield this._exec('willCreateApplication', { req, user, application })
+  req.application = yield this.sign(application)
   this.state.addApplication(req)
+  yield this._exec('didCreateApplication', { req, user, application: req.application })
   yield this.continueApplication(req)
 })
 
