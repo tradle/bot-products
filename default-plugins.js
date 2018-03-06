@@ -5,11 +5,8 @@ const {
   co,
   isPromise,
   format,
-  debug,
   validateRequired,
-  createSimpleMessage,
   parseStub,
-  sha256
 } = require('./utils')
 
 const Commander = require('./commander')
@@ -20,7 +17,6 @@ const {
   VERIFICATION,
   PRODUCT_REQUEST,
   REMEDIATION,
-  CONFIRMATION,
   SUBMITTED
 } = require('./types')
 

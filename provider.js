@@ -780,9 +780,9 @@ proto.sendIssuedVerifications = co(function* ({ req, to, application }) {
 })
 
 proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
-  const { forms=[], verificationsIssued=[] } = application
+  const { forms=[], verificationsImported=[] } = application
   return forms.every(form => {
-    return verificationsIssued.find(({ item }) => {
+    return verificationsImported.find(({ item }) => {
       return item.id === form.id
     })
   })
