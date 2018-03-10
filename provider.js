@@ -754,6 +754,12 @@ proto.denyApplication = co(function* ({ req, user, application, judge }) {
     throw new Errors.Duplicate('already denied')
   }
 
+  this.logger.debug(`denying application`, {
+    deniedBy: judge && judge.id,
+    product: application.requestFor,
+    user: user.id
+  })
+
   const denial = buildResource({
     models: this.models.all,
     model: DENIAL,
@@ -830,11 +836,17 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
   }
 
   this.logger.debug(`approving application`, {
+    approvedBy: judge && judge.id,
     product: application.requestFor,
     user: user.id
   })
 
   const unsigned = this.state.createCertificate({ application })
+  yield this._exec({
+    method: 'willIssueCertificate',
+    args: [{ user, application, certificate: unsigned, judge }]
+  })
+
   const certificate = yield this.send({ req, to: user, application, object: unsigned })
   this.state.addCertificate({ user, application, certificate })
   return certificate
