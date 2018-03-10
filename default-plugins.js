@@ -204,6 +204,12 @@ module.exports = function (api) {
   }
 
   const handleVerification = req => {
+    const missing = ['user', 'application', 'object'].find(key => !req[key])
+    if (missing) {
+      logger.debug(`inbound verification is likely for a remote application, as I'm missing a key ingredient: ${missing}`)
+      return
+    }
+
     const { user, application, object } = req
     return api.importVerification({
       user,
