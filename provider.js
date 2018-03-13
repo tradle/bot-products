@@ -24,7 +24,8 @@ const {
   deleteAllVersions,
   getApplicationPermalinks,
   getVerificationPermalinks,
-  getPermalinkFromResourceOrStub
+  getPermalinkFromResourceOrStub,
+  allSettledSuccesses
 } = require('./utils')
 
 const createStateMutater = require('./state')
@@ -655,12 +656,12 @@ proto.forgetUser = co(function* (req) {
   const { bot, models } = this
   const { db } = bot
   const applicationPermalinks = getApplicationPermalinks({ user })
-  const applications = yield applicationPermalinks.map(_permalink => {
+  const applications = yield allSettledSuccesses(applicationPermalinks.map(_permalink => {
     return db.get({
       [TYPE]: APPLICATION,
       _permalink
     })
-  })
+  }))
 
   const formsAndVerifications = applications.reduce((all, application) => {
     const { forms=[], verificationsIssued=[], verificationsImported=[] } = application

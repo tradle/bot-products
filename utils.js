@@ -4,6 +4,7 @@ const co = require('co').wrap
 const bindAll = require('bindall')
 const _ = require('lodash')
 const stableStringify = require('json-stable-stringify')
+const allSettled = require('settle-promise').settle
 const { TYPE } = require('@tradle/constants')
 const validateResource = require('@tradle/validate-resource')
 const buildResource = require('@tradle/build-resource')
@@ -314,10 +315,19 @@ function getCertificateModelId ({ productModel }) {
   return `${id.slice(0, lastIdx)}.My${id.slice(lastIdx + 1)}`
 }
 
+function allSettledSuccesses (promises) {
+  return allSettled(promises)
+    .then(results => results
+      .filter(r => r.isFulfilled)
+      .map(r => r.value))
+}
+
 module.exports = {
   co,
   isPromise,
   series,
+  allSettled,
+  allSettledSuccesses,
   format,
   splitCamelCase,
   parseId,
@@ -341,5 +351,5 @@ module.exports = {
   getModelsPacks,
   getLinkFromResourceOrStub,
   getPermalinkFromResourceOrStub,
-  categorizeApplicationModels
+  categorizeApplicationModels,
 }
