@@ -88,8 +88,13 @@ function createFakeBot (opts={}) {
 
       return Array.isArray(opts) ? ret : ret[0]
     }),
-    getResourceByStub: co(function* (stub) {
-      return bot.objects.get(parseStub(stub).link)
+    getResource: co(function* (resource) {
+      if (resource[TYPE]) return resource
+      if (resource.link) return bot.objects.get(resource.link)
+      return bot.db.get({
+        [TYPE]: resource.type,
+        _permalink: resource.permalink
+      })
     }),
     objects: {
       get: co(function* (link) {

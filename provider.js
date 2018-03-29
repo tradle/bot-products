@@ -402,14 +402,17 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
 }
 
 proto.getApplication = co(function* (application) {
-  if (typeof application === 'string') {
-    return yield this.getResource({
-      type: APPLICATION,
-      permalink: application
-    })
+  if (application[TYPE]) {
+    // add backlinks
+    return yield this.bot.getResource(application, { backlinks: true })
   }
 
-  if (application[TYPE]) return application
+  if (typeof application === 'string') {
+    return yield this.bot.getResource({
+      type: APPLICATION,
+      permalink: application
+    }, { backlinks: true })
+  }
 
   return yield this.getApplicationByStub(application)
 })
@@ -420,7 +423,7 @@ proto.getApplicationAndApplicant = co(function* ({ applicant, application }) {
     : Promise.resolve(null)
 
   if (typeof applicant === 'string') {
-    applicant = yield this.getResource({
+    applicant = yield this.bot.getResource({
       type: stateModels.customer,
       permalink: applicant
     })
@@ -434,13 +437,6 @@ proto.getApplicationAndApplicant = co(function* ({ applicant, application }) {
 
   application = yield applicationPromise
   return { applicant, application }
-})
-
-proto.getResource = co(function* ({ type, permalink }) {
-  return yield this.bot.db.get({
-    [TYPE]: type,
-    _permalink: permalink
-  })
 })
 
 proto.removeDefaultHandler = function (method) {

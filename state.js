@@ -301,7 +301,7 @@ module.exports = function stateMutater ({ bot, models }) {
       .filter(s => s)
 
       if (sources.length) {
-        sources = yield Promise.all(sources.map(stub => bot.getResourceByStub(stub)))
+        sources = yield Promise.all(sources.map(bot.getResource))
         builder.set('sources', sources)
       }
     }
