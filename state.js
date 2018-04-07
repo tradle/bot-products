@@ -140,21 +140,21 @@ module.exports = function stateMutater ({ bot, models }) {
     return obj._time || obj.time || (message && message.time) || Date.now()
   }
 
-  function importVerification ({ user, application, verification }) {
-    addVerification({ user, application, verification, imported: true })
-  }
+  // function importVerification ({ user, application, verification }) {
+  //   addVerification({ user, application, verification, imported: true })
+  // }
 
-  function createVerifiedItem ({ verification }) {
-    return build(stateModels.verifiedItem)
-      .set({
-        verification,
-        item: verification.document
-      })
-      .setVirtual({
-        _verifiedBy: verification._author
-      })
-      .toJSON()
-  }
+  // function createVerifiedItem ({ verification }) {
+  //   return build(stateModels.verifiedItem)
+  //     .set({
+  //       verification,
+  //       item: verification.document
+  //     })
+  //     .setVirtual({
+  //       _verifiedBy: verification._author
+  //     })
+  //     .toJSON()
+  // }
 
   function createApplication ({ user, object }) {
     const { requestFor } = object
@@ -309,61 +309,61 @@ module.exports = function stateMutater ({ bot, models }) {
     return cleanVerification(builder.toJSON())
   })
 
-  function addVerification ({ user, application, verification, imported }) {
-    if (!(user && application && verification)) {
-      throw new Error('expected "user", "application" and "verification"')
-    }
+  // function addVerification ({ user, application, verification, imported }) {
+  //   if (!(user && application && verification)) {
+  //     throw new Error('expected "user", "application" and "verification"')
+  //   }
 
-    const vItem = createVerifiedItem({ verification })
-    if (imported) {
-      if (!application.verificationsImported) {
-        application.verificationsImported = []
-      }
+  //   const vItem = createVerifiedItem({ verification })
+  //   if (imported) {
+  //     if (!application.verificationsImported) {
+  //       application.verificationsImported = []
+  //     }
 
-      application.verificationsImported.push(vItem)
-    } else {
-      if (!application.verificationsIssued) {
-        application.verificationsIssued = []
-      }
+  //     application.verificationsImported.push(vItem)
+  //   } else {
+  //     if (!application.verificationsIssued) {
+  //       application.verificationsIssued = []
+  //     }
 
-      application.verificationsIssued.push(vItem)
-    }
+  //     application.verificationsIssued.push(vItem)
+  //   }
 
-    validateCustomer(user)
-    return verification
-  }
+  //   validateCustomer(user)
+  //   return verification
+  // }
 
-  function addForm ({ user, object, application }) {
-    if (!application.forms) {
-      application.forms = []
-    }
+  // function addForm ({ user, object, application }) {
+  //   if (!application.forms) {
+  //     application.forms = []
+  //   }
 
-    const stub = buildResource.stub({
-      models: allModels,
-      resource: object
-    })
+  //   const stub = buildResource.stub({
+  //     models: allModels,
+  //     resource: object
+  //   })
 
-    const formPermalink = buildResource.permalink(object)
-    const productModel = allModels[application.requestFor]
-    const { multiEntryForms=[] } = productModel
-    const idx = application.forms.findIndex(form => {
-      const { type, permalink } = parseStub(form)
-      if (permalink === formPermalink) return true
-      if (type === object[TYPE] && !multiEntryForms.includes(type)) {
-        // e.g. we don't want multiple tradle.Selfie forms, just the last one
-        return true
-      }
-    })
+  //   const formPermalink = buildResource.permalink(object)
+  //   const productModel = allModels[application.requestFor]
+  //   const { multiEntryForms=[] } = productModel
+  //   const idx = application.forms.findIndex(form => {
+  //     const { type, permalink } = parseStub(form)
+  //     if (permalink === formPermalink) return true
+  //     if (type === object[TYPE] && !multiEntryForms.includes(type)) {
+  //       // e.g. we don't want multiple tradle.Selfie forms, just the last one
+  //       return true
+  //     }
+  //   })
 
-    if (idx === -1) {
-      application.forms.push(stub)
-    } else {
-      application.forms[idx] = stub
-    }
+  //   if (idx === -1) {
+  //     application.forms.push(stub)
+  //   } else {
+  //     application.forms[idx] = stub
+  //   }
 
-    validateCustomer(user)
-    return stub
-  }
+  //   validateCustomer(user)
+  //   return stub
+  // }
 
   function init (user) {
     const { properties } = stateModels.customer
@@ -395,15 +395,16 @@ module.exports = function stateMutater ({ bot, models }) {
   const getApplicationsByType = (applications, type) =>
     applications.filter(application => application.requestFor === type)
 
-  const getFormsByType = (forms, type) =>
-    forms.filter(stub => parseStub(stub).type === type)
+  const getFormsByType = (forms, type) => forms.filter(appSub => {
+    return parseStub(appSub.submission).type === type
+  })
 
   const createFilterForType = query => ({ type }) => type === query
 
   function getLatestForm (forms, filter) {
     let result
-    forms.slice().reverse().some(stub => {
-      const parsed = parseStub(stub)
+    forms.slice().reverse().some(appSub => {
+      const parsed = parseStub(appSub.submission)
       if (filter(parsed)) {
         result = parsed
         return true
@@ -433,14 +434,14 @@ module.exports = function stateMutater ({ bot, models }) {
     createCertificate,
     addCertificate,
     createVerification,
-    addVerification,
-    importVerification,
+    // addVerification,
+    // importVerification,
     createApplicationStub,
     updateApplicationStub,
     setApplicationStatus,
     moveToDenied,
     updateApplication,
-    addForm,
+    // addForm,
     validateCustomer,
     setProfile,
     setIdentity,

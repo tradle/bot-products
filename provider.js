@@ -601,34 +601,6 @@ proto.signAndSave = co(function* (object) {
   return signed
 })
 
-proto.addVerification = function ({
-  user,
-  application,
-  verification,
-  imported
-}) {
-  // if (!user) user = getApplicantFromRequest(req)
-  // if (!application) application = req.application
-  // if (!verification) verification = req.object
-  // if (!(user && application && verification)) {
-  //   throw new Error('expected "user", "application" and "verification"')
-  // }
-
-  this.state.addVerification({ user, application, verification, imported })
-}
-
-proto.importVerification = function importVerification (opts) {
-  return this.addVerification(_.extend({
-    imported: true
-  }, opts))
-}
-
-proto.issueVerification = function issueVerification (opts) {
-  return this.addVerification(_.extend({
-    imported: false
-  }, opts))
-}
-
 proto.continueApplication = co(function* (req) {
   this.logger.debug('continueApplication')
   const { user, applicant, application } = req
@@ -660,12 +632,11 @@ proto.forgetUser = co(function* (req) {
   }))
 
   const formsAndVerifications = applications.reduce((all, application) => {
-    const { forms=[], verificationsIssued=[], verificationsImported=[] } = application
-    const verifications = verificationsIssued
-      .concat(verificationsImported)
-      .map(({ item }) => item)
+    const { forms=[], verifications=[] } = application
+    const stubs = forms
+      .concat(verifications)
+      .map(appSub => appSub.submission)
 
-    const stubs = forms.concat(verifications)
     return all.concat(stubs.map(parseStub))
   }, [])
 
@@ -735,12 +706,7 @@ proto.verify = co(function* ({
   if (send) {
     verification = yield this.send({ req, to: user, application, object: unsigned })
   } else {
-    verification = yield this.sign(unsigned)
-    yield bot.save(verification)
-  }
-
-  if (application) {
-    state.addVerification({ user, application, object, verification })
+    verification = yield this.signAndSave(unsigned)
   }
 
   return verification
@@ -777,31 +743,47 @@ proto.denyApplication = co(function* ({ req, user, application, judge }) {
   return this.send({ req, to: user, application, object: denial })
 })
 
-proto.sendIssuedVerifications = co(function* ({ req, to, application }) {
-  const { verificationsIssued=[] } = application
-  yield verificationsIssued.map(({ link }) => this.send({ req, to, application, link }))
+// proto.sendIssuedVerifications = co(function* ({ req, to, application }) {
+//   const { verifications=[] } = application
+//   yield verificationsIssued.map(({ link }) => this.send({ req, to, application, link }))
+// })
+
+// proto.getUnsentVerifications = co(function* ({ application }) {
+//   const { verifications=[] } = application
+//   const stubs = (application.verifications || [])
+//     .map(appSub => parseStub(appSub.submission))
+
+//   const messages = yield allSettledSuccesses(stubs.map(stub => {
+//     return this.bot.getMessageWithPayload({
+//       select: ['_payloadLink'],
+//       payloadLink: stub.link,
+//       inbound: false
+//     })
+//   }))
+
+//   const sent = _.chain(messages).map('_payloadLink').uniq().value()
+//   return stubs.filter(stub => !sent.includes(stub.link))
+// })
+
+proto.haveAllSubmittedFormsBeenVerified = co(function* ({ application }) {
+  const unverified = yield this.getUnverifiedForms({ application })
+  return !unverified.length
 })
 
-proto.haveAllSubmittedFormsBeenVerified = function ({ application }) {
-  const { forms=[], verificationsImported=[] } = application
-  return forms.every(form => {
-    return verificationsImported.find(({ item }) => {
-      return item.id === form.id
-    })
-  })
-}
+proto.getUnverifiedForms = co(function* ({ application }) {
+  const formStubs = (application.forms || []).map(appSub => parseStub(appSub.submission))
+  const verifications = yield this.getVerifications({ application })
+  const verified = verifications.map(verification => parseStub(verification.document))
+  return formStubs.filter(a => !verified.find(b => a.permalink === b.permalink))
+})
+
+proto.getVerifications = co(function* ({ application }) {
+  const { verifications=[] } = application
+  return yield verifications.map(appSub => this.bot.getResource(appSub.submission))
+})
 
 proto.issueVerifications = co(function* ({ req, user, application, send }) {
-  const {
-    forms,
-    verificationsImported=[],
-    verificationsIssued=[]
-  } = application
-
-  const unverified = forms.filter(form => {
-    return !verificationsIssued.find(({ item }) => item.id === form.id)
-  })
-
+  const unverified = yield this.getUnverifiedForms({ application })
   return yield unverified.map(formStub => this.verify({
     req,
     user,
@@ -844,9 +826,7 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
     args: [{ user, application, certificate: unsigned, judge }]
   })
 
-  const certificate = yield this.send({ req, to: user, application, object: unsigned })
-  this.state.addCertificate({ user, application, certificate })
-  return certificate
+  return yield this.send({ req, to: user, application, object: unsigned })
 })
 
 // proto.revokeCertificate = co(function* ({ user, application, certificate }) {
@@ -862,6 +842,7 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ req, user, application }) {
+  debugger
   const { models, state } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({

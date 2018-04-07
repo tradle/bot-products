@@ -313,7 +313,7 @@ module.exports = function (api) {
     const { multiEntryForms=[] } = models.all[requestFor]
     if (model.subClassOf === 'tradle.Form') {
       if (multiEntryForms.includes(form)) {
-        const hasOne = forms.find(stub => parseStub(stub).type === form)
+        const hasOne = forms.find(appSub => parseStub(appSub.submission).type === form)
         return hasOne
           ? format(STRINGS.MULTI_ENTRY_PROMPT, model.title)
           : format(STRINGS.PLEASE_FILL_FORM, model.title)
