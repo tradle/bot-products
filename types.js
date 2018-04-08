@@ -22,4 +22,5 @@ module.exports = {
   ROLE: 'tradle.products.Role',
   CUSTOMER: 'tradle.products.Customer',
   TS_AND_CS_STATE: 'tradle.products.TsAndCsState',
+  SUBMISSION: 'tradle.ApplicationSubmission',
 }

@@ -4,7 +4,7 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
-const { parseStub, parseId, omitVirtual } = validateResource.utils
+const { parseStub, parseId, omitVirtual, omitBacklinks, pickBacklinks } = validateResource.utils
 const {
   ensureLinks,
   debug,
@@ -13,7 +13,7 @@ const {
 } = require('./utils')
 
 const baseModels = require('./base-models')
-const { VERIFICATION } = require('./types')
+const { VERIFICATION, APPLICATION, SUBMISSION } = require('./types')
 const verificationModel = baseModels[VERIFICATION]
 const stateModels = require('./state-models')
 const STATUS = {
@@ -140,21 +140,44 @@ module.exports = function stateMutater ({ bot, models }) {
     return obj._time || obj.time || (message && message.time) || Date.now()
   }
 
-  // function importVerification ({ user, application, verification }) {
-  //   addVerification({ user, application, verification, imported: true })
-  // }
+  function importVerification ({ user, application, verification }) {
+    addVerification({ user, application, verification, imported: true })
+  }
 
-  // function createVerifiedItem ({ verification }) {
-  //   return build(stateModels.verifiedItem)
-  //     .set({
-  //       verification,
-  //       item: verification.document
-  //     })
-  //     .setVirtual({
-  //       _verifiedBy: verification._author
-  //     })
-  //     .toJSON()
-  // }
+  function addSubmission ({ application, submission }) {
+    const { submissions=[] } = application
+    if (submission[TYPE] !== SUBMISSION) {
+      submission = createSubmission({ application, submission })
+    }
+
+    const permalink = buildResource.permalink(submission.submission)
+    let idx = submissions.findIndex(appSub => appSub.submission.permalink === permalink)
+    if (idx === -1) idx = submissions.length
+
+    submissions[idx] = submission
+    // in case it was empty
+    application.submissions = submissions
+    organizeSubmissions(application)
+    return application
+  }
+
+  function createSubmission ({ application, submission }) {
+    return build(stateModels.submission)
+      .set({
+        application,
+        submission,
+        context: application.context
+      })
+      .toJSON()
+  }
+
+  function organizeSubmissions (application) {
+    const { submissions=[] } = application
+    application.forms = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Form')
+    application.verifications = submissions.filter(sub => sub.submission.type === VERIFICATION)
+    application.checks = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Check')
+    return application
+  }
 
   function createApplication ({ user, object }) {
     const { requestFor } = object
@@ -220,18 +243,30 @@ module.exports = function stateMutater ({ bot, models }) {
       properties.dateModified = Date.now()
     }
 
-    buildResource.set({
-      models: models.all,
-      model: stateModels.application,
-      resource: application,
-      properties
-    })
+    return _.extend(application, properties)
 
-    buildResource.setVirtual(application, {
-      _time: application.dateModified
-    })
+    // const backlinks = pickBacklinks({
+    //   model: allModels[APPLICATION],
+    //   resource: application
+    // })
 
-    return application
+    // const clean = omitBacklinks({
+    //   model: allModels[APPLICATION],
+    //   resource: application
+    // })
+
+    // buildResource.set({
+    //   models: models.all,
+    //   model: stateModels.application,
+    //   resource: clean,
+    //   properties
+    // })
+
+    // buildResource.setVirtual(clean, {
+    //   _time: properties.dateModified
+    // })
+
+    // return _.extend(application, clean)
   }
 
   function setApplicationStatus ({ application, status }) {
@@ -277,7 +312,7 @@ module.exports = function stateMutater ({ bot, models }) {
     return stub
   }
 
-  const createVerification = co(function* ({ user, application, object, verification={} }) {
+  const createVerification = co(function* ({ application, object, verification={} }) {
     const oLink = getLinkFromResourceOrStub(object)
     const builder = build(verificationModel)
       .set(verification)
@@ -290,15 +325,10 @@ module.exports = function stateMutater ({ bot, models }) {
     builder.set('time', builder.get('dateVerified'))
 
     if (!verification.sources && application) {
-      const { verificationsImported=[] } = application
-      let sources = verificationsImported.map(verifiedItem => {
-        const { id } = verifiedItem.item
-        const { link } = parseId(id)
-        if (link === oLink) {
-          return verifiedItem.verification
-        }
-      })
-      .filter(s => s)
+      const { verifications=[] } = application
+      let sources = verifications
+        .filter(appSub => appSub.submission.link === oLink)
+        .map(appSub => appSub.submission)
 
       if (sources.length) {
         sources = yield Promise.all(sources.map(bot.getResource))
@@ -309,29 +339,30 @@ module.exports = function stateMutater ({ bot, models }) {
     return cleanVerification(builder.toJSON())
   })
 
-  // function addVerification ({ user, application, verification, imported }) {
-  //   if (!(user && application && verification)) {
-  //     throw new Error('expected "user", "application" and "verification"')
-  //   }
+  function addVerification ({ application, verification }) {
+    if (!(application && verification)) {
+      throw new Error('expected "application" and "verification"')
+    }
 
-  //   const vItem = createVerifiedItem({ verification })
-  //   if (imported) {
-  //     if (!application.verificationsImported) {
-  //       application.verificationsImported = []
-  //     }
+    addSubmission({ application, submission: verification })
 
-  //     application.verificationsImported.push(vItem)
-  //   } else {
-  //     if (!application.verificationsIssued) {
-  //       application.verificationsIssued = []
-  //     }
+    // if (imported) {
+    //   if (!application.verificationsImported) {
+    //     application.verificationsImported = []
+    //   }
 
-  //     application.verificationsIssued.push(vItem)
-  //   }
+    //   application.verificationsImported.push(vItem)
+    // } else {
+    //   if (!application.verificationsIssued) {
+    //     application.verificationsIssued = []
+    //   }
 
-  //   validateCustomer(user)
-  //   return verification
-  // }
+    //   application.verificationsIssued.push(vItem)
+    // }
+
+    // validateCustomer(user)
+    // return verification
+  }
 
   // function addForm ({ user, object, application }) {
   //   if (!application.forms) {
@@ -434,8 +465,8 @@ module.exports = function stateMutater ({ bot, models }) {
     createCertificate,
     addCertificate,
     createVerification,
-    // addVerification,
-    // importVerification,
+    addSubmission,
+    createSubmission,
     createApplicationStub,
     updateApplicationStub,
     setApplicationStatus,
@@ -457,6 +488,7 @@ module.exports = function stateMutater ({ bot, models }) {
     getApplicationContext,
     newRequestState,
     isApplicationCompleted,
+    organizeSubmissions,
     status: STATUS
   }
 }

@@ -175,11 +175,10 @@ module.exports = function (api) {
       return
     }
 
-    logger.debug('handleForm: addForm, continueApplication')
-    api.state.addForm({
-      user: req.applicant,
-      object,
-      application
+    logger.debug('handleForm: add form, continueApplication', { form: object[TYPE] })
+    api.state.addSubmission({
+      application,
+      submission: object
     })
 
     yield api.continueApplication(req)
@@ -266,7 +265,12 @@ module.exports = function (api) {
           models: models.all,
           model: SUBMITTED
         })
-        .set({ context, requestFor, forms, message })
+        .set({
+          context,
+          requestFor,
+          forms: _.map(forms, 'submission'),
+          message
+        })
         .toJSON()
     })
   }

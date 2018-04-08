@@ -5,7 +5,8 @@ const {
   APPLICATION_STUB,
   TS_AND_CS_STATE,
   CUSTOMER,
-  ROLE
+  ROLE,
+  SUBMISSION
 } = require('./types')
 
 const application = baseModels[APPLICATION]
@@ -14,6 +15,7 @@ const role = baseModels[ROLE]
 const tsAndCsState = baseModels[TS_AND_CS_STATE]
 const customer = baseModels[CUSTOMER]
 const verifiedItem = baseModels[VERIFIED_ITEM]
+const submission = baseModels[SUBMISSION]
 
 module.exports = {
   application,
@@ -21,5 +23,6 @@ module.exports = {
   role,
   tsAndCsState,
   customer,
-  verifiedItem
+  verifiedItem,
+  submission
 }

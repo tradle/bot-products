@@ -3,7 +3,7 @@ const inherits = require('inherits')
 const _ = require('lodash')
 const typeforce = require('typeforce')
 const validateResource = require('@tradle/validate-resource')
-const { omitVirtual, getRef } = validateResource.utils
+const { omitVirtual, getRef, getResourceIdentifier, pickBacklinks, omitBacklinks } = validateResource.utils
 const buildResource = require('@tradle/build-resource')
 const { TYPE, SIG, PREVLINK, PERMALINK } = require('@tradle/constants')
 const ModelManager = require('./models')
@@ -322,12 +322,12 @@ proto._processIncoming = co(function* (req) {
 
 proto._saveChanges = co(function* (req) {
   const { bot } = this
-  const { user, application } = req
+  let { user, application } = req
   const before = req[BEFORE_PROP]
   const applicant = getApplicantFromRequest(req)
   const applicantIsSender = isApplicantSender(req)
   const changes = []
-  if (shouldSaveChange(before.application, application)) {
+  if (this._shouldSaveChange(before.application, application)) {
     const saveOpts = {
       // in case it changed
       user: yield this._getApplicant(req),
@@ -347,7 +347,7 @@ proto._saveChanges = co(function* (req) {
     }
   }
 
-  if (!applicantIsSender && shouldSaveChange(before.applicant, applicant)) {
+  if (!applicantIsSender && this._shouldSaveChange(before.applicant, applicant)) {
     this.logger.debug('saving applicant state', {
       applicant: applicant.id
     })
@@ -355,7 +355,7 @@ proto._saveChanges = co(function* (req) {
     changes.push(bot.users.merge(applicant))
   }
 
-  if (shouldSaveChange(before.user, user)) {
+  if (this._shouldSaveChange(before.user, user, stateModels.customer)) {
     this.logger.debug('saving message sender state', {
       user: user.id
     })
@@ -402,19 +402,45 @@ proto.getApplicationByStub = function ({ id, statePermalink }) {
 }
 
 proto.getApplication = co(function* (application) {
-  if (application[TYPE]) {
-    // add backlinks
-    return yield this.bot.getResource(application, { backlinks: true })
+  const models = this.models.all
+
+  if (application[SIG] && _.some(this._pickBacklinks(application), arr => arr.length)) {
+    return application
   }
 
+  let identifier
   if (typeof application === 'string') {
-    return yield this.bot.getResource({
+    identifier = { type: APPLICATION, permalink: application }
+  } else {
+    identifier = getResourceIdentifier(application)
+  }
+
+  let getApp
+  if (application[TYPE]) {
+    // add backlinks
+    getApp = this.bot.getResource(application, { backlinks: true })
+  } else if (typeof application === 'string') {
+    getApp = this.bot.getResource({
       type: APPLICATION,
       permalink: application
     }, { backlinks: true })
+  } else {
+    getApp = this.getApplicationByStub(application)
   }
 
-  return yield this.getApplicationByStub(application)
+  const getSubs = this.bot.db.find({
+    filter: {
+      EQ: {
+        [TYPE]: 'tradle.ApplicationSubmission',
+        'application.permalink': identifier.permalink
+      }
+    }
+  })
+
+  application = yield getApp
+  application.submissions = (yield getSubs).items
+  this.state.organizeSubmissions(application)
+  return application
 })
 
 proto.getApplicationAndApplicant = co(function* ({ applicant, application }) {
@@ -562,12 +588,38 @@ proto.send = co(function* ({ req, application, to, link, object, other={} }) {
   return object
 })
 
+proto._pickBacklinks = function (resource, model) {
+  return pickBacklinks({
+    model: model || this.models.all[resource[TYPE]],
+    resource
+  })
+}
+
+proto._omitBacklinks = function (resource, model) {
+  return omitBacklinks({
+    model: model || this.models.all[resource[TYPE]],
+    resource
+  })
+}
+
+proto._shouldSaveChange = function (before, after, model) {
+  if (!after) return false
+  if (!before) return true
+
+  if (before._permalink === after._permalink) {
+    if (!_.isEqual(this._omitBacklinks(after, model), this._omitBacklinks(before, model))) {
+      debugger
+      return true
+    }
+  }
+}
+
 proto.sign = co(function* (object) {
   if (typeof object === 'string') {
     object = createSimpleMessage(object)
   }
 
-  const signed = yield this.bot.sign(object)
+  const signed = yield this.bot.sign(this._omitBacklinks(object))
   const link = buildResource.link(signed)
   buildResource.setVirtual(signed, {
     _link: link,
@@ -576,6 +628,34 @@ proto.sign = co(function* (object) {
 
   return signed
 })
+
+proto.addVerification = function ({
+  user,
+  application,
+  verification,
+  imported
+}) {
+  // if (!user) user = getApplicantFromRequest(req)
+  // if (!application) application = req.application
+  // if (!verification) verification = req.object
+  // if (!(user && application && verification)) {
+  //   throw new Error('expected "user", "application" and "verification"')
+  // }
+
+  this.state.addSubmission({ application, submission: verification })
+}
+
+proto.importVerification = function importVerification (opts) {
+  return this.addVerification(_.extend({
+    imported: true
+  }, opts))
+}
+
+proto.issueVerification = function issueVerification (opts) {
+  return this.addVerification(_.extend({
+    imported: false
+  }, opts))
+}
 
 proto.addApplication = co(function* ({ req }) {
   const { user } = req
@@ -697,18 +777,24 @@ proto.verify = co(function* ({
   const { bot, state } = this
   this.logger.debug('verifying', {
     type: object[TYPE] || parseStub(object).type,
-    user: user.id,
+    user: user && user.id,
     application: application._permalink,
     sending: !!send
   })
 
-  const unsigned = yield state.createVerification({ user, application, object, verification })
+  const unsigned = yield state.createVerification({ application, object, verification })
   if (send) {
-    verification = yield this.send({ req, to: user, application, object: unsigned })
-  } else {
-    verification = yield this.signAndSave(unsigned)
+    return yield this.send({ req, to: user, application, object: unsigned })
   }
 
+  verification = yield this.signAndSave(unsigned)
+  let appSub = this.state.createSubmission({
+    application,
+    submission: verification
+  })
+
+  appSub = yield this.signAndSave(appSub)
+  this.state.addSubmission({ application, submission: appSub })
   return verification
 })
 
@@ -842,7 +928,6 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
 
 // promisified because it might be overridden by an async function
 proto.getNextRequiredItem = co(function* ({ req, user, application }) {
-  debugger
   const { models, state } = this
   const productModel = models.all[application.requestFor]
   const required = yield this._exec({
@@ -1007,11 +1092,4 @@ function getApplicantFromRequest (req) {
 function isApplicantSender (req) {
   const { applicant, user } = req
   return !applicant || applicant.id === user.id
-}
-
-function shouldSaveChange (before, after) {
-  if (!after) return false
-  if (!before) return true
-
-  return before._permalink === after._permalink && !_.isEqual(after, before)
 }

@@ -22,7 +22,7 @@ module.exports = function applicationMixin (target) {
       }
     })
 
-    return this.bot.sign(application)
+    return target.sign(application)
   }
 
   target.saveApplication = co(function* ({ user, application }) {
