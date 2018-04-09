@@ -4,7 +4,7 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
-const { parseStub, parseId, omitVirtual, omitBacklinks, pickBacklinks } = validateResource.utils
+const { parseStub, parseId, omitVirtual, omitBacklinks, pickBacklinks, isBacklinkProperty } = validateResource.utils
 const {
   ensureLinks,
   debug,
@@ -150,7 +150,7 @@ module.exports = function stateMutater ({ bot, models }) {
       submission = createSubmission({ application, submission })
     }
 
-    const permalink = buildResource.permalink(submission.submission)
+    const { permalink } = submission.submission
     let idx = submissions.findIndex(appSub => appSub.submission.permalink === permalink)
     if (idx === -1) idx = submissions.length
 
@@ -176,6 +176,7 @@ module.exports = function stateMutater ({ bot, models }) {
     application.forms = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Form')
     application.verifications = submissions.filter(sub => sub.submission.type === VERIFICATION)
     application.checks = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Check')
+    application.editRequests = submissions.filter(sub => sub.submission.type === 'tradle.FormError')
     return application
   }
 
@@ -400,7 +401,7 @@ module.exports = function stateMutater ({ bot, models }) {
     const { properties } = stateModels.customer
     for (let propertyName in properties) {
       let prop = properties[propertyName]
-      if (prop.type === 'array') {
+      if (prop.type === 'array' && !isBacklinkProperty(prop)) {
         if (!user[propertyName]) {
           user[propertyName] = []
         }

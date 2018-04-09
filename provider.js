@@ -606,11 +606,21 @@ proto._shouldSaveChange = function (before, after, model) {
   if (!after) return false
   if (!before) return true
 
-  if (before._permalink === after._permalink) {
-    if (!_.isEqual(this._omitBacklinks(after, model), this._omitBacklinks(before, model))) {
-      debugger
-      return true
-    }
+  if (before._permalink !== after._permalink) return false
+
+  const [a, b] = [before, after]
+    .map(resource => this._omitBacklinks(resource, model))
+    .map(r => _.omitBy(r, (value, key) => {
+      if (key === TYPE) return true
+      if (Array.isArray(value) && !value.length) return true
+
+      return false
+    }))
+
+  if (!_.isEqual(a, b)) {
+    // debugger
+    // console.log('SAVING CHANGE', JSON.stringify(require('just-diff').diff(a, b)))
+    return true
   }
 }
 
