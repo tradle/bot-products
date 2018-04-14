@@ -42,7 +42,7 @@ module.exports = function (api) {
       return
     }
 
-    const pending = state.getApplicationsByType(user.applications, requestFor)
+    const pending = state.getApplicationsByType(user.applications || [], requestFor)
     if (pending.length) {
       yield plugins.exec({
         method: 'onPendingApplicationCollision',

@@ -393,12 +393,12 @@ proto.versionAndSave = function (resource) {
   return this.bot.versionAndSave(resource)
 }
 
-proto.getApplicationByStub = function ({ id, statePermalink }) {
-  if (statePermalink) {
-    return this.getApplication(statePermalink)
+proto.getApplicationByStub = function (stub) {
+  if (stub.statePermalink) {
+    return this.getApplication(stub.statePermalink)
   }
 
-  return this.getApplication(parseId(id).permalink)
+  return this.getApplication(parseStub(stub).permalink)
 }
 
 proto.getApplication = co(function* (application) {

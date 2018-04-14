@@ -173,10 +173,10 @@ module.exports = function stateMutater ({ bot, models }) {
 
   function organizeSubmissions (application) {
     const { submissions=[] } = application
-    application.forms = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Form')
-    application.verifications = submissions.filter(sub => sub.submission.type === VERIFICATION)
-    application.checks = submissions.filter(sub => allModels[sub.submission.type].subClassOf === 'tradle.Check')
-    application.editRequests = submissions.filter(sub => sub.submission.type === 'tradle.FormError')
+    application.forms = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Form')
+    application.verifications = submissions.filter(sub => sub.submission[TYPE] === VERIFICATION)
+    application.checks = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Check')
+    application.editRequests = submissions.filter(sub => sub.submission[TYPE] === 'tradle.FormError')
     return application
   }
 
@@ -491,18 +491,6 @@ module.exports = function stateMutater ({ bot, models }) {
     isApplicationCompleted,
     organizeSubmissions,
     status: STATUS
-  }
-}
-
-function getInfo (objOrId) {
-  if (typeof objOrId === 'string') {
-    return parseId(objOrId)
-  }
-
-  return {
-    link: objOrId._link,
-    permalink: objOrId._permalink,
-    type: objOrId[TYPE],
   }
 }
 
