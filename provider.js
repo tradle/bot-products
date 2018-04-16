@@ -418,12 +418,12 @@ proto.getApplication = co(function* (application) {
   let getApp
   if (application[TYPE]) {
     // add backlinks
-    getApp = this.bot.getResource(application, { backlinks: true })
+    getApp = this.bot.getResource(application)
   } else if (typeof application === 'string') {
     getApp = this.bot.getResource({
       type: APPLICATION,
       permalink: application
-    }, { backlinks: true })
+    })
   } else {
     getApp = this.getApplicationByStub(application)
   }
@@ -432,7 +432,7 @@ proto.getApplication = co(function* (application) {
     filter: {
       EQ: {
         [TYPE]: 'tradle.ApplicationSubmission',
-        'application.permalink': identifier.permalink
+        'application._permalink': identifier.permalink
       }
     }
   })
