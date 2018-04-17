@@ -714,28 +714,19 @@ proto.forgetUser = co(function* (req) {
   const { bot, models } = this
   const { db } = bot
   const applicationPermalinks = getApplicationPermalinks({ user })
-  const applications = yield allSettledSuccesses(applicationPermalinks.map(_permalink => {
-    return db.get({
-      [TYPE]: APPLICATION,
-      _permalink
-    })
-  }))
-
+  const applications = yield allSettledSuccesses(applicationPermalinks.map(this.getApplication))
   const formsAndVerifications = applications.reduce((all, application) => {
     const { forms=[], verifications=[] } = application
     const stubs = forms
       .concat(verifications)
       .map(appSub => appSub.submission)
 
-    return all.concat(stubs.map(parseStub))
+    return all.concat(stubs)
   }, [])
 
-  const deleteFormsAndVerifications = Promise.all(formsAndVerifications.map(({ type, permalink }) => {
-    this.logger.debug(`forgetUser: deleting form`, { type, permalink })
-    return db.del({
-      [TYPE]: type,
-      _permalink: permalink
-    })
+  const deleteFormsAndVerifications = Promise.all(formsAndVerifications.map(stub => {
+    this.logger.debug(`forgetUser: deleting form`, stub)
+    return db.del(stub)
   }))
 
   // don't delete the applications themselves
