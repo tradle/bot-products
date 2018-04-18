@@ -175,7 +175,7 @@ module.exports = function stateMutater ({ bot, models }) {
     const { submissions=[] } = application
     application.forms = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Form')
     application.verifications = submissions.filter(sub => sub.submission[TYPE] === VERIFICATION)
-    application.checks = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Check')
+    // application.checks = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Check')
     application.editRequests = submissions.filter(sub => sub.submission[TYPE] === 'tradle.FormError')
     return application
   }

@@ -418,12 +418,12 @@ proto.getApplication = co(function* (application) {
   let getApp
   if (application[TYPE]) {
     // add backlinks
-    getApp = this.bot.getResource(application)
+    getApp = this.bot.getResource(application, { backlinks: ['checks'] })
   } else if (typeof application === 'string') {
     getApp = this.bot.getResource({
       type: APPLICATION,
       permalink: application
-    })
+    }, { backlinks: ['checks'] })
   } else {
     getApp = this.getApplicationByStub(application)
   }
