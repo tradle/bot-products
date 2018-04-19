@@ -173,10 +173,17 @@ module.exports = function stateMutater ({ bot, models }) {
 
   function organizeSubmissions (application) {
     const { submissions=[] } = application
-    application.forms = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Form')
-    application.verifications = submissions.filter(sub => sub.submission[TYPE] === VERIFICATION)
-    // application.checks = submissions.filter(sub => allModels[sub.submission[TYPE]].subClassOf === 'tradle.Check')
-    application.editRequests = submissions.filter(sub => sub.submission[TYPE] === 'tradle.FormError')
+    const good = submissions.filter(sub => allModels[sub.submission[TYPE]])
+    if (good.length !== submissions.length) {
+      bot.logger.warn('could not find models for some submissions', _.difference(submissions, good).map(s => s.submission))
+    }
+
+    const types = good.map(s => s.submission[TYPE])
+    const models = types.map(t => allModels[t])
+    application.forms = good.filter((sub, i) => models[i].subClassOf === 'tradle.Form')
+    application.verifications = good.filter((sub, i) => types[i] === VERIFICATION)
+    // application.checks = good.filter((sub, i) => models[i].subClassOf === 'tradle.Check')
+    application.editRequests = good.filter((sub, i) => types[i] === 'tradle.FormError')
     return application
   }
 
