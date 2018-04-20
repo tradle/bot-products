@@ -150,8 +150,8 @@ module.exports = function stateMutater ({ bot, models }) {
       submission = createSubmission({ application, submission })
     }
 
-    const { permalink } = submission.submission
-    let idx = submissions.findIndex(appSub => appSub.submission.permalink === permalink)
+    const { permalink } = parseStub(submission.submission)
+    let idx = submissions.findIndex(appSub => parseStub(appSub.submission).permalink === permalink)
     if (idx === -1) idx = submissions.length
 
     submissions[idx] = submission
