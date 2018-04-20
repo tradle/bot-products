@@ -69,10 +69,18 @@ function validateRequired ({ model, resource }) {
 }
 
 const series = co(function* (arr, fn) {
+  let i = 0
+  const results = []
   for (const arg of arr) {
-    const ret = fn(arg)
-    if (isPromise(ret)) yield ret
+    let ret = fn(arg, i++)
+    if (isPromise(ret)) {
+      ret = yield ret
+    }
+
+    results.push(ret)
   }
+
+  return results
 })
 
 // function getProductFromEnumValue ({ bizModels, value }) {

@@ -481,6 +481,11 @@ proto.removeDefaultHandlers = function () {
   }
 }
 
+proto.sendBatch = co(function* (batch) {
+  batch = this.bot.toMessageBatch(batch)
+  return yield series(batch, opts => this.send(opts))
+})
+
 proto.rawSendBatch = co(function* ({ messages }) {
   this.logger.debug(`sending batch of ${messages.length} messages`)
   return yield this.bot.send(messages)
@@ -693,7 +698,13 @@ proto.signAndSave = co(function* (object) {
 
 proto.continueApplication = co(function* (req) {
   this.logger.debug('continueApplication')
-  const { user, applicant, application } = req
+  const { user, applicant, application, message } = req
+  const { iOfN } = message
+  if (iOfN) {
+    const { i, n } = iOfN
+    if (i !== n) return
+  }
+
   if (!application) return
   // e.g. employee assigned himself as the relationship manager
   if (applicant && user.id !== applicant.id) return
