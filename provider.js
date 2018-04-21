@@ -702,7 +702,10 @@ proto.continueApplication = co(function* (req) {
   const { iOfN } = message
   if (iOfN) {
     const { i, n } = iOfN
-    if (i !== n) return
+    if (i !== n) {
+      this.logger.debug(`skipping continueApplication, as this is the middle of a message batch`)
+      return
+    }
   }
 
   if (!application) return
