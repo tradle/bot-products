@@ -872,10 +872,13 @@ proto.haveAllSubmittedFormsBeenVerified = co(function* ({ application }) {
 })
 
 proto.getUnverifiedForms = co(function* ({ application }) {
-  const formStubs = (application.forms || []).map(appSub => parseStub(appSub.submission))
+  const formStubs = (application.forms || []).map(appSub => appSub.submission)
   const verifications = yield this.getVerifications({ application })
   const verified = verifications.map(verification => parseStub(verification.document))
-  return formStubs.filter(a => !verified.find(b => a.permalink === b.permalink))
+  return formStubs.filter(stub => {
+    const { permalink } = parseStub(stub)
+    return !verified.find(form => form.permalink === permalink)
+  })
 })
 
 proto.getVerifications = co(function* ({ application }) {
