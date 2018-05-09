@@ -136,10 +136,6 @@ module.exports = function stateMutater ({ bot, models }) {
     }
   }
 
-  function getTime (obj, message) {
-    return obj._time || obj.time || (message && message.time) || Date.now()
-  }
-
   function importVerification ({ user, application, verification }) {
     addVerification({ user, application, verification, imported: true })
   }
@@ -327,7 +323,7 @@ module.exports = function stateMutater ({ bot, models }) {
       .set('document', object)
 
     if (!verification.dateVerified) {
-      builder.set('dateVerified', new Date().getTime())
+      builder.set('dateVerified', Date.now())
     }
 
     builder.set('time', builder.get('dateVerified'))
