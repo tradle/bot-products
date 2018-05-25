@@ -329,7 +329,7 @@ module.exports = function stateMutater ({ bot, models }) {
     if (!verification.sources && application) {
       const { verifications=[] } = application
       let sources = verifications
-        .filter(appSub => appSub.submission.link === oLink)
+        .filter(appSub => parseStub(appSub.submission).link === oLink)
         .map(appSub => appSub.submission)
 
       if (sources.length) {
