@@ -326,8 +326,6 @@ module.exports = function stateMutater ({ bot, models }) {
       builder.set('dateVerified', Date.now())
     }
 
-    builder.set('time', builder.get('dateVerified'))
-
     if (!verification.sources && application) {
       const { verifications=[] } = application
       let sources = verifications
