@@ -824,6 +824,8 @@ proto.denyApplication = co(function* ({ req, user, application, judge }) {
     user: user.id
   })
 
+  this.state.setApplicationStatus({ application, status: this.state.status.denied })
+
   const denial = buildResource({
     models: this.models.all,
     model: DENIAL,
@@ -923,6 +925,8 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
     product: application.requestFor,
     user: user.id
   })
+
+  this.state.setApplicationStatus({ application, status: this.state.status.approved })
 
   const unsigned = this.state.createCertificate({ application })
   yield this._exec({

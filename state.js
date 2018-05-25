@@ -328,12 +328,9 @@ module.exports = function stateMutater ({ bot, models }) {
 
     if (!verification.sources && application) {
       const { verifications=[] } = application
-      let sources = verifications
-        .filter(appSub => parseStub(appSub.submission).link === oLink)
-        .map(appSub => appSub.submission)
-
+      const vBodies = yield Promise.all(verifications.map(v => bot.objects.get(v.submission._link)))
+      const sources = vBodies.filter(v => parseStub(v.document).link === oLink)
       if (sources.length) {
-        sources = yield Promise.all(sources.map(bot.getResource))
         builder.set('sources', sources)
       }
     }
