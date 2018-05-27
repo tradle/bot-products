@@ -75,7 +75,6 @@ const APPLICATION_METHODS = [
   { name: 'approveApplication' },
   { name: 'denyApplication' },
   { name: 'verify' },
-  { name: 'issueVerifications' },
   { name: 'requestNextRequiredItem' },
   { name: 'requestEdit' },
   { name: 'continueApplication' },
@@ -867,37 +866,6 @@ proto.denyApplication = co(function* ({ req, user, application, judge }) {
 //   const sent = _.chain(messages).map('_payloadLink').uniq().value()
 //   return stubs.filter(stub => !sent.includes(stub.link))
 // })
-
-proto.haveAllSubmittedFormsBeenVerified = co(function* ({ application }) {
-  const unverified = yield this.getUnverifiedForms({ application })
-  return !unverified.length
-})
-
-proto.getUnverifiedForms = co(function* ({ application }) {
-  const formStubs = (application.forms || []).map(appSub => appSub.submission)
-  const verifications = yield this.getVerifications({ application })
-  const verified = verifications.map(verification => parseStub(verification.document))
-  return formStubs.filter(stub => {
-    const { permalink } = parseStub(stub)
-    return !verified.find(form => form.permalink === permalink)
-  })
-})
-
-proto.getVerifications = co(function* ({ application }) {
-  const { verifications=[] } = application
-  return yield verifications.map(appSub => this.bot.getResource(appSub.submission))
-})
-
-proto.issueVerifications = co(function* ({ req, user, application, send }) {
-  const unverified = yield this.getUnverifiedForms({ application })
-  return yield unverified.map(formStub => this.verify({
-    req,
-    user,
-    application,
-    object: formStub,
-    send
-  }))
-})
 
 proto._resolveApplication = co(function* (opts, applicantProp='user') {
   opts = _.clone(opts)
