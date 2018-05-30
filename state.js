@@ -101,7 +101,7 @@ module.exports = function stateMutater ({ bot, models }) {
 
     _.extend(application, updated)
     setApplicationStatus({ application, status: STATUS.approved })
-    user.applicationsApproved.push(user.applications[idx])
+    addToBacklink(user.applicationsApproved, user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
     return application
@@ -117,7 +117,7 @@ module.exports = function stateMutater ({ bot, models }) {
       throw new Error('application not found')
     }
 
-    user.applicationsDenied.push(user.applications[idx])
+    addToBacklink(user.applicationsDenied, user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
     return application
@@ -147,10 +147,13 @@ module.exports = function stateMutater ({ bot, models }) {
     }
 
     const { permalink } = parseStub(submission.submission)
-    let idx = submissions.findIndex(appSub => parseStub(appSub.submission).permalink === permalink)
-    if (idx === -1) idx = submissions.length
+    const idx = submissions.findIndex(appSub => parseStub(appSub.submission).permalink === permalink)
+    if (idx === -1) {
+      addToBacklink(submissions, submission)
+    } else {
+      submissions[idx] = submission
+    }
 
-    submissions[idx] = submission
     // in case it was empty
     application.submissions = submissions
     organizeSubmissions(application)
@@ -162,7 +165,8 @@ module.exports = function stateMutater ({ bot, models }) {
       .set({
         application,
         submission,
-        context: application.context
+        context: application.context,
+        _time: submission._time
       })
       .toJSON()
   }
@@ -311,7 +315,7 @@ module.exports = function stateMutater ({ bot, models }) {
     ensureLinks(application)
     debug('added application with context: ' + application.context)
     const stub = createApplicationStub({ application })
-    user.applications.push(stub)
+    addToBacklink(user.applications, stub)
     validateCustomer(user)
     return stub
   }
@@ -507,4 +511,9 @@ function cleanVerification (v) {
   if (v.sources) v.sources = v.sources.map(cleanVerification)
 
   return v
+}
+
+function addToBacklink (backlink, item) {
+  // order by time desc
+  backlink.unshift(item)
 }
