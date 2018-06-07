@@ -425,26 +425,26 @@ module.exports = function (api) {
     return application
   }
 
-  const maybeSendProductList = co(function* (req) {
-    const { user, context } = req
-    if (context) {
-      logger.debug('not sending product list in contextual chat')
-    } else {
-      yield api.sendProductList({ req, to: user })
-    }
+  // const maybeSendProductList = co(function* (req) {
+  //   const { user, context } = req
+  //   if (context) {
+  //     logger.debug('not sending product list in contextual chat')
+  //   } else {
+  //     yield api.sendProductList({ req, to: user })
+  //   }
 
-    // const { historySummary=[] } = req.user
-    // const plLabel = getProductListLabel()
-    // const productList = historySummary.find(({ label, inbound }) => {
-    //   return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
-    // })
+  //   // const { historySummary=[] } = req.user
+  //   // const plLabel = getProductListLabel()
+  //   // const productList = historySummary.find(({ label, inbound }) => {
+  //   //   return !inbound && label && label.startsWith(STRINGS.PRODUCT_LIST_LABEL)
+  //   // })
 
-    // if (!(productList && productList.label === plLabel)) {
-    //   return api.sendProductList(req)
-    // }
+  //   // if (!(productList && productList.label === plLabel)) {
+  //   //   return api.sendProductList(req)
+  //   // }
 
-    // logger.debug('not sending product list as I sent it recently')
-  })
+  //   // logger.debug('not sending product list as I sent it recently')
+  // })
 
   // const getProductListLabel = (other={}) => {
   //   const hash = sha256({
@@ -533,19 +533,19 @@ module.exports = function (api) {
     'tradle.SelfIntroduction': [
       saveIdentity,
       saveName,
-      maybeSendProductList
+      // maybeSendProductList
     ],
     'tradle.IdentityPublishRequest': [
       saveIdentity,
       saveName,
-      maybeSendProductList
+      // maybeSendProductList
     ],
     // 'tradle.Name': saveName,
     'tradle.Form': handleForm,
     'tradle.Verification': handleVerification,
     'tradle.ProductRequest': handleApplication,
     'tradle.SimpleMessage': handleSimpleMessage,
-    'tradle.CustomerWaiting': maybeSendProductList,
+    // 'tradle.CustomerWaiting': maybeSendProductList,
     'tradle.ForgetMe': api.forgetUser,
     'tradle.NextFormRequest': breakOutOfMultiEntry
     // onUnhandledMessage: noComprendo
