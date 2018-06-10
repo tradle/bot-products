@@ -466,7 +466,7 @@ module.exports = function (api) {
   // }
 
   const getNextRequiredItem = ({ user, application, productModel, required }) => {
-    const { forms=[], skip=[] } = application
+    const { submissions=[], skip=[] } = application
     const { multiEntryForms=[] } = productModel
     return required.find(form => {
       if (multiEntryForms.includes(form)) {
@@ -476,7 +476,7 @@ module.exports = function (api) {
         }
       }
 
-      return !state.getFormsByType(forms, form).length
+      return !state.getSubmissionsByType(submissions, form).length
     })
   }
 

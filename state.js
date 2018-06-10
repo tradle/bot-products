@@ -429,7 +429,7 @@ module.exports = function stateMutater ({ bot, models }) {
   const getApplicationsByType = (applications, type) =>
     applications.filter(application => application.requestFor === type)
 
-  const getFormsByType = (forms, type) => forms.filter(appSub => {
+  const getSubmissionsByType = (submissions, type) => submissions.filter(appSub => {
     return parseStub(appSub.submission).type === type
   })
 
@@ -480,7 +480,7 @@ module.exports = function stateMutater ({ bot, models }) {
     setProfile,
     setIdentity,
     init,
-    getFormsByType,
+    getSubmissionsByType,
     getLatestForm,
     getLatestFormByType,
     hasApplication,
