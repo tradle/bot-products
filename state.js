@@ -172,7 +172,9 @@ module.exports = function stateMutater ({ bot, models }) {
   }
 
   function organizeSubmissions (application) {
-    const { submissions=[] } = application
+    let { submissions=[] } = application
+    // time desc
+    application.submissions = submissions = submissions.sort((a, b) => b._time - a._time)
     const good = submissions.filter(sub => allModels[sub.submission[TYPE]])
     if (good.length !== submissions.length) {
       bot.logger.warn('could not find models for some submissions', _.difference(submissions, good).map(s => s.submission))
