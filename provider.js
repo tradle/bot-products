@@ -902,7 +902,13 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
     args: [{ user, application, certificate: unsigned, judge }]
   })
 
-  return yield this.send({ req, to: user, application, object: unsigned })
+  const signed = yield this.signAndSave(unsigned)
+  application.certificate = buildResource.stub({
+    models: this.models.all,
+    resource: signed
+  })
+
+  return yield this.send({ req, to: user, application, object: signed })
 })
 
 // proto.revokeCertificate = co(function* ({ user, application, certificate }) {
