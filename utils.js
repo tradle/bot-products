@@ -360,4 +360,5 @@ module.exports = {
   getLinkFromResourceOrStub,
   getPermalinkFromResourceOrStub,
   categorizeApplicationModels,
+  getCertificateModelId,
 }

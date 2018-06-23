@@ -9,7 +9,8 @@ const {
   ensureLinks,
   debug,
   getContext,
-  getLinkFromResourceOrStub
+  getLinkFromResourceOrStub,
+  getCertificateModelId,
 } = require('./utils')
 
 const baseModels = require('./base-models')
@@ -38,9 +39,18 @@ module.exports = function stateMutater ({ bot, models }) {
     })
   }
 
+  function getCertificateModel (productModelId) {
+    const model = bizModels.certificateFor[productModelId]
+    if (model) return model
+
+    const productModel = allModels[productModelId]
+    const certModelId = getCertificateModelId({ productModel })
+    return allModels[certModelId]
+  }
+
   function createCertificate ({ application }) {
     const { requestFor, forms } = application
-    const certModel = bizModels.certificateFor[requestFor]
+    const certModel = getCertificateModel(requestFor)
     // const copy = forms
     //   .map(parseStub)
     //   .map(({ type }) => {
