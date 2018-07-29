@@ -81,6 +81,13 @@ const APPLICATION_METHODS = [
   { name: 'sendIssuedVerifications', preprocess: '_resolveApplication' }
 ]
 
+const UNFORGETTABLE_PROPS = [
+  TYPE,
+  'id',
+  'identity',
+  'friend',
+]
+
 exports = module.exports = opts => new Provider(opts)
 
 function Provider (opts) {
@@ -101,11 +108,6 @@ function Provider (opts) {
   this.bot = bot
   this.models = new ModelManager({ products, validate: validateModels })
   this.logger = logger
-  this._stateProps = Object.keys(stateModels.customer.properties)
-  this._forgettableProps = this._stateProps.filter(prop => {
-    return prop !== 'identity' && prop !== 'id' && prop !== TYPE
-  })
-
   this.plugins = createPlugins()
   this._define = createDefiner()
   // be lazy
@@ -286,7 +288,7 @@ proto._processIncoming = co(function* (req) {
   const { user, type } = req
   const model = models.all[type]
   // init is non-destructive
-  this.logger.debug(`processing incoming`, { type, context: req.context })
+  // this.logger.debug(`processing incoming`, { type, context: req.context })
 
   state.init(user)
   yield this._deduceApplicantAndApplication(req)
@@ -719,9 +721,10 @@ proto.continueApplication = co(function* (req) {
 
 proto.forgetUser = co(function* (req) {
   const { user } = req
+  const propsToForget = _.difference(Object.keys(user), UNFORGETTABLE_PROPS)
   this.logger.debug('forgetUser: clearing user state', {
     user: user.id,
-    props: this._forgettableProps.slice()
+    props: propsToForget
   })
 
   const { bot, models } = this
@@ -758,7 +761,7 @@ proto.forgetUser = co(function* (req) {
     markForgottenApplications
   ]
 
-  this._forgettableProps.forEach(propertyName => {
+  propsToForget.forEach(propertyName => {
     // indicate that these properties should be deleted
     if (this._nullifyToDeleteProperty) {
       user[propertyName] = null
