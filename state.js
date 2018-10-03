@@ -65,10 +65,17 @@ module.exports = function stateMutater ({ bot, models }) {
     //   .set('myProductId', uuid())
     //   .toJSON()
 
-    return {
+    const cert = {
       [TYPE]: certModel.id,
       myProductId: uuid()
     }
+
+    const ownerProp = certModel.properties.owner
+    if (ownerProp && ownerProp.ref === 'tradle.Identity') {
+      cert.owner = application.applicant
+    }
+
+    return cert
   }
 
   /**
