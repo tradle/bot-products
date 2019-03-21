@@ -897,13 +897,13 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
     user: user.id
   })
 
-  this.state.setApplicationStatus({ application, status: this.state.status.approved })
-
   const unsigned = this.state.createCertificate({ application })
   yield this._exec({
     method: 'willIssueCertificate',
     args: [{ user, application, certificate: unsigned, judge }]
   })
+
+  this.state.setApplicationStatus({ application, status: this.state.status.approved })
 
   const signed = yield this.signAndSave(unsigned)
   application.certificate = buildResource.stub({
