@@ -84,7 +84,7 @@ module.exports = function stateMutater ({ bot, models }) {
    * @param {application} options.application
    * @param {Certification}    options.certificate
    */
-  function addCertificate ({ user, application, certificate }) {
+  function moveToApproved ({ user, application }) {
     const idx = getApplicationStubIndex({
       applications: user.applications,
       application
@@ -103,21 +103,6 @@ module.exports = function stateMutater ({ bot, models }) {
       throw new Error('application was already approved')
     }
 
-    // lookup, modify stored version
-    const updated = buildResource({
-        models: allModels,
-        model: stateModels.application,
-        resource: application,
-        mutate: true
-      })
-      .set({
-        certificate,
-        dateEvaluated: Date.now()
-      })
-      .toJSON()
-
-    _.extend(application, updated)
-    setApplicationStatus({ application, status: STATUS.approved })
     addToBacklink(user.applicationsApproved, user.applications[idx])
     user.applications.splice(idx, 1)
     validateCustomer(user)
@@ -485,7 +470,7 @@ module.exports = function stateMutater ({ bot, models }) {
     createApplication,
     addApplication,
     createCertificate,
-    addCertificate,
+    moveToApproved,
     createVerification,
     addSubmission,
     createSubmission,

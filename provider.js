@@ -911,6 +911,7 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
     resource: signed
   })
 
+  this.state.moveToApproved({ user, application })
   return yield this.send({ req, to: user, application, object: signed })
 })
 
