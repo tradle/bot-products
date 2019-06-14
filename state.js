@@ -185,7 +185,7 @@ module.exports = function stateMutater ({ bot, models }) {
     const types = good.map(s => s.submission[TYPE])
     const models = types.map(t => allModels[t])
     application.forms = good.filter((sub, i) =>
-      isSubClassOf({ refModel: allModels['tradle.Form'], valModel: models[i], models: allModels })
+      isSubClassOf({ subModel: allModels['tradle.Form'], model: models[i], models: allModels })
     )
     application.verifications = good.filter((sub, i) => types[i] === VERIFICATION)
     // application.checks = good.filter((sub, i) => models[i].subClassOf === 'tradle.Check')

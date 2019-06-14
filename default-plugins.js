@@ -317,7 +317,7 @@ module.exports = function (api) {
 
     const { forms=[], requestFor } = application
     const { multiEntryForms=[] } = models.all[requestFor]
-    if (isSubClassOf({refModel: models.all['tradle.Form'], valModel: model, models: models.all})) {
+    if (isSubClassOf({subModel: models.all['tradle.Form'], model, models: models.all})) {
       if (multiEntryForms.includes(form)) {
         const hasOne = forms.find(appSub => parseStub(appSub.submission).type === form)
         return hasOne
