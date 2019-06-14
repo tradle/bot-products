@@ -312,13 +312,22 @@ proto._processIncoming = co(function* (req) {
     return
   }
 
-  if (model.subClassOf) {
-    keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, req)
+  let sub = model
+  while (sub.subClassOf) {
+    sub = this.models.all[sub.subClassOf]
+    keepGoing = yield this._execBubble(`onmessage:${sub.id}`, req)
     if (keepGoing === false) {
-      this.logger.debug(`early exit after "onmessage:${model.subClassOf}"`)
+      this.logger.debug(`early exit after "onmessage:${sub.id}"`)
       return
     }
   }
+  // if (model.subClassOf) {
+  //   keepGoing = yield this._execBubble(`onmessage:${model.subClassOf}`, req)
+  //   if (keepGoing === false) {
+  //     this.logger.debug(`early exit after "onmessage:${model.subClassOf}"`)
+  //     return
+  //   }
+  // }
 })
 
 proto._saveChanges = co(function* (req) {

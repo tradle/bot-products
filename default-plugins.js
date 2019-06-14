@@ -1,6 +1,8 @@
 const _ = require('lodash')
 const { TYPE, SIG } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
+const validateResource = require('@tradle/validate-resource')
+const { isSubClassOf } = validateResource.utils
 const {
   co,
   isPromise,
@@ -315,7 +317,7 @@ module.exports = function (api) {
 
     const { forms=[], requestFor } = application
     const { multiEntryForms=[] } = models.all[requestFor]
-    if (model.subClassOf === 'tradle.Form') {
+    if (isSubClassOf({refModel: models.all['tradle.Form'], valModel: model, models: models.all})) {
       if (multiEntryForms.includes(form)) {
         const hasOne = forms.find(appSub => parseStub(appSub.submission).type === form)
         return hasOne
@@ -476,7 +478,10 @@ module.exports = function (api) {
         }
       }
 
-      return !state.getSubmissionsByType(submissions, form).length
+      if (models.all[form].abstract)
+        return !state.getSubmissionsBySubType(submissions, form).length
+      else
+        return !state.getSubmissionsByType(submissions, form).length
     })
   }
 

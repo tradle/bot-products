@@ -4,7 +4,7 @@ const uuid = require('uuid/v4')
 const { TYPE } = require('@tradle/constants')
 const buildResource = require('@tradle/build-resource')
 const validateResource = require('@tradle/validate-resource')
-const { parseStub, parseId, omitVirtual, omitBacklinks, pickBacklinks, isBacklinkProperty } = validateResource.utils
+const { parseStub, parseId, omitVirtual, omitBacklinks, pickBacklinks, isBacklinkProperty, isSubClassOf } = validateResource.utils
 const {
   ensureLinks,
   debug,
@@ -184,7 +184,9 @@ module.exports = function stateMutater ({ bot, models }) {
 
     const types = good.map(s => s.submission[TYPE])
     const models = types.map(t => allModels[t])
-    application.forms = good.filter((sub, i) => models[i].subClassOf === 'tradle.Form')
+    application.forms = good.filter((sub, i) =>
+      isSubClassOf({ refModel: allModels['tradle.Form'], valModel: models[i], models: allModels })
+    )
     application.verifications = good.filter((sub, i) => types[i] === VERIFICATION)
     // application.checks = good.filter((sub, i) => models[i].subClassOf === 'tradle.Check')
     application.editRequests = good.filter((sub, i) => types[i] === 'tradle.FormError')
@@ -437,6 +439,11 @@ module.exports = function stateMutater ({ bot, models }) {
     return parseStub(appSub.submission).type === type
   })
 
+  const getSubmissionsBySubType = (submissions, type) => submissions.filter(appSub => {
+    let stype = parseStub(appSub.submission).type
+    return models.all[stype].subClassOf === type
+  })
+
   const createFilterForType = query => ({ type }) => type === query
 
   function getLatestForm (forms, filter) {
@@ -485,6 +492,7 @@ module.exports = function stateMutater ({ bot, models }) {
     setIdentity,
     init,
     getSubmissionsByType,
+    getSubmissionsBySubType,
     getLatestForm,
     getLatestFormByType,
     hasApplication,
