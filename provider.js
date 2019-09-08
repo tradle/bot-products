@@ -395,8 +395,10 @@ proto._getApplicant = co(function* (req) {
   if (applicantPermalink === user.id) {
     return user
   }
-
-  return yield this.bot.users.get(applicantPermalink)
+  const applicant = yield this.bot.users.get(applicantPermalink)
+  this.state.init(applicant)
+  return applicant
+  // return yield this.bot.users.get(applicantPermalink)
 })
 
 proto.versionAndSave = function (resource) {
