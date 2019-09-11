@@ -911,7 +911,7 @@ proto.approveApplication = co(function* ({ req, user, application, judge }) {
   const unsigned = this.state.createCertificate({ application })
   yield this._exec({
     method: 'willIssueCertificate',
-    args: [{ user, application, certificate: unsigned, judge }]
+    args: [{ user, application, certificate: unsigned, judge, req }]
   })
 
   this.state.setApplicationStatus({ application, status: this.state.status.approved })
