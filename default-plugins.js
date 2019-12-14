@@ -258,11 +258,14 @@ module.exports = function (api) {
   })
 
   function sendApplicationSubmitted ({ req, user, application }) {
+    const { context, requestFor, forms, processingDataBundle } = application
+
+    if (processingDataBundle) return
+
     const message = application.dateCompleted
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
-    const { context, requestFor, forms } = application
     return api.send({
       req,
       to: user,
