@@ -1064,7 +1064,7 @@ proto.requestEdit = co(function* ({ req, user, application, item, details, other
     errors
   }
   if (dataLineage)
-    _.extends(resource, {dataLineage})
+    _.extend(resource, {dataLineage})
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',
