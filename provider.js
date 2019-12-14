@@ -1047,7 +1047,7 @@ proto.sendProductList = co(function* ({ req, to }) {
 })
 
 proto.requestEdit = co(function* ({ req, user, application, item, details, other }) {
-  let { message, errors=[], requestedProperties, prefill, lens } = details
+  let { message, errors=[], requestedProperties, prefill, lens, dataLineage } = details
   if (!message && errors.length) {
     message = errors[0].error
   }
@@ -1058,7 +1058,13 @@ proto.requestEdit = co(function* ({ req, user, application, item, details, other
   this.logger.debug(`requesting edit`, {
     for: prefill[TYPE] || prefill.id
   })
-
+  let resource = {
+    prefill,
+    message,
+    errors
+  }
+  if (dataLineage)
+    _.extends(resource, {dataLineage})
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',
