@@ -1068,11 +1068,7 @@ proto.requestEdit = co(function* ({ req, user, application, item, details, other
   const formError = buildResource({
     models: this.models.all,
     model: 'tradle.FormError',
-    resource: {
-      prefill,
-      message,
-      errors
-    }
+    resource
   })
 
   if (requestedProperties) {
