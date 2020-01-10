@@ -440,17 +440,33 @@ proto.getApplication = co(function* (application) {
     getApp = this.getApplicationByStub(application)
   }
 
-  const getSubs = this.bot.db.find({
+  let submissions = []
+  let limit = 50
+  let endPosition
+  let query = {
     filter: {
       EQ: {
         [TYPE]: 'tradle.ApplicationSubmission',
         'application._permalink': identifier.permalink
       }
-    }
-  })
+    },
+    limit
+  }
+  while (true) {
+    if (endPosition)
+      query.checkpoint = endPosition
 
+    const getSubs = this.bot.db.find(query)
+    let result = (yield getSubs)
+
+    let subs = result.items
+    subs.forEach(s => submissions.push(s))
+    if (subs.length < limit)
+      break
+      endPosition = result.endPosition
+  }
   application = yield getApp
-  application.submissions = (yield getSubs).items
+  application.submissions = submissions
   this.state.organizeSubmissions(application)
   return application
 })
