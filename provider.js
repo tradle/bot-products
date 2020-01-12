@@ -441,7 +441,7 @@ proto.getApplication = co(function* (application) {
   }
 
   let submissions = []
-  let limit = 50
+  let limit = 200
   let endPosition
   let query = {
     filter: {
