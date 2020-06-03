@@ -18,6 +18,13 @@ const {
   APPROVAL,
   VERIFICATION,
   PRODUCT_REQUEST,
+  IDENTITY_PUBLISH_REQUEST,
+  SELF_INTRODUCTION,
+  NEXT_FORM_REQUEST,
+  SIMPLE_MESSAGE,
+  FORGET_ME,
+  FORM,
+  MY_PRODUCT,
   REMEDIATION,
   SUBMITTED
 } = require('./types')
@@ -34,7 +41,7 @@ module.exports = function (api) {
   const bizModels = models.biz
   const commands = new Commander(api)
   const handleApplication = co(function* (req) {
-    const { user, object } = req
+    const { user, masterUser, allUsers, object, bot } = req
     const { requestFor } = object
 
     logger.debug(`received application for "${requestFor}"`)
@@ -43,9 +50,19 @@ module.exports = function (api) {
       logger.debug(`ignoring application for "${requestFor}" as it's not in specified offering`)
       return
     }
+    let allApplications = []
+    if (allUsers)
+      allUsers.forEach(user => allApplications.push(...user.applications))
 
-    const pending = state.getApplicationsByType(user.applications || [], requestFor)
-    if (pending.length) {
+    let pending = state.getApplicationsByType(allApplications, requestFor)
+    if (!pending  ||  !pending.length) {
+      let masterIdentity = yield bot.addressBook.byPermalink((masterUser || user).id)
+      let myIdentities = masterIdentity.pubkeys.filter(pub => pub.importedFrom  &&  pub.importedFrom !== user.id)
+      let users = yield Promise.all(myIdentities.map(id => bot.users.get(id.importedFrom)))
+      let result = users.map(u => state.getApplicationsByType(u.applications || [], requestFor))
+      pending = result.find(r => r &&  r.length)
+    }
+    if (pending  &&  pending.length) {
       yield plugins.exec({
         method: 'onPendingApplicationCollision',
         args: [{ req, pending }]
@@ -126,7 +143,7 @@ module.exports = function (api) {
 
   const handleForm = co(function* (req) {
     logger.debug('handleForm start')
-    const { user, application, object, type } = req
+    const { user, allUsers, application, object, type, bot } = req
     if (!application) {
       logger.debug('application is unknown, ignoring form')
       return
@@ -137,10 +154,13 @@ module.exports = function (api) {
       // handled by handleApplication
       return
     }
-
-    if (user.id !== parseStub(application.applicant).permalink) {
-      logger.debug(`ignoring form submitted by someone other than applicant`)
-      return
+    let applicantId = parseStub(application.applicant).permalink
+    if (user.id !== applicantId) {
+      let id = allUsers  &&  allUsers.find(user => user.id === applicantId)
+      if (!id) {
+        logger.debug(`ignoring form submitted by someone other than applicant`)
+        return
+      }
     }
 
     const { requestFor, skip=[] } = application
@@ -324,7 +344,7 @@ module.exports = function (api) {
 
     const { forms=[], requestFor } = application
     const { multiEntryForms=[] } = models.all[requestFor]
-    if (isSubClassOf({subModel: models.all['tradle.Form'], model, models: models.all})) {
+    if (isSubClassOf({subModel: models.all[FORM], model, models: models.all})) {
       if (multiEntryForms.includes(form)) {
         const hasOne = forms.find(appSub => parseStub(appSub.submission).type === form)
         return hasOne
@@ -348,7 +368,7 @@ module.exports = function (api) {
 
     const type = object[TYPE]
     const model = models.all[type]
-    if (model && model.subClassOf === 'tradle.Form') {
+    if (model && model.subClassOf === FORM) {
       return true
     }
   }
@@ -360,7 +380,7 @@ module.exports = function (api) {
     if (TO_SEAL.includes(type)) return true
 
     const model = models.all[type]
-    if (model && model.subClassOf === 'tradle.MyProduct') {
+    if (model && model.subClassOf === MY_PRODUCT) {
       return true
     }
   }
@@ -474,7 +494,7 @@ module.exports = function (api) {
   //   }
   // }
 
-  const getNextRequiredItem = ({ user, application, productModel, required }) => {
+  const getNextRequiredItem = ({ req, user, application, productModel, required }) => {
     const { submissions=[], skip=[] } = application
     const { multiEntryForms=[] } = productModel
     return required.find(form => {
@@ -542,24 +562,24 @@ module.exports = function (api) {
   }
 
   _.extend(defaults, prependKeysWith('onmessage:', {
-    'tradle.SelfIntroduction': [
+    [SELF_INTRODUCTION]: [
       saveIdentity,
       saveName,
       // maybeSendProductList
     ],
-    'tradle.IdentityPublishRequest': [
+    [IDENTITY_PUBLISH_REQUEST]: [
       saveIdentity,
       saveName,
       // maybeSendProductList
     ],
     // 'tradle.Name': saveName,
-    'tradle.Form': handleForm,
-    'tradle.Verification': handleVerification,
-    'tradle.ProductRequest': handleApplication,
-    'tradle.SimpleMessage': handleSimpleMessage,
+    [FORM]: handleForm,
+    [VERIFICATION]: handleVerification,
+    [PRODUCT_REQUEST]: handleApplication,
+    [SIMPLE_MESSAGE]: handleSimpleMessage,
     // 'tradle.CustomerWaiting': maybeSendProductList,
-    'tradle.ForgetMe': api.forgetUser,
-    'tradle.NextFormRequest': breakOutOfMultiEntry
+    [FORGET_ME]: api.forgetUser,
+    [NEXT_FORM_REQUEST]: breakOutOfMultiEntry
     // onUnhandledMessage: noComprendo
   }))
 

@@ -377,10 +377,11 @@ proto._saveChanges = co(function* (req) {
 })
 
 proto._deduceApplicantAndApplication = co(function* (req) {
-  const { user } = req
-  let application = yield this._execBubble('deduceApplication', req)
-  if (!application) return
-
+  let { user, application } = req
+  if (!application) {
+    application = yield this._execBubble('deduceApplication', req, true)
+    if (!application) return
+  }
   if (!application[SIG]) {
     application = yield this.getApplicationByStub(application)
   }
@@ -726,7 +727,7 @@ proto.signAndSave = co(function* (object) {
 
 proto.continueApplication = co(function* (req) {
   this.logger.debug('continueApplication')
-  const { user, applicant, application, message } = req
+  const { user, allUsers, applicant, application, message } = req
   const { iOfN } = message
   if (iOfN) {
     const { i, n } = iOfN
@@ -738,7 +739,10 @@ proto.continueApplication = co(function* (req) {
 
   if (!application) return
   // e.g. employee assigned himself as the relationship manager
-  if (applicant && user.id !== applicant.id) return
+  if (applicant && user.id !== applicant.id) {
+    if (!allUsers.find(user => user.id === applicant.id))
+      return
+  }
 
   const requested = yield this.requestNextRequiredItem({ req, user, application })
   if (!requested) {
