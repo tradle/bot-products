@@ -56,9 +56,7 @@ module.exports = function (api) {
 
     let pending = state.getApplicationsByType(allApplications, requestFor)
     if (!pending  ||  !pending.length) {
-      let masterIdentity = yield bot.addressBook.byPermalink((masterUser || user).id)
-      let myIdentities = masterIdentity.pubkeys.filter(pub => pub.importedFrom  &&  pub.importedFrom !== user.id)
-      let users = yield Promise.all(myIdentities.map(id => bot.users.get(id.importedFrom)))
+      let users = allUsers &&  allUsers.filter(u => user.id !== u.id)
       let result = users.map(u => state.getApplicationsByType(u.applications || [], requestFor))
       pending = result.find(r => r &&  r.length)
     }
