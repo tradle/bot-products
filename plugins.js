@@ -1,4 +1,5 @@
 const assert = require('assert')
+const { locate } = require('func-loc');
 const { isPromise, bindAll, debug } = require('./utils')
 // const TESTING = process.env.NODE_ENV === 'test'
 
@@ -110,7 +111,27 @@ function execute ({ handlers, args, waterfall, allowExit, returnResult }) {
   handlers = handlers.slice()
   while (handlers.length) {
     let handler = handlers.shift()
-    ret = handler.fn.call(handler.context || this, ...args)
+
+    const originalHandler = handler
+    handler = async function (...args) {
+      const start = Date.now()
+      const result = await originalHandler.fn.call(originalHandler.context || this, ...args.slice(1))
+      let interval = Date.now() - start
+      let name, location
+      try {
+        let fname = await locate(originalHandler.fn);
+        // name = fname.path.split('/')
+        name = fname
+      } catch (err) {
+        debugger
+      }
+      console.log(`plugins.time (${name  && name.path || ''}):`, interval)
+      // console.log(`plugins.time (${name  &&  name[name.length - 1]}):`, interval)
+      // if (interval > 2000)
+      //   debugger
+      return result
+    }
+    ret = handler(originalHandler.context || this, ...args)
     if (isPromise(ret)) {
       return ret.then(continueExec)
     }
