@@ -1,5 +1,5 @@
 const assert = require('assert')
-const { locate } = require('func-loc');
+// const { locate } = require('func-loc');
 const { isPromise, bindAll, debug } = require('./utils')
 // const TESTING = process.env.NODE_ENV === 'test'
 
@@ -111,32 +111,27 @@ function execute ({ handlers, args, waterfall, allowExit, returnResult }) {
   handlers = handlers.slice()
   while (handlers.length) {
     let handler = handlers.shift()
+    const start = Date.now()
+    ret = handler.fn.call(handler.context || this, ...args)
+    if (!isPromise(ret))
+      return continueExec(ret)
 
-    const originalHandler = handler
-    handler = async function (...args) {
-      const start = Date.now()
-      const result = await originalHandler.fn.call(originalHandler.context || this, ...args.slice(1))
+    return ret.then(async result => {
       let interval = Date.now() - start
-      let name, location
-      try {
-        let fname = await locate(originalHandler.fn);
-        // name = fname.path.split('/')
-        name = fname
-      } catch (err) {
-        debugger
-      }
-      console.log(`plugins.time (${name  && name.path || ''}):`, interval)
-      // console.log(`plugins.time (${name  &&  name[name.length - 1]}):`, interval)
-      // if (interval > 2000)
-      //   debugger
-      return result
-    }
-    ret = handler(originalHandler.context || this, ...args)
-    if (isPromise(ret)) {
-      return ret.then(continueExec)
-    }
-
-    return continueExec(ret)
+      if (interval > 100) console.log('plugins.time: ', interval)
+      return continueExec(result)
+      // interval = Date.now() - start
+      // try {
+      //   let location = await locate(handler.fn)
+      //   if (location)
+      //     console.log(`plugins.time (${location  && location.path || ''}):`, interval)
+      //   else
+      //     console.log('plugins.time:', interval)
+      // } catch (err) {
+      //   console.log('plugins.time:', interval)
+      // }
+      // return continueExec(result)
+    })
   }
 
   function continueExec (ret) {
