@@ -248,6 +248,11 @@ proto.onmessage = co(function* (data) {
   }
 
   req.models = models
+  // Some strange type probably
+  if (req.type  &&  !models.all[req.type]) {
+    this.logger.error(`unknown request type ${req.type}`)
+    debugger
+  }
   req.context = getRequestContext({ req, models: models.all })
   // this._updateHistorySummary({ req, inbound: true })
 
