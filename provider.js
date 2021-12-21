@@ -835,11 +835,13 @@ proto.verify = co(function* ({
     sending: !!send
   })
 
-  const unsigned = yield state.createVerification({ application, object, verification })
+  // const unsigned = yield state.createVerification({ application, object, verification })
   if (send) {
-    return yield this.send({ req, to: user, application, object: unsigned })
+    // return yield this.send({ req, to: user, application, object: unsigned })
+    return yield this.send({ req, to: user, application, object: verification })
   }
 
+  const unsigned = yield state.createVerification({ application, object, verification })
   verification = yield this.signAndSave(unsigned)
   let appSub = this.state.createSubmission({
     application,
