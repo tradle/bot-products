@@ -161,9 +161,9 @@ module.exports = function (api) {
       }
     }
 
-    const { requestFor, skip=[] } = application
-    if (requestFor === REMEDIATION) {
-      logger.debug(`don't know how to handle ${REMEDIATION} product yet`)
+    const { requestFor, skip=[],  processingDataBundle} = application
+    if (processingDataBundle) {
+      logger.debug(`processing data bundle for ${requestFor}. No validation is needed`)
       return
     }
 
