@@ -358,7 +358,8 @@ module.exports = function (api) {
   }
 
   function setCompleted ({ application }) {
-    api.state.setApplicationStatus({ application, status: state.status.completed })
+    if (application.status === state.status.started)
+      api.state.setApplicationStatus({ application, status: state.status.completed })
   }
 
   function shouldSealReceived ({ message, object }) {
@@ -366,9 +367,8 @@ module.exports = function (api) {
 
     const type = object[TYPE]
     const model = models.all[type]
-    if (model && model.subClassOf === FORM) {
+    if (model && isSubClassOf({subModel: models.all[FORM], model, models: models.all}))
       return true
-    }
   }
 
   function shouldSealSent ({ message, object }) {
