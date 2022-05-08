@@ -82,15 +82,13 @@ module.exports = function (api) {
     })
 
     if (existingProduct) {
-      if (!existingProduct.draft && !existingProduct.filledForCustomer) {
-        const maybePromise = plugins.exec({
-          method: 'onRequestForExistingProduct',
-          args: [req]
-        })
+      const maybePromise = plugins.exec({
+        method: 'onRequestForExistingProduct',
+        args: [req]
+      })
 
-        if (isPromise(maybePromise)) yield maybePromise
-        return
-      }
+      if (isPromise(maybePromise)) yield maybePromise
+      return
     }
 
     yield api.addApplication({ req })
