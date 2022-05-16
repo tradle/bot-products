@@ -200,7 +200,7 @@ module.exports = function (api) {
     }
 
     logger.debug('handleForm: add form, continueApplication', { form: object[TYPE] })
-    api.state.addSubmission({
+    let { submission } = api.state.addSubmission({
       application,
       submission: object
     })
@@ -284,21 +284,24 @@ module.exports = function (api) {
       ? STRINGS.APPLICATION_UPDATED
       : STRINGS.APPLICATION_SUBMITTED
 
+    let object = buildResource({
+      models: models.all,
+      model: SUBMITTED
+    })
+    .set({
+      context,
+      requestFor,
+      forms: _.map(forms, 'submission'),
+      message
+    })
+    .toJSON()
+
+    api._exec('willSaveResource', {application, resource: object})
     return api.send({
       req,
       to: user,
       application,
-      object: buildResource({
-          models: models.all,
-          model: SUBMITTED
-        })
-        .set({
-          context,
-          requestFor,
-          forms: _.map(forms, 'submission'),
-          message
-        })
-        .toJSON()
+      object
     })
   }
 
