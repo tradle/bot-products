@@ -153,7 +153,7 @@ module.exports = function (api) {
       return
     }
     let applicantId = parseStub(application.applicant).permalink
-    if (user.id !== applicantId) {
+    if (user.id !== applicantId  &&  !application.filledForCustomer) {
       let id = allUsers  &&  allUsers.find(user => user.id === applicantId)
       if (!id) {
         logger.debug(`ignoring form submitted by someone other than applicant`)
@@ -498,8 +498,11 @@ module.exports = function (api) {
   const getNextRequiredItem = ({ req, user, application, productModel, required }) => {
     const { submissions=[], skip=[] } = application
     const { multiEntryForms=[] } = productModel
+    const appStatus = [state.status.approved, state.status.denied, state.status.completed]
     return required.find(form => {
       if (multiEntryForms.includes(form)) {
+        if (appStatus.indexOf(application.status) !== -1)
+          return false
         const idx = skip.indexOf(form)
         if (idx === -1) {
           return form

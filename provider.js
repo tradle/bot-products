@@ -744,7 +744,7 @@ proto.continueApplication = co(function* (req) {
 
   if (!application) return
   // e.g. employee assigned himself as the relationship manager
-  if (applicant && user.id !== applicant.id) {
+  if (applicant && user.id !== applicant.id  &&  !application.filledForCustomer) {
     if (!allUsers.find(user => user.id === applicant.id))
       return
   }
