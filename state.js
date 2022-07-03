@@ -193,19 +193,24 @@ module.exports = function stateMutater ({ bot, models }) {
     return application
   }
 
-  function createApplication ({ user, object }) {
+  function createApplication ({ user, object, counterparty, employeeCertificate }) {
     const { requestFor } = object
+    let obj = {
+      applicant: user.identity,
+      context: getContext({
+        model: allModels[object[TYPE]],
+        resource: object
+      }),
+      request: object,
+      requestFor,
+      forms: []
+    }
+    if (employeeCertificate)
+      obj.submittedBy = employeeCertificate
+    if (counterparty)
+      obj.counterparty = counterparty
     const application = build(stateModels.application)
-      .set({
-        applicant: user.identity,
-        context: getContext({
-          model: allModels[object[TYPE]],
-          resource: object
-        }),
-        request: object,
-        requestFor,
-        forms: []
-      })
+      .set(obj)
       .toJSON()
 
     setApplicationStatus({ application, status: 'started' })

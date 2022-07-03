@@ -153,7 +153,7 @@ module.exports = function (api) {
       return
     }
     let applicantId = parseStub(application.applicant).permalink
-    if (user.id !== applicantId  &&  !application.filledForCustomer) {
+    if (user.id !== applicantId  &&  !application.filledForCustomer  &&  !application.draft) {
       let id = allUsers  &&  allUsers.find(user => user.id === applicantId)
       if (!id) {
         logger.debug(`ignoring form submitted by someone other than applicant`)
