@@ -191,7 +191,7 @@ module.exports = function (api) {
 
     if (err) {
       if (err.exit)
-        logger.debug('handleForm:requestEdit was sent by plugin')
+        logger.debug(`handleForm:requestEdit was sent by plugin${err.name ? `: ${err.name}` : ''}`)
       else {
         logger.debug('handleForm:requestEdit')
         yield api.requestEdit({ req, user, application, item: object, details: err })
