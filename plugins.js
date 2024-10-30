@@ -120,17 +120,6 @@ function execute ({ handlers, args, waterfall, allowExit, returnResult }) {
       let interval = Date.now() - start
       if (interval > 100) console.log('plugins.time: ', interval)
       return continueExec(result)
-      // interval = Date.now() - start
-      // try {
-      //   let location = await locate(handler.fn)
-      //   if (location)
-      //     console.log(`plugins.time (${location  && location.path || ''}):`, interval)
-      //   else
-      //     console.log('plugins.time:', interval)
-      // } catch (err) {
-      //   console.log('plugins.time:', interval)
-      // }
-      // return continueExec(result)
     })
   }
 
