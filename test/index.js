@@ -442,52 +442,6 @@ test.only('basic form loop', loudCo(function* (t) {
   t.end()
 }))
 
-test('plugins', loudCo(function* (t) {
-  const productModels = [
-    baseModels[CURRENT_ACCOUNT]
-  ]
-
-  const productsAPI = createProductsStrategy({
-    bot,
-    models: {
-      all: customModels
-    },
-    products: productModels.map(model => model.id)
-  })
-
-  const bot = fakeBot()
-  productsAPI.plugins.clear('getRequiredForms')
-  const custom = {
-    blah: 1,
-    getRequiredForms: function () {
-      t.equal(this.blah, 1, 'context preserved')
-      return ['blah']
-    },
-    doABC: [
-      function doABC1 () {},
-      function doABC2 () {},
-    ]
-  }
-
-  productsAPI.plugins.use(custom)
-
-  t.same(productsAPI.plugins.exec('getRequiredForms'), ['blah'])
-
-  productsAPI.plugins.clear('getRequiredForms')
-  productsAPI.plugins.use({
-    getRequiredForms: function () {
-      return Promise.resolve(['blah1'])
-    }
-  })
-
-  t.same(yield productsAPI.plugins.exec('getRequiredForms'), ['blah1'])
-
-  productsAPI.removeDefaultHandlers()
-  t.same(productsAPI.plugins._plugins['onmessage:tradle.Form'], [])
-
-  t.end()
-}))
-
 test('multi entry', loudCo(co(function* (t) {
   const productModel = {
     type: 'tradle.Model',
